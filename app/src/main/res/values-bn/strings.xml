@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TeachBoard</string>
+    <string name="splash_tagline">অফলাইন ডিজিটাল হোয়াইটবোর্ড</string>
+    <string name="gallery_title">আমার হোয়াইটবোর্ড</string>
+    <string name="gallery_boards_count">%1$d বোর্ড</string>
+    <string name="gallery_search_hint">বোর্ড খুঁজুন…</string>
+    <string name="action_back">ফিরে যান</string>
+    <string name="action_close">বন্ধ করুন</string>
+    <string name="action_cancel">বাতিল</string>
+    <string name="action_save">সংরক্ষণ</string>
+    <string name="action_done">সম্পন্ন</string>
+    <string name="action_apply">প্রয়োগ করুন</string>
+    <string name="action_rename">নাম পরিবর্তন</string>
+    <string name="action_duplicate">অনুলিপি</string>
+    <string name="action_delete">মুছুন</string>
+    <string name="tool_save">সংরক্ষণ</string>
+    <string name="tool_share">শেয়ার</string>
+    <string name="tool_undo">পূর্বাবস্থা</string>
+    <string name="tool_redo">পুনরায়</string>
+    <string name="tool_clear">মুছুন</string>
+    <string name="tool_pen">কলম</string>
+    <string name="tool_shapes">আকৃতি</string>
+    <string name="tool_eraser">ইরেজার</string>
+    <string name="tool_board">বোর্ড</string>
+    <string name="tool_text">টেক্সট</string>
+    <string name="tool_layers">লেয়ার</string>
+    <string name="tool_image">ছবি</string>
+    <string name="tool_camera">ক্যামেরা</string>
+    <string name="tool_import_pdf">PDF ইমপোর্ট</string>
+    <string name="tool_lasso">নির্বাচন</string>
+    <string name="tool_hand">হাত</string>
+    <string name="tool_help">সাহায্য</string>
+    <string name="saved_toast">সংরক্ষিত</string>
+    <string name="brushes_title">ব্রাশ</string>
+    <string name="shapes_title">আকৃতি</string>
+    <string name="board_color_title">বোর্ডের রঙ</string>
+    <string name="pages_title">পৃষ্ঠা</string>
+    <string name="settings_title">সেটিংস</string>
+    <string name="settings_language">ভাষা</string>
+    <string name="language_system_default">সিস্টেম ডিফল্ট</string>
+    <string name="settings_theme">থিম</string>
+    <string name="settings_stylus_only">শুধু স্টাইলাস দিয়ে আঁকুন</string>
+    <string name="settings_autosave">অটো-সেভ</string>
+</resources>

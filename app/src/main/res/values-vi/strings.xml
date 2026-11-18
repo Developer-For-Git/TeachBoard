@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TeachBoard</string>
+    <string name="splash_tagline">Bảng trắng kỹ thuật số ngoại tuyến</string>
+    <string name="gallery_title">Bảng của tôi</string>
+    <string name="gallery_boards_count">%1$d bảng</string>
+    <string name="gallery_search_hint">Tìm kiếm bảng…</string>
+    <string name="action_back">Quay lại</string>
+    <string name="action_close">Đóng</string>
+    <string name="action_cancel">Hủy</string>
+    <string name="action_save">Lưu</string>
+    <string name="action_done">Xong</string>
+    <string name="action_apply">Áp dụng</string>
+    <string name="action_rename">Đổi tên</string>
+    <string name="action_duplicate">Nhân bản</string>
+    <string name="action_delete">Xóa</string>
+    <string name="tool_save">Lưu</string>
+    <string name="tool_share">Chia sẻ</string>
+    <string name="tool_undo">Hoàn tác</string>
+    <string name="tool_redo">Làm lại</string>
+    <string name="tool_clear">Xóa hết</string>
+    <string name="tool_pen">Bút</string>
+    <string name="tool_shapes">Hình dạng</string>
+    <string name="tool_eraser">Tẩy</string>
+    <string name="tool_board">Bảng</string>
+    <string name="tool_text">Văn bản</string>
+    <string name="tool_layers">Lớp</string>
+    <string name="tool_image">Ảnh</string>
+    <string name="tool_camera">Máy ảnh</string>
+    <string name="tool_import_pdf">Nhập PDF</string>
+    <string name="tool_lasso">Chọn</string>
+    <string name="tool_hand">Di chuyển</string>
+    <string name="tool_help">Trợ giúp</string>
+    <string name="saved_toast">Đã lưu</string>
+    <string name="brushes_title">Cọ vẽ</string>
+    <string name="shapes_title">Hình dạng</string>
+    <string name="board_color_title">Màu bảng</string>
+    <string name="pages_title">Trang</string>
+    <string name="settings_title">Cài đặt</string>
+    <string name="settings_language">Ngôn ngữ</string>
+    <string name="language_system_default">Mặc định hệ thống</string>
+    <string name="settings_theme">Giao diện</string>
+    <string name="settings_stylus_only">Chỉ vẽ bằng bút cảm ứng</string>
+    <string name="settings_autosave">Tự động lưu</string>
+</resources>

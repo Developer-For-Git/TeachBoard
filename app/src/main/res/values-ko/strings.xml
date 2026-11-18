@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TeachBoard</string>
+    <string name="splash_tagline">오프라인 디지털 화이트보드</string>
+    <string name="gallery_title">내 화이트보드</string>
+    <string name="gallery_boards_count">보드 %1$d개</string>
+    <string name="gallery_search_hint">보드 검색…</string>
+    <string name="action_back">뒤로</string>
+    <string name="action_close">닫기</string>
+    <string name="action_cancel">취소</string>
+    <string name="action_save">저장</string>
+    <string name="action_done">완료</string>
+    <string name="action_apply">적용</string>
+    <string name="action_rename">이름 변경</string>
+    <string name="action_duplicate">복제</string>
+    <string name="action_delete">삭제</string>
+    <string name="tool_save">저장</string>
+    <string name="tool_share">공유</string>
+    <string name="tool_undo">실행취소</string>
+    <string name="tool_redo">다시실행</string>
+    <string name="tool_clear">지우기</string>
+    <string name="tool_pen">펜</string>
+    <string name="tool_shapes">도형</string>
+    <string name="tool_eraser">지우개</string>
+    <string name="tool_board">보드</string>
+    <string name="tool_text">텍스트</string>
+    <string name="tool_layers">레이어</string>
+    <string name="tool_image">이미지</string>
+    <string name="tool_camera">카메라</string>
+    <string name="tool_import_pdf">PDF 가져오기</string>
+    <string name="tool_lasso">선택</string>
+    <string name="tool_hand">손</string>
+    <string name="tool_help">도움말</string>
+    <string name="saved_toast">저장됨</string>
+    <string name="brushes_title">브러시</string>
+    <string name="shapes_title">도형</string>
+    <string name="board_color_title">보드 색상</string>
+    <string name="pages_title">페이지</string>
+    <string name="settings_title">설정</string>
+    <string name="settings_language">언어</string>
+    <string name="language_system_default">시스템 기본값</string>
+    <string name="settings_theme">테마</string>
+    <string name="settings_stylus_only">스타일러스로만 그리기</string>
+    <string name="settings_autosave">자동 저장</string>
+</resources>

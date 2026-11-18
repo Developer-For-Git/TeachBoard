@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TeachBoard</string>
+    <string name="splash_tagline">Lavagna digitale offline</string>
+    <string name="gallery_title">Le mie lavagne</string>
+    <string name="gallery_boards_count">%1$d lavagne</string>
+    <string name="gallery_search_hint">Cerca lavagne…</string>
+    <string name="action_back">Indietro</string>
+    <string name="action_close">Chiudi</string>
+    <string name="action_cancel">Annulla</string>
+    <string name="action_save">Salva</string>
+    <string name="action_done">Fatto</string>
+    <string name="action_apply">Applica</string>
+    <string name="action_rename">Rinomina</string>
+    <string name="action_duplicate">Duplica</string>
+    <string name="action_delete">Elimina</string>
+    <string name="tool_save">Salva</string>
+    <string name="tool_share">Condividi</string>
+    <string name="tool_undo">Annulla</string>
+    <string name="tool_redo">Ripeti</string>
+    <string name="tool_clear">Pulisci</string>
+    <string name="tool_pen">Penna</string>
+    <string name="tool_shapes">Forme</string>
+    <string name="tool_eraser">Gomma</string>
+    <string name="tool_board">Lavagna</string>
+    <string name="tool_text">Testo</string>
+    <string name="tool_layers">Livelli</string>
+    <string name="tool_image">Immagine</string>
+    <string name="tool_camera">Fotocamera</string>
+    <string name="tool_import_pdf">Importa PDF</string>
+    <string name="tool_lasso">Lazo</string>
+    <string name="tool_hand">Mano</string>
+    <string name="tool_help">Aiuto</string>
+    <string name="saved_toast">Salvato</string>
+    <string name="brushes_title">Pennelli</string>
+    <string name="shapes_title">Forme</string>
+    <string name="board_color_title">Colore lavagna</string>
+    <string name="pages_title">Pagine</string>
+    <string name="settings_title">Impostazioni</string>
+    <string name="settings_language">Lingua</string>
+    <string name="language_system_default">Predefinito di sistema</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_stylus_only">Disegna solo con stilo</string>
+    <string name="settings_autosave">Salvataggio automatico</string>
+</resources>

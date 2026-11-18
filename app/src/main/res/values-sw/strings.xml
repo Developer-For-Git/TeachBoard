@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TeachBoard</string>
+    <string name="splash_tagline">Ubao wa kidijitali bila mtandao</string>
+    <string name="gallery_title">Mbao Zangu</string>
+    <string name="gallery_boards_count">Mbao %1$d</string>
+    <string name="gallery_search_hint">Tafuta mbao…</string>
+    <string name="action_back">Rudi</string>
+    <string name="action_close">Funga</string>
+    <string name="action_cancel">Ghairi</string>
+    <string name="action_save">Hifadhi</string>
+    <string name="action_done">Imekamilika</string>
+    <string name="action_apply">Tumia</string>
+    <string name="action_rename">Badili jina</string>
+    <string name="action_duplicate">Nakili</string>
+    <string name="action_delete">Futa</string>
+    <string name="tool_save">Hifadhi</string>
+    <string name="tool_share">Shiriki</string>
+    <string name="tool_undo">Tendua</string>
+    <string name="tool_redo">Rudia</string>
+    <string name="tool_clear">Futa yote</string>
+    <string name="tool_pen">Kalamu</string>
+    <string name="tool_shapes">Maumbo</string>
+    <string name="tool_eraser">Kifutio</string>
+    <string name="tool_board">Ubao</string>
+    <string name="tool_text">Maandishi</string>
+    <string name="tool_layers">Tabaka</string>
+    <string name="tool_image">Picha</string>
+    <string name="tool_camera">Kamera</string>
+    <string name="tool_import_pdf">Ingiza PDF</string>
+    <string name="tool_lasso">Chagua</string>
+    <string name="tool_hand">Mkono</string>
+    <string name="tool_help">Msaada</string>
+    <string name="saved_toast">Imehifadhiwa</string>
+    <string name="brushes_title">Brashi</string>
+    <string name="shapes_title">Maumbo</string>
+    <string name="board_color_title">Rangi ya Ubao</string>
+    <string name="pages_title">Kurasa</string>
+    <string name="settings_title">Mipangilio</string>
+    <string name="settings_language">Lugha</string>
+    <string name="language_system_default">Chaguo-msingi la mfumo</string>
+    <string name="settings_theme">Mandhari</string>
+    <string name="settings_stylus_only">Chora kwa kalamu pekee</string>
+    <string name="settings_autosave">Hifadhi kiotomatiki</string>
+</resources>

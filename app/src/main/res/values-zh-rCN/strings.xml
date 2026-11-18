@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TeachBoard</string>
+    <string name="splash_tagline">离线数字白板</string>
+    <string name="gallery_title">我的白板</string>
+    <string name="gallery_boards_count">%1$d 个白板</string>
+    <string name="gallery_search_hint">搜索白板…</string>
+    <string name="action_back">返回</string>
+    <string name="action_close">关闭</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_save">保存</string>
+    <string name="action_done">完成</string>
+    <string name="action_apply">应用</string>
+    <string name="action_rename">重命名</string>
+    <string name="action_duplicate">复制</string>
+    <string name="action_delete">删除</string>
+    <string name="tool_save">保存</string>
+    <string name="tool_share">分享</string>
+    <string name="tool_undo">撤销</string>
+    <string name="tool_redo">重做</string>
+    <string name="tool_clear">清空</string>
+    <string name="tool_pen">画笔</string>
+    <string name="tool_shapes">图形</string>
+    <string name="tool_eraser">橡皮</string>
+    <string name="tool_board">画板</string>
+    <string name="tool_text">文字</string>
+    <string name="tool_layers">图层</string>
+    <string name="tool_image">图片</string>
+    <string name="tool_camera">相机</string>
+    <string name="tool_import_pdf">导入 PDF</string>
+    <string name="tool_lasso">套索</string>
+    <string name="tool_hand">抓手</string>
+    <string name="tool_help">帮助</string>
+    <string name="saved_toast">已保存</string>
+    <string name="brushes_title">画笔设置</string>
+    <string name="shapes_title">图形</string>
+    <string name="board_color_title">画板颜色</string>
+    <string name="pages_title">页面</string>
+    <string name="settings_title">设置</string>
+    <string name="settings_language">语言</string>
+    <string name="language_system_default">跟随系统</string>
+    <string name="settings_theme">主题</string>
+    <string name="settings_stylus_only">仅触控笔绘制（防误触）</string>
+    <string name="settings_autosave">自动保存</string>
+</resources>

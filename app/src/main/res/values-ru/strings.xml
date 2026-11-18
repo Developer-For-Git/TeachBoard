@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TeachBoard</string>
+    <string name="splash_tagline">Офлайн-доска для рисования</string>
+    <string name="gallery_title">Мои доски</string>
+    <string name="gallery_boards_count">%1$d досок</string>
+    <string name="gallery_search_hint">Поиск досок…</string>
+    <string name="action_back">Назад</string>
+    <string name="action_close">Закрыть</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="action_save">Сохранить</string>
+    <string name="action_done">Готово</string>
+    <string name="action_apply">Применить</string>
+    <string name="action_rename">Переименовать</string>
+    <string name="action_duplicate">Дублировать</string>
+    <string name="action_delete">Удалить</string>
+    <string name="tool_save">Сохранить</string>
+    <string name="tool_share">Поделиться</string>
+    <string name="tool_undo">Отменить</string>
+    <string name="tool_redo">Повторить</string>
+    <string name="tool_clear">Очистить</string>
+    <string name="tool_pen">Перо</string>
+    <string name="tool_shapes">Фигуры</string>
+    <string name="tool_eraser">Ластик</string>
+    <string name="tool_board">Доска</string>
+    <string name="tool_text">Текст</string>
+    <string name="tool_layers">Слои</string>
+    <string name="tool_image">Фото</string>
+    <string name="tool_camera">Камера</string>
+    <string name="tool_import_pdf">Импорт PDF</string>
+    <string name="tool_lasso">Лассо</string>
+    <string name="tool_hand">Рука</string>
+    <string name="tool_help">Помощь</string>
+    <string name="saved_toast">Сохранено</string>
+    <string name="brushes_title">Кисти</string>
+    <string name="shapes_title">Фигуры</string>
+    <string name="board_color_title">Цвет доски</string>
+    <string name="pages_title">Страницы</string>
+    <string name="settings_title">Настройки</string>
+    <string name="settings_language">Язык</string>
+    <string name="language_system_default">Системный</string>
+    <string name="settings_theme">Тема</string>
+    <string name="settings_stylus_only">Рисовать только стилусом</string>
+    <string name="settings_autosave">Автосохранение</string>
+</resources>

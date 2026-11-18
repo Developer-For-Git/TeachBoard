@@ -1,0 +1,81 @@
+[versions]
+androidGradlePlugin = "9.0.1"
+kotlin = "2.3.20"
+ksp = "2.3.6"
+androidxCore = "1.18.0"
+androidxAppcompat = "1.7.1"
+androidxLifecycle = "2.10.0"
+androidxActivity = "1.13.0"
+androidxComposeBom = "2026.03.01"
+androidxNavigationCompose = "2.9.6"
+room = "2.8.5"
+datastore = "1.2.1"
+coil = "2.7.0"
+coroutines = "1.10.2"
+exifinterface = "1.4.1"
+mlkitDigitalInk = "19.0.0"
+mlkitTextLatin = "19.0.1"
+mlkitTextUnbundled = "16.0.2"
+camerax = "1.6.2"
+media3 = "1.11.1"
+imageCropper = "4.7.0"
+junit = "4.13.2"
+
+[libraries]
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidxAppcompat" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "androidxComposeBom" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidxLifecycle" }
+androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
+androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "androidxLifecycle" }
+androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "androidxNavigationCompose" }
+androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "exifinterface" }
+
+# Room
+androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
+androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
+androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+
+# DataStore
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+
+# Images & CanHub Cropper
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+canhub-image-cropper = { module = "com.vanniktech:android-image-cropper", version.ref = "imageCropper" }
+
+# Media3 ExoPlayer (floating video player)
+androidx-media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }
+androidx-media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3" }
+
+# ML Kit (on-device, free, offline-capable)
+mlkit-digital-ink = { module = "com.google.mlkit:digital-ink-recognition", version.ref = "mlkitDigitalInk" }
+mlkit-text-latin = { module = "com.google.android.gms:play-services-mlkit-text-recognition", version.ref = "mlkitTextLatin" }
+mlkit-text-chinese = { module = "com.google.android.gms:play-services-mlkit-text-recognition-chinese", version.ref = "mlkitTextUnbundled" }
+mlkit-text-devanagari = { module = "com.google.android.gms:play-services-mlkit-text-recognition-devanagari", version.ref = "mlkitTextUnbundled" }
+mlkit-text-japanese = { module = "com.google.android.gms:play-services-mlkit-text-recognition-japanese", version.ref = "mlkitTextUnbundled" }
+mlkit-text-korean = { module = "com.google.android.gms:play-services-mlkit-text-recognition-korean", version.ref = "mlkitTextUnbundled" }
+
+# CameraX (Face Cam bubble during Screen Recording)
+androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
+androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
+androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
+
+# Coroutines
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+
+# Testing
+junit = { module = "junit:junit", version.ref = "junit" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

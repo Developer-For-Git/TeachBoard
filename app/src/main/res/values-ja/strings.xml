@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TeachBoard</string>
+    <string name="splash_tagline">オフラインデジタルホワイトボード</string>
+    <string name="gallery_title">マイボード</string>
+    <string name="gallery_boards_count">%1$d 件のボード</string>
+    <string name="gallery_search_hint">ボードを検索…</string>
+    <string name="action_back">戻る</string>
+    <string name="action_close">閉じる</string>
+    <string name="action_cancel">キャンセル</string>
+    <string name="action_save">保存</string>
+    <string name="action_done">完了</string>
+    <string name="action_apply">適用</string>
+    <string name="action_rename">名前を変更</string>
+    <string name="action_duplicate">複製</string>
+    <string name="action_delete">削除</string>
+    <string name="tool_save">保存</string>
+    <string name="tool_share">共有</string>
+    <string name="tool_undo">元に戻す</string>
+    <string name="tool_redo">やり直す</string>
+    <string name="tool_clear">クリア</string>
+    <string name="tool_pen">ペン</string>
+    <string name="tool_shapes">図形</string>
+    <string name="tool_eraser">消しゴム</string>
+    <string name="tool_board">ボード</string>
+    <string name="tool_text">テキスト</string>
+    <string name="tool_layers">レイヤー</string>
+    <string name="tool_image">画像</string>
+    <string name="tool_camera">カメラ</string>
+    <string name="tool_import_pdf">PDF読込</string>
+    <string name="tool_lasso">選択</string>
+    <string name="tool_hand">移動</string>
+    <string name="tool_help">ヘルプ</string>
+    <string name="saved_toast">保存済み</string>
+    <string name="brushes_title">ブラシ</string>
+    <string name="shapes_title">図形</string>
+    <string name="board_color_title">ボードの色</string>
+    <string name="pages_title">ページ</string>
+    <string name="settings_title">設定</string>
+    <string name="settings_language">言語</string>
+    <string name="language_system_default">システム設定</string>
+    <string name="settings_theme">テーマ</string>
+    <string name="settings_stylus_only">スタイラスのみで描画</string>
+    <string name="settings_autosave">自動保存</string>
+</resources>

@@ -1,0 +1,455 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- [PLACEHOLDER] App branding -->
+    <string name="app_name">TeachBoard</string>
+    <string name="splash_tagline">Offline Digital Whiteboard</string>
+
+    <!-- Gallery -->
+    <string name="gallery_title">My Whiteboards</string>
+    <string name="gallery_boards_count">%1$d boards</string>
+    <string name="gallery_search_hint">Search boards…</string>
+    <string name="gallery_sort">Sort</string>
+    <string name="gallery_new_board">New whiteboard</string>
+    <string name="gallery_empty_title">No whiteboards yet</string>
+    <string name="gallery_empty_subtitle">Tap + to create your first board</string>
+    <string name="default_board_prefix">Whiteboard</string>
+    <string name="board_modified_label">Modified: %1$s</string>
+    <string name="board_copy_suffix">Copy</string>
+    <string name="pages_count_badge">%1$d pages</string>
+    <string name="sort_newest">Newest</string>
+    <string name="sort_oldest">Oldest</string>
+    <string name="sort_name_az">Name A–Z</string>
+    <string name="delete_board_title">Delete board?</string>
+    <string name="delete_board_message">\"%1$s\" will be permanently deleted.</string>
+
+    <!-- Common Actions -->
+    <string name="action_back">Back</string>
+    <string name="action_close">Close</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_save">Save</string>
+    <string name="action_done">Done</string>
+    <string name="action_apply">Apply</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_duplicate">Duplicate</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_more">More</string>
+    <string name="action_clear">Clear</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_paste">Paste</string>
+    <string name="action_flip">Flip</string>
+    <string name="action_move_up">Move up</string>
+    <string name="action_move_down">Move down</string>
+
+    <!-- Toolbar Labels (Section 5 exact order) -->
+    <string name="tool_save">Save</string>
+    <string name="tool_share">Share</string>
+    <string name="tool_undo">Undo</string>
+    <string name="tool_redo">Redo</string>
+    <string name="tool_clear">Clear</string>
+    <string name="tool_pen">Pen</string>
+    <string name="tool_smart">Smart</string>
+    <string name="tool_shapes">Shapes</string>
+    <string name="tool_eraser">Eraser</string>
+    <string name="tool_board">Board</string>
+    <string name="tool_text">Text</string>
+    <string name="tool_formula">Formula</string>
+    <string name="tool_table">Table</string>
+    <string name="tool_layers">Layers</string>
+    <string name="tool_image">Image</string>
+    <string name="tool_video">Video</string>
+    <string name="tool_web_image">Web Image</string>
+    <string name="tool_camera">Camera</string>
+    <string name="tool_ocr">OCR</string>
+    <string name="tool_import_pdf">Import PDF</string>
+    <string name="tool_stickers">Stickers</string>
+    <string name="tool_science">Science</string>
+    <string name="tool_laser">Laser</string>
+    <string name="tool_geometry">Geometry</string>
+    <string name="tool_calculator">Calculator</string>
+    <string name="tool_timer">Timer</string>
+    <string name="tool_record">Record</string>
+    <string name="tool_lasso">Lasso</string>
+    <string name="tool_hand">Hand</string>
+    <string name="tool_customize">Customize</string>
+    <string name="tool_help">Help</string>
+
+    <!-- Board Screen Controls -->
+    <string name="mode_draw">Draw mode</string>
+    <string name="mode_view">View mode</string>
+    <string name="toolbar_collapse">Hide toolbar</string>
+    <string name="toolbar_expand">Show toolbar</string>
+    <string name="saved_toast">Saved</string>
+    <string name="saved_to_gallery">Saved PNG to gallery</string>
+    <string name="save_error">Could not save image</string>
+    <string name="clear_confirm_title">Clear page?</string>
+    <string name="clear_confirm_message">Clear all objects on this page? You can undo this.</string>
+    <string name="share_export_title">Share &amp; Export</string>
+    <string name="share_current_image">Share current page as Image</string>
+    <string name="share_all_pdf">Share all pages as PDF</string>
+    <string name="export_pdf">Export as PDF</string>
+    <string name="pdf_imported">PDF imported</string>
+    <string name="pdf_import_error">Failed to import PDF</string>
+    <string name="pdf_exported">PDF exported successfully</string>
+    <string name="pdf_export_error">Failed to export PDF</string>
+    <string name="pdf_prev_page">Previous page</string>
+    <string name="pdf_next_page">Next page</string>
+    <string name="pdf_bookmark">Bookmark page</string>
+    <string name="pdf_toggle_annotations">Toggle annotations</string>
+    <string name="camera_permission_needed">Camera permission is needed to take a photo</string>
+    <string name="phase2_coming_soon">This tool unlocks in Phase 2</string>
+    <string name="action_insert">Insert</string>
+
+    <!-- Phase 2: Smart Handwriting -->
+    <string name="smart_handwriting_title">Smart Handwriting</string>
+    <string name="smart_handwriting_hint">Write naturally on the board and pause ~1s to convert handwriting into typed text. Language models download once and work offline.</string>
+    <string name="smart_handwriting_failed">Could not convert handwriting. Check internet if downloading a new language model.</string>
+
+    <!-- Phase 2: OCR Text Scanner -->
+    <string name="ocr_title">OCR Text Scanner</string>
+    <string name="ocr_take_photo">Take Photo</string>
+    <string name="ocr_choose_gallery">Choose from Gallery</string>
+    <string name="ocr_scan_history">Scan History</string>
+    <string name="ocr_offline_note">Works offline on-device · Unlimited scans</string>
+    <string name="ocr_history_subtitle">View and reuse previous scans</string>
+    <string name="ocr_tip_steady">Tip: Hold steady with good light for best results</string>
+    <string name="ocr_crop_horizontal">Horizontal crop</string>
+    <string name="ocr_crop_vertical">Vertical crop</string>
+    <string name="ocr_script_language">Script / Language</string>
+    <string name="ocr_script_not_supported_yet">Not supported yet for on-device OCR in v1.</string>
+    <string name="ocr_scan_now">Scan Text</string>
+    <string name="ocr_no_text_hint">Recognized text will appear here…</string>
+    <string name="ocr_rescan">Rescan</string>
+    <string name="ocr_insert_board">Insert on board</string>
+    <string name="ocr_history_empty">No scans saved yet</string>
+
+    <!-- Phase 2: Formula & Table -->
+    <string name="formula_latex_hint">LaTeX formula (e.g. \\frac{a}{b})</string>
+    <string name="table_rows">Rows</string>
+    <string name="table_cols">Cols</string>
+    <string name="table_cell_label">Cell R%1$d · C%2$d</string>
+    <string name="table_border_color">Border color</string>
+    <string name="table_fill_color">Cell fill</string>
+
+    <!-- Phase 2: Geometry Box -->
+    <string name="geo_ruler">Ruler (cm / inch)</string>
+    <string name="geo_protractor">Protractor (0°–180°)</string>
+    <string name="geo_compass">Compass (Circle / Arc)</string>
+    <string name="geo_setsquare_30_60">Set Square (30°–60°–90°)</string>
+    <string name="geo_setsquare_45_45">Set Square (45°–45°–90°)</string>
+    <string name="geo_active">Active</string>
+    <string name="geo_draw_edge">Draw along tool</string>
+    <string name="geo_rotate">Rotate</string>
+
+    <!-- Phase 2: Calculator -->
+    <string name="calc_std">STD</string>
+    <string name="calc_sci">SCI</string>
+    <string name="calc_put_on_board">Put on board</string>
+
+    <!-- Phase 2: Web Image Search -->
+    <string name="web_search_hint">Search Wikimedia Commons…</string>
+    <string name="web_results_count">%1$d results</string>
+    <string name="web_tap_plus_hint">Tap + to add</string>
+    <string name="web_no_internet">No internet connection</string>
+    <string name="web_no_results">No images found</string>
+    <string name="web_load_more">Load more</string>
+
+    <!-- Phase 2: Screen Recorder -->
+    <string name="recorder_title">Screen Recorder</string>
+    <string name="recorder_voice">Record my voice</string>
+    <string name="recorder_facecam">Face cam</string>
+    <string name="recorder_facecam_round">Round</string>
+    <string name="recorder_facecam_square">Square</string>
+    <string name="recorder_quality">Video quality</string>
+    <string name="recorder_start">Start recording</string>
+    <string name="recorder_stop">Stop</string>
+    <string name="recorder_no_limit">No time limit.</string>
+    <string name="recorder_notification_text">Recording whiteboard screen…</string>
+    <string name="recorder_saved">Recording saved to Movies/TeachBoard</string>
+    <string name="recorder_mic_permission_needed">Microphone permission is needed to record voice</string>
+
+    <!-- Phase 2: Customize Shortcuts -->
+    <string name="shortcuts_title">Add Shortcuts</string>
+    <string name="shortcuts_subtitle">Select tools for quick access (max %1$d)</string>
+
+    <!-- Free Live Camera OCR & Tesseract All-Language Offline OCR -->
+    <string name="ocr_live_scan">Live Camera Scan</string>
+    <string name="ocr_live_scan_desc">Scan text in real time through the camera (free &amp; offline)</string>
+    <string name="ocr_live_pointing_hint">Point camera at printed text or neat handwriting…</string>
+    <string name="ocr_live_capture">Capture Live Text</string>
+    <string name="ocr_tesseract_note">Free open-source Tesseract offline model for %1$s downloads once (~2–4 MB).</string>
+
+    <!-- Free Local Wi-Fi / Hotspot Live Class (Zero Server Cost) -->
+    <string name="tool_live_class">Live</string>
+    <string name="live_class_title">Live Class (Free Wi-Fi)</string>
+    <string name="live_class_free_desc">Broadcast your whiteboard directly over local Wi-Fi or your mobile hotspot — 100% free, zero server cost. Students join with a 6-digit code in TeachBoard or any web browser.</string>
+    <string name="live_class_start">Start Live Class</string>
+    <string name="live_class_share_code_info">Students on the same Wi-Fi/Hotspot can enter class code %1$s in TeachBoard, or open %2$s in any browser.</string>
+    <string name="live_raised_hands">Raised hands</string>
+    <string name="live_clear_hands">Clear hands</string>
+    <string name="live_join_title">Join Live Class</string>
+    <string name="live_join_subtitle">Connect to your teacher\'s whiteboard on the same Wi-Fi or mobile hotspot (100% free).</string>
+    <string name="live_class_code_label">6-digit Class Code</string>
+    <string name="live_student_name_label">Your Name</string>
+    <string name="live_optional_ip_label">Teacher IP (optional — auto-detected on Wi-Fi)</string>
+    <string name="live_join_button">Join Live Board</string>
+    <string name="live_raise_hand">Raise hand</string>
+
+    <!-- Brushes Dialog -->
+    <string name="brushes_title">Brushes</string>
+    <string name="brush_pen">Pen</string>
+    <string name="brush_brush">Brush</string>
+    <string name="brush_marker">Marker</string>
+    <string name="brush_highlight">Highlight</string>
+    <string name="brush_calligraphy">Calligraphy</string>
+    <string name="label_color">Color</string>
+    <string name="label_size">Size</string>
+    <string name="custom_color">Custom color</string>
+
+    <!-- Eraser -->
+    <string name="eraser_stroke">Stroke eraser</string>
+    <string name="eraser_area">Area eraser</string>
+
+    <!-- Shapes Dialog -->
+    <string name="shapes_title">Shapes</string>
+    <string name="shapes_fill_toggle">Fill Shape</string>
+    <string name="shapes_section_2d">2D Shapes</string>
+    <string name="shapes_section_3d">3D Shapes</string>
+    <string name="shapes_section_math">Math &amp; Science</string>
+    <string name="shapes_section_diagram">Diagram Tools</string>
+
+    <!-- Board Color Dialog -->
+    <string name="board_color_title">Board Color</string>
+    <string name="board_classic_section">Classic Boards</string>
+    <string name="board_light_tints_section">Light Tints</string>
+    <string name="board_texture_section">Texture</string>
+    <string name="board_apply_all_pages">Apply to all pages</string>
+    <string name="color_white">White</string>
+    <string name="color_cream">Cream</string>
+    <string name="color_chalkboard">Chalkboard</string>
+    <string name="color_black">Black</string>
+    <string name="color_slate">Slate</string>
+    <string name="color_navy">Navy</string>
+    <string name="color_pastel_yellow">Soft Yellow</string>
+    <string name="color_pastel_pink">Soft Pink</string>
+    <string name="color_pastel_blue">Soft Blue</string>
+    <string name="color_pastel_green">Soft Green</string>
+    <string name="color_pastel_orange">Soft Orange</string>
+    <string name="color_pastel_purple">Soft Purple</string>
+    <string name="texture_plain">Plain</string>
+    <string name="texture_grid">Grid</string>
+    <string name="texture_lines">Lines</string>
+    <string name="texture_dots">Dots</string>
+    <string name="texture_chalk">Chalk</string>
+    <string name="texture_isometric">Isometric</string>
+    <string name="texture_graph">Graph</string>
+    <string name="texture_music">Music</string>
+    <string name="texture_diamond">Diamond</string>
+    <string name="texture_notebook">Notebook</string>
+    <string name="texture_whiteboard">Whiteboard</string>
+
+    <!-- Layers & Pages -->
+    <string name="layer_add">Add layer</string>
+    <string name="layer_objects_count">%1$d items</string>
+    <string name="layer_toggle_visibility">Toggle visibility</string>
+    <string name="layer_toggle_lock">Toggle lock</string>
+    <string name="layer_background">Background</string>
+    <string name="layer_bg_pdf">PDF page %1$d</string>
+    <string name="layer_bg_image">Image background</string>
+    <string name="pages_title">Pages</string>
+    <string name="page_add">Add page</string>
+    <string name="page_number_label">Page %1$d</string>
+
+    <!-- Text Dialog -->
+    <string name="text_placeholder">Type text here…</string>
+    <string name="text_bold">Bold</string>
+    <string name="text_italic">Italic</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_language">Language</string>
+    <string name="language_system_default">System default</string>
+    <string name="settings_theme">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="settings_default_brush">Default brush</string>
+    <string name="settings_default_board">Default board color</string>
+    <string name="settings_stylus_only">Only pen draws (Palm rejection)</string>
+    <string name="settings_stylus_only_desc">Ignore finger drawing; fingers pan and zoom</string>
+    <string name="settings_autosave">Auto-save</string>
+    <string name="settings_autosave_desc">Automatically save changes every 5 seconds</string>
+    <string name="settings_privacy_policy">Privacy Policy</string>
+    <string name="settings_rate_app">Rate app</string>
+    <string name="settings_rate_app_desc">Leave feedback on Google Play</string>
+    <string name="settings_share_app">Share app</string>
+    <string name="settings_share_app_desc">Tell friends and colleagues</string>
+    <string name="settings_share_app_text">Check out %1$s – free offline whiteboard: %2$s</string>
+    <string name="settings_about">About</string>
+
+    <!-- Help -->
+    <string name="help_drawing_title">Drawing &amp; Brushes</string>
+    <string name="help_drawing_desc">Tap Pen again or long-press to switch between Pen, Brush, Marker, Highlight, and Calligraphy, and pick colors or sizes.</string>
+    <string name="help_zoom_title">Infinite Canvas &amp; Zoom</string>
+    <string name="help_zoom_desc" formatted="false">Pinch with two fingers to zoom (25%–500%) and drag with two fingers to pan in any tool, or select Hand mode for one-finger panning.</string>
+    <string name="help_shapes_title">Shapes &amp; Selection</string>
+    <string name="help_shapes_desc">Choose from 45 shapes. After drawing, drag handles to move, resize, or rotate. Use Lasso to select and copy, flip, recolor, or delete objects.</string>
+    <string name="help_layers_title">Layers &amp; Multi-Page</string>
+    <string name="help_layers_desc">Tap the page chip (1/1) to manage pages, and tap Layers to add, hide, lock, or reorder up to 10 layers independently of the background.</string>
+    <string name="help_pdf_title">Import &amp; Export PDF</string>
+    <string name="help_pdf_desc">Import any PDF to annotate page-by-page without heavy memory use, highlight text clearly, and export your entire board as a PDF.</string>
+    <string name="help_stylus_title">Stylus &amp; S-Pen</string>
+    <string name="help_stylus_desc">Stylus pressure automatically adjusts stroke width. Enable \"Only pen draws\" in Settings for palm rejection, and use the stylus button to erase.</string>
+    <string name="help_ai_title">Smart Handwriting &amp; On-Device OCR</string>
+    <string name="help_ai_desc">Write in Smart mode and pause 1 second to convert handwriting into typed text. Use OCR to scan photos offline with full scan history — completely free with no limits.</string>
+    <string name="help_classroom_title">Formula, Table, Geometry &amp; Recorder</string>
+    <string name="help_classroom_desc">Insert LaTeX formulas, editable tables, vector science diagrams, ruler/protractor/compass overlays, calculator, timer, floating video, and unlimited screen recording with optional Face Cam.</string>
+    <string name="help_contact">Contact support</string>
+
+    <!-- TeachBoard Remake Strings (Smart Shapes, Backup/Restore, Tour, Hints, Panels) -->
+    <string name="close">Close</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="done">Done</string>
+    <string name="apply">Apply</string>
+    <string name="clear">Clear</string>
+    <string name="delete">Delete</string>
+    <string name="rename">Rename</string>
+    <string name="duplicate">Duplicate</string>
+    <string name="insert">Insert</string>
+    <string name="skip">Skip</string>
+    <string name="next">Next</string>
+    <string name="home">Home</string>
+    <string name="page">Page</string>
+    <string name="rows">Rows</string>
+    <string name="columns">Cols</string>
+    <string name="round">Round</string>
+    <string name="square">Square</string>
+    <string name="my_whiteboards">My Whiteboards</string>
+    <string name="new_whiteboard">New whiteboard</string>
+    <string name="search_boards_hint">Search boards…</string>
+    <string name="sort_name">Name A–Z</string>
+    <string name="empty_boards_title">No whiteboards yet</string>
+    <string name="empty_boards_desc">Tap + to create your first board</string>
+    <string name="rename_board">Rename board</string>
+    <string name="delete_board_confirm">Delete \"%1$s\" permanently?</string>
+    <string name="classic_boards">Classic Boards</string>
+    <string name="light_tints">Light Tints</string>
+    <string name="textures">Textures</string>
+    <string name="hide_custom_color">Hide custom color</string>
+    <string name="brush_highlighter">Highlighter</string>
+    <string name="color_label">Color</string>
+    <string name="size_label">Size</string>
+    <string name="opacity_label">Opacity</string>
+    <string name="smart_shapes_title">Smart Shapes</string>
+    <string name="smart_shapes_desc">Auto-detect lines, circles, triangles &amp; polygons when drawing with Pen</string>
+    <string name="keep_as_drawn">Keep as drawn</string>
+    <string name="fill_shape">Fill Shape</string>
+    <string name="shapes_2d">2D Shapes</string>
+    <string name="shapes_3d">3D Shapes</string>
+    <string name="shapes_math">Math &amp; Science</string>
+    <string name="shapes_diagram">Diagram</string>
+    <string name="eraser_pixel">Ink Eraser</string>
+    <string name="smart_writing_title">Smart Writing</string>
+    <string name="smart_writing_hint">Write naturally and pause 1.5s to convert handwriting into typed text on-device.</string>
+    <string name="downloading_model">Downloading language model…</string>
+    <string name="convert_now">Convert Now</string>
+    <string name="recognizing">Recognizing…</string>
+    <string name="insert_on_board">Insert on board</string>
+    <string name="add_layer">Add Layer</string>
+    <string name="new_page">New Page</string>
+    <string name="ocr_scan">Scan</string>
+    <string name="ocr_history">History</string>
+    <string name="ocr_script_not_supported">Not supported yet for on-device OCR.</string>
+    <string name="take_photo">Take Photo</string>
+    <string name="choose_gallery">Gallery</string>
+    <string name="ocr_result_hint">Recognized text will appear here…</string>
+    <string name="no_ocr_history">No scans saved yet</string>
+    <string name="web_image_title">Web Image Search</string>
+    <string name="search_wikimedia_hint">Search Wikimedia Commons…</string>
+    <string name="results_tap_add">results · Tap + to add</string>
+    <string name="offline_error">You are offline. Connect to internet to search images.</string>
+    <string name="no_results">No images found</string>
+    <string name="load_more">Load more</string>
+    <string name="stickers_title">Stickers</string>
+    <string name="science_stickers_title">Science Stickers</string>
+    <string name="search_stickers_hint">Search atoms, elements, diagrams…</string>
+    <string name="geo_set_30_60">Set Square (30°–60°–90°)</string>
+    <string name="geo_set_45_45">Set Square (45°–45°–90°)</string>
+    <string name="hide_geometry_tool">Hide Geometry Tool</string>
+    <string name="put_on_board">Put on board</string>
+    <string name="record_screen_title">Screen Recorder</string>
+    <string name="video_quality">Video Quality</string>
+    <string name="record_mic_audio">Record microphone audio</string>
+    <string name="show_face_cam">Show Face Cam bubble</string>
+    <string name="start_recording">Start Recording</string>
+    <string name="export_share_title">Export &amp; Share</string>
+    <string name="save_png">Save PNG</string>
+    <string name="share_png">Share PNG</string>
+    <string name="export_pdf_title">Export PDF</string>
+    <string name="this_page">This page</string>
+    <string name="all_pages">All pages</string>
+    <string name="page_range">Page range</string>
+    <string name="page_range_hint">e.g. 1-3, 5</string>
+    <string name="save_pdf">Save PDF</string>
+    <string name="share_pdf">Share PDF</string>
+    <string name="customize_shortcuts">Customize Shortcuts</string>
+    <string name="clear_page_title">Clear page?</string>
+    <string name="clear_page_confirm">Clear all strokes and objects on this page? You can undo this.</string>
+    <string name="tool_pdf">PDF</string>
+    <string name="hint_pinch_zoom" formatted="false">Tip: Pinch with two fingers to zoom (30%–600%) or pan anytime</string>
+    <string name="welcome_tour">Welcome to TeachBoard</string>
+    <string name="get_started">Get Started</string>
+    <string name="tour_step1_title">Smooth Freehand &amp; Smart Shapes</string>
+    <string name="tour_step1_desc">Draw with 5 brushes, enable Smart Shapes to snap rough sketches into clean geometry, and erase ink without harming backgrounds.</string>
+    <string name="tour_step2_title">Smart Writing &amp; On-Device OCR</string>
+    <string name="tour_step2_desc">Convert handwriting in 18 languages after a short pause, or scan and crop printed text completely offline.</string>
+    <string name="tour_step3_title">Math, Science &amp; PDF Annotation</string>
+    <string name="tour_step3_desc">Insert LaTeX formulas, 10×10 tables, 150+ science diagrams &amp; Bohr atoms, geometry tools, and annotate multi-page PDFs.</string>
+    <string name="tour_step4_title">100% Free, Offline &amp; Private</string>
+    <string name="tour_step4_desc">Record unlimited lessons with Face Cam, export PNG/PDF, and back up all boards to a Zip file anytime.</string>
+    <string name="settings_appearance">Appearance &amp; Language</string>
+    <string name="language_title">App Language</string>
+    <string name="settings_drawing">Input &amp; Drawing</string>
+    <string name="palm_rejection_title">Palm Rejection</string>
+    <string name="palm_rejection_desc">Ignore wide palm touches while writing</string>
+    <string name="stylus_only_title">Stylus-Only Mode</string>
+    <string name="stylus_only_desc">Only stylus draws; fingers pan and zoom</string>
+    <string name="auto_save_title">Auto-Save Boards</string>
+    <string name="auto_save_desc">Automatically save board changes and thumbnails</string>
+    <string name="default_board_color">Default Board Color &amp; Texture</string>
+    <string name="backup_restore_title">Backup &amp; Restore</string>
+    <string name="backup_restore_desc">Export all whiteboards, images, and PDFs to a single .zip file or restore from a previous backup.</string>
+    <string name="backup_zip">Backup to Zip</string>
+    <string name="restore_zip">Restore Zip</string>
+    <string name="about_section">Help &amp; About</string>
+    <string name="reset_tour_hints">Replay Onboarding Tour &amp; Hints</string>
+    <string name="share_app">Share App</string>
+    <string name="help_title">Help &amp; Guide</string>
+    <string name="help_brushes_title">5 Brushes &amp; Ink Eraser</string>
+    <string name="help_brushes_desc">Tap Pen again to open Brush Options (Pen, Brush, Marker, Highlighter, Calligraphy). Ink Eraser erases only ink and never the board background or PDF.</string>
+    <string name="help_smart_shapes_title">Smart Shapes (15 Classes)</string>
+    <string name="help_smart_shapes_desc">Enable Smart Shapes inside the Brush panel to automatically offer clean Lines, Circles, Ovals, Triangles, Squares, Rectangles, Rhombuses, Pentagons, and Hexagons.</string>
+    <string name="help_smart_writing_title">Smart Writing (18 Languages)</string>
+    <string name="help_smart_writing_desc">Select Smart mode, pick your language, write naturally, and pause 1.5 seconds to turn handwriting into crisp text.</string>
+    <string name="help_ocr_title">On-Device OCR Scanner</string>
+    <string name="help_ocr_desc">Capture a photo or choose from gallery, crop to the text area, and extract text offline across Latin, Devanagari, Chinese, Japanese, and Korean scripts.</string>
+    <string name="help_recording_title">Unlimited Screen Recorder &amp; Face Cam</string>
+    <string name="help_recording_desc">Record 480p, 720p, or 1080p MP4 lessons with microphone audio and an optional draggable Face Cam bubble—no watermarks and no time limit.</string>
+    <string name="help_backup_title">Zip Backup &amp; Restore</string>
+    <string name="help_backup_desc">Open Settings to export all your boards, images, PDFs, and thumbnails into a portable .zip archive and restore them anytime.</string>
+    <string name="new_board_cta">New Board</string>
+    <string name="history_cta">History</string>
+    <string name="rate_cta">Rate</string>
+    <string name="deep_tones">Deep Tones</string>
+    <string name="smart_writing_short">Writing</string>
+    <string name="eraser_size_title">Eraser Size</string>
+    <string name="add_text_title">Add Text</string>
+    <string name="add_action">Add</string>
+    <string name="math_formula_title">Math Formula</string>
+    <string name="preview_placeholder">Preview will appear here</string>
+    <string name="image_search_title">Image Search</string>
+    <string name="laser_pointer_title">Laser Pointer</string>
+    <string name="geometry_box_title">Geometry Box</string>
+    <string name="collapse">Collapse</string>
+</resources>

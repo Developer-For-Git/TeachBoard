@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <cache-path name="pdf_exports" path="pdf_exports/" />
+    <cache-path name="exports" path="exports/" />
+    <cache-path name="camera_captures" path="camera/" />
+    <cache-path name="backups" path="backups/" />
+    <files-path name="images" path="images/" />
+    <files-path name="ocr" path="ocr/" />
+    <files-path name="thumbnails" path="thumbnails/" />
+    <files-path name="pdf_cache" path="pdf/" />
+</paths>

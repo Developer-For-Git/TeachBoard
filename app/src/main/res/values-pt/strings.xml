@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TeachBoard</string>
+    <string name="splash_tagline">Quadro branco digital offline</string>
+    <string name="gallery_title">Meus quadros</string>
+    <string name="gallery_boards_count">%1$d quadros</string>
+    <string name="gallery_search_hint">Pesquisar quadros…</string>
+    <string name="gallery_sort">Ordenar</string>
+    <string name="gallery_new_board">Novo quadro</string>
+    <string name="action_back">Voltar</string>
+    <string name="action_close">Fechar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_save">Salvar</string>
+    <string name="action_done">Concluir</string>
+    <string name="action_apply">Aplicar</string>
+    <string name="action_rename">Renomear</string>
+    <string name="action_duplicate">Duplicar</string>
+    <string name="action_delete">Excluir</string>
+    <string name="tool_save">Salvar</string>
+    <string name="tool_share">Compartilhar</string>
+    <string name="tool_undo">Desfazer</string>
+    <string name="tool_redo">Refazer</string>
+    <string name="tool_clear">Limpar</string>
+    <string name="tool_pen">Caneta</string>
+    <string name="tool_shapes">Formas</string>
+    <string name="tool_eraser">Borracha</string>
+    <string name="tool_board">Quadro</string>
+    <string name="tool_text">Texto</string>
+    <string name="tool_layers">Camadas</string>
+    <string name="tool_image">Imagem</string>
+    <string name="tool_camera">Câmera</string>
+    <string name="tool_import_pdf">Importar PDF</string>
+    <string name="tool_lasso">Laço</string>
+    <string name="tool_hand">Mão</string>
+    <string name="tool_help">Ajuda</string>
+    <string name="saved_toast">Salvo</string>
+    <string name="brushes_title">Pincéis</string>
+    <string name="shapes_title">Formas</string>
+    <string name="board_color_title">Cor do quadro</string>
+    <string name="pages_title">Páginas</string>
+    <string name="settings_title">Configurações</string>
+    <string name="settings_language">Idioma</string>
+    <string name="language_system_default">Padrão do sistema</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_stylus_only">Desenhar apenas com caneta</string>
+    <string name="settings_autosave">Salvamento automático</string>
+</resources>

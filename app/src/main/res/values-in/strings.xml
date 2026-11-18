@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TeachBoard</string>
+    <string name="splash_tagline">Papan tulis digital offline</string>
+    <string name="gallery_title">Papan Saya</string>
+    <string name="gallery_boards_count">%1$d papan</string>
+    <string name="gallery_search_hint">Cari papan…</string>
+    <string name="action_back">Kembali</string>
+    <string name="action_close">Tutup</string>
+    <string name="action_cancel">Batal</string>
+    <string name="action_save">Simpan</string>
+    <string name="action_done">Selesai</string>
+    <string name="action_apply">Terapkan</string>
+    <string name="action_rename">Ganti nama</string>
+    <string name="action_duplicate">Duplikat</string>
+    <string name="action_delete">Hapus</string>
+    <string name="tool_save">Simpan</string>
+    <string name="tool_share">Bagikan</string>
+    <string name="tool_undo">Urungkan</string>
+    <string name="tool_redo">Ulangi</string>
+    <string name="tool_clear">Bersihkan</string>
+    <string name="tool_pen">Pena</string>
+    <string name="tool_shapes">Bentuk</string>
+    <string name="tool_eraser">Penghapus</string>
+    <string name="tool_board">Papan</string>
+    <string name="tool_text">Teks</string>
+    <string name="tool_layers">Lapisan</string>
+    <string name="tool_image">Gambar</string>
+    <string name="tool_camera">Kamera</string>
+    <string name="tool_import_pdf">Impor PDF</string>
+    <string name="tool_lasso">Pilih</string>
+    <string name="tool_hand">Tangan</string>
+    <string name="tool_help">Bantuan</string>
+    <string name="saved_toast">Tersimpan</string>
+    <string name="brushes_title">Kuas</string>
+    <string name="shapes_title">Bentuk</string>
+    <string name="board_color_title">Warna Papan</string>
+    <string name="pages_title">Halaman</string>
+    <string name="settings_title">Pengaturan</string>
+    <string name="settings_language">Bahasa</string>
+    <string name="language_system_default">Default sistem</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_stylus_only">Hanya gambar dengan stylus</string>
+    <string name="settings_autosave">Simpan otomatis</string>
+</resources>

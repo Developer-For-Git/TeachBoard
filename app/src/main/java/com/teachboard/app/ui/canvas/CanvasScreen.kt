@@ -82,6 +82,8 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Highlight
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.ImageSearch
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
@@ -94,6 +96,7 @@ import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SquareFoot
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Timer
@@ -211,6 +214,8 @@ fun CanvasScreen(
   var showHoldGuide by remember { mutableStateOf(false) }
   var showSmartShapesGuide by remember { mutableStateOf(false) }
   var showRecolorPalette by remember { mutableStateOf(false) }
+  var sideDockExpanded by remember { mutableStateOf(true) }
+  var sideDockOnLeft by remember { mutableStateOf(false) }
 
   LaunchedEffect(ui.selectedUids) {
     showRecolorPalette = false
@@ -668,14 +673,14 @@ fun CanvasScreen(
       }
     }
 
-    // 4. Top-Right Palm Rejection Toggle Circle + "+ Shortcuts" Square + Subtle "Saved ✓" Pill
+    // 4. Top-Right Palm Rejection Toggle Circle + Subtle "Saved ✓" Pill
     Column(
       modifier = Modifier
         .align(Alignment.TopEnd)
         .statusBarsPadding()
         .padding(end = 12.dp, top = 10.dp),
       horizontalAlignment = Alignment.End,
-      verticalArrangement = Arrangement.spacedBy(12.dp)
+      verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
       IconButton(
         onClick = { viewModel.toggleStylusOnly() },
@@ -687,26 +692,168 @@ fun CanvasScreen(
         Icon(Icons.Default.Edit, contentDescription = "Palm Rejection", tint = Color.White, modifier = Modifier.size(22.dp))
       }
 
-      AnimatedVisibility(visible = toolbarVisible) {
-        Surface(
-          shape = RoundedCornerShape(13.dp),
-          color = Color(0xB8757B84),
-          modifier = Modifier
-            .size(42.dp)
-            .clickable { activeDialog = ActiveDialog.SHORTCUTS }
-        ) {
-          Box(contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.Add, contentDescription = "Shortcuts", tint = Color.White, modifier = Modifier.size(22.dp))
-          }
-        }
-      }
-
       AnimatedVisibility(visible = ui.showSavedToast, enter = fadeIn(), exit = fadeOut()) {
         Surface(shape = RoundedCornerShape(20.dp), color = Color(0xE6E7F9ED), shadowElevation = 2.dp) {
           Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.saved_toast), color = Color(0xFF16A34A), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.width(3.dp))
             Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(14.dp))
+          }
+        }
+      }
+    }
+
+    // 4a. Permanent Side Hand & Quick-Shortcut Dock (right edge by default, swappable to left edge!)
+    val handActive = ui.activeTool == ToolType.Hand
+    val extraShortcuts = remember(prefs.shortcutTools) {
+      prefs.shortcutTools.filter { it != ToolbarAction.HAND }
+    }
+    Column(
+      modifier = Modifier
+        .align(if (sideDockOnLeft) Alignment.TopStart else Alignment.TopEnd)
+        .statusBarsPadding()
+        .padding(
+          start = if (sideDockOnLeft) 12.dp else 0.dp,
+          end = if (sideDockOnLeft) 0.dp else 12.dp,
+          top = if (sideDockOnLeft) 128.dp else 66.dp
+        ),
+      horizontalAlignment = Alignment.CenterHorizontally,
+      verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+      // Collapse/Expand chevron square button
+      Surface(
+        shape = RoundedCornerShape(13.dp),
+        color = Color(0xFF5D739C),
+        shadowElevation = 3.dp,
+        modifier = Modifier
+          .size(42.dp)
+          .clickable { sideDockExpanded = !sideDockExpanded }
+      ) {
+        Box(contentAlignment = Alignment.Center) {
+          Icon(
+            imageVector = if (sideDockExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+            contentDescription = if (sideDockExpanded) "Collapse side dock" else "Expand side dock",
+            tint = Color.White,
+            modifier = Modifier.size(22.dp)
+          )
+        }
+      }
+
+      // Vertical frosted pill with PERMANENT Hand button + extra shortcuts + utility buttons
+      Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xF5F7F8FC),
+        shadowElevation = 4.dp,
+        modifier = Modifier.border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(18.dp))
+      ) {
+        Column(
+          modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          // PERMANENT Hand / Pan button (1-tap toggle between Hand & previous Brush!)
+          Box(
+            modifier = Modifier
+              .size(38.dp)
+              .clip(RoundedCornerShape(11.dp))
+              .background(if (handActive) Color(0xFF2B6CF6) else Color(0xFFDCE3F2))
+              .clickable {
+                if (handActive) viewModel.selectTool(ui.lastBrushTool)
+                else viewModel.selectTool(ToolType.Hand)
+              },
+            contentAlignment = Alignment.Center
+          ) {
+            Icon(
+              Icons.Default.PanTool,
+              contentDescription = "Hand",
+              tint = if (handActive) Color.White else Color(0xFF334E80),
+              modifier = Modifier.size(21.dp)
+            )
+          }
+
+          AnimatedVisibility(visible = sideDockExpanded) {
+            Column(
+              horizontalAlignment = Alignment.CenterHorizontally,
+              verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+              // User's pinned custom shortcuts (if any)
+              extraShortcuts.forEach { action ->
+                Box(
+                  modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFE8ECF6))
+                    .clickable { handleToolbarAction(action) },
+                  contentAlignment = Alignment.Center
+                ) {
+                  Icon(
+                    toolbarIconFor(action),
+                    contentDescription = action.name,
+                    tint = Color(0xFF334E80),
+                    modifier = Modifier.size(18.dp)
+                  )
+                }
+              }
+
+              // Subtle divider
+              Box(
+                modifier = Modifier
+                  .width(24.dp)
+                  .height(1.dp)
+                  .background(Color(0xFFCBD5E1))
+              )
+
+              // Swap side (Right <-> Left)
+              Box(
+                modifier = Modifier
+                  .size(36.dp)
+                  .clip(CircleShape)
+                  .background(Color(0xFFECEAF8))
+                  .clickable { sideDockOnLeft = !sideDockOnLeft },
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  Icons.Default.SwapHoriz,
+                  contentDescription = "Swap side",
+                  tint = Color(0xFF5B4B9E),
+                  modifier = Modifier.size(18.dp)
+                )
+              }
+
+              // Add / Edit shortcuts (+)
+              Box(
+                modifier = Modifier
+                  .size(36.dp)
+                  .clip(CircleShape)
+                  .background(Color(0xFFE8ECF6))
+                  .clickable { activeDialog = ActiveDialog.SHORTCUTS },
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  Icons.Default.Add,
+                  contentDescription = "Shortcuts",
+                  tint = Color(0xFF334E80),
+                  modifier = Modifier.size(18.dp)
+                )
+              }
+
+              // Toggle bottom toolbar visibility (Eye / Eye-off)
+              Box(
+                modifier = Modifier
+                  .size(36.dp)
+                  .clip(CircleShape)
+                  .background(Color(0xFFF1F2F6))
+                  .clickable { toolbarVisible = !toolbarVisible },
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  if (toolbarVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                  contentDescription = if (toolbarVisible) "Hide toolbar" else "Show toolbar",
+                  tint = Color(0xFF64748B),
+                  modifier = Modifier.size(18.dp)
+                )
+              }
+            }
           }
         }
       }
@@ -855,7 +1002,6 @@ fun CanvasScreen(
     if (ui.showTimer) TimerOverlay(onClose = { viewModel.setShowTimer(false) })
     ui.floatingVideoUri?.let { uri -> FloatingVideoOverlay(uri) { viewModel.setFloatingVideoUri(null) } }
     if (ui.showFaceCam) FaceCamBubble(ui.faceCamShape) { viewModel.setFaceCam(false) }
-    if (prefs.shortcutTools.isNotEmpty()) DraggableShortcutBar(prefs.shortcutTools, ::handleToolbarAction)
 
     // 6. Bottom Stack: Smart Shapes Offer / Smart Writing Status / Selection Bar / PDF Quick Bar / Frosted Toolbar
     Column(

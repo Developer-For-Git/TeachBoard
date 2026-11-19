@@ -119,6 +119,8 @@ class CanvasViewModel(
   private val _ui = MutableStateFlow(CanvasUiState())
   val ui: StateFlow<CanvasUiState> = _ui.asStateFlow()
 
+  private var nextSectorColorIndex = 0
+
   val loadedUserPrefs: StateFlow<UserPrefs?> = prefsRepo.prefs.stateIn(
     viewModelScope,
     SharingStarted.Eagerly,
@@ -555,7 +557,7 @@ class CanvasViewModel(
           pts.add(StrokePoint(pivot.x + (cos(rad) * r).toFloat(), pivot.y + (sin(rad) * r).toFloat()))
         }
         pts.add(pivot)
-        val fillCol = cur.fillColor ?: cur.brushColor
+        val fillCol = cur.fillColor ?: SectorPastelColors[(nextSectorColorIndex++) % SectorPastelColors.size]
         CanvasObject(
           sessionId = sessionId,
           pageIndex = cur.pageIndex,
@@ -972,8 +974,8 @@ class CanvasViewModel(
     if (before.isEmpty()) return
     val after = before.map {
       it.copy(
-        color = newColor,
-        fillColor = if (it.type == ToolType.Table) newColor else it.fillColor,
+        color = if (it.isFilled) it.color else newColor,
+        fillColor = if (it.isFilled || it.type == ToolType.Table) newColor else it.fillColor,
         updatedAt = System.currentTimeMillis()
       )
     }
@@ -1419,6 +1421,16 @@ class CanvasViewModel(
   fun clearMessage() = _ui.update { it.copy(snackbarMessage = null) }
 
   companion object {
+    val SectorPastelColors = listOf(
+      0xFFD6EBFD.toInt(), // Soft Sky Blue (Image 2 top)
+      0xFFFFECD1.toInt(), // Warm Peach / Cream (Image 2 bottom)
+      0xFFCEE8DE.toInt(), // Soft Mint Green
+      0xFFE7CDD6.toInt(), // Soft Rose / Blush Pink
+      0xFFE2D9F3.toInt(), // Soft Lavender
+      0xFFFEF3C7.toInt(), // Soft Buttercup Yellow
+      0xFFFED7AA.toInt()  // Soft Apricot
+    )
+
     fun factory(app: TeachBoardApp, sessionId: String): ViewModelProvider.Factory =
       object : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")

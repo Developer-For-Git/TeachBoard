@@ -51,8 +51,14 @@ object ShapeRenderer {
     strokePaint.color = color
     strokePaint.alpha = aInt
     strokePaint.strokeWidth = strokeWidth.coerceAtLeast(2f)
-    fillPaint.color = fillColor ?: color
-    fillPaint.alpha = (aInt * 0.38f).toInt()
+    if (fillColor != null) {
+      fillPaint.color = fillColor
+      val colorAlpha = (fillColor ushr 24) and 0xFF
+      fillPaint.alpha = if (colorAlpha in 1..254) ((colorAlpha / 255f) * aInt).toInt() else (aInt * 0.92f).toInt()
+    } else {
+      fillPaint.color = color
+      fillPaint.alpha = (aInt * 0.38f).toInt()
+    }
 
     for (c in contours) {
       if (c.points.size < 2) continue
@@ -86,8 +92,14 @@ object ShapeRenderer {
     dashedPaint.color = color
     dashedPaint.alpha = (aInt * 0.65f).toInt()
     dashedPaint.strokeWidth = (strokeWidth * 0.8f).coerceAtLeast(1.5f)
-    fillPaint.color = fillColor ?: color
-    fillPaint.alpha = (aInt * 0.36f).toInt()
+    if (fillColor != null) {
+      fillPaint.color = fillColor
+      val colorAlpha = (fillColor ushr 24) and 0xFF
+      fillPaint.alpha = if (colorAlpha in 1..254) ((colorAlpha / 255f) * aInt).toInt() else (aInt * 0.92f).toInt()
+    } else {
+      fillPaint.color = color
+      fillPaint.alpha = (aInt * 0.36f).toInt()
+    }
 
     val rect = RectF(min(left, right), min(top, bottom), maxOf(left, right), maxOf(top, bottom))
     val w = rect.width().coerceAtLeast(4f)

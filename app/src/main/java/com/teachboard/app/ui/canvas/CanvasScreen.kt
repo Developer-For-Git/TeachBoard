@@ -12,6 +12,17 @@ import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Build
 import androidx.core.view.WindowCompat
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material.icons.outlined.MenuBook
+import androidx.compose.runtime.CompositionLocalProvider
+import com.teachboard.app.ui.tour.LocalToolHelp
+import com.teachboard.app.ui.tour.PrefsTourStore
+import com.teachboard.app.ui.tour.TeachBoardTour
+import com.teachboard.app.ui.tour.TourHost
+import com.teachboard.app.ui.tour.rememberTourState
+import com.teachboard.app.ui.tour.tourAnchor
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -37,6 +48,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -148,11 +160,13 @@ import com.teachboard.app.R
 import com.teachboard.app.domain.export.Exporters
 import com.teachboard.app.domain.model.CanvasObject
 import com.teachboard.app.domain.model.FaceCamShape
+import com.teachboard.app.domain.model.PdfViewMode
 import com.teachboard.app.domain.model.RecordingQuality
 import com.teachboard.app.domain.model.Serialization
 import com.teachboard.app.domain.model.StrokePoint
 import com.teachboard.app.domain.model.ToolType
 import com.teachboard.app.domain.model.ToolbarAction
+import java.io.File
 import com.teachboard.app.ui.canvas.geometry.GeoStampKind
 import com.teachboard.app.domain.ocr.OcrOutput
 import com.teachboard.app.domain.ocr.OcrScript
@@ -219,6 +233,22 @@ fun CanvasScreen(
   var showRecolorPalette by remember { mutableStateOf(false) }
   var sideDockExpanded by remember { mutableStateOf(true) }
   var sideDockOnLeft by remember { mutableStateOf(false) }
+
+  val tourStore = remember { PrefsTourStore(context, TeachBoardTour.PREFS_BOARD, TeachBoardTour.TOUR_VERSION) }
+  val tourState = rememberTourState(TeachBoardTour.boardSteps(), tourStore)
+  var showGuideSheet by remember { mutableStateOf(false) }
+  var helpLabel by remember { mutableStateOf<String?>(null) }
+
+  LaunchedEffect(Unit) {
+    if (tourStore.shouldShow()) {
+      delay(400L)
+      tourState.start()
+    }
+  }
+
+  BackHandler(tourState.visible) {
+    if (tourState.isLast) tourState.finish() else tourState.next()
+  }
 
   LaunchedEffect(ui.selectedUids) {
     showRecolorPalette = false
@@ -427,7 +457,13 @@ fun CanvasScreen(
       ToolbarAction.WEB_IMAGE -> activeDialog = ActiveDialog.WEB_IMAGE
       ToolbarAction.CAMERA -> launchCameraToBoard()
       ToolbarAction.OCR -> activeDialog = ActiveDialog.OCR
-      ToolbarAction.IMPORT_PDF -> pdfPicker.launch(arrayOf("application/pdf"))
+      ToolbarAction.IMPORT_PDF -> {
+        if (!ui.session?.pdfPath.isNullOrBlank()) {
+          viewModel.togglePdfViewer()
+        } else {
+          pdfPicker.launch(arrayOf("application/pdf"))
+        }
+      }
       ToolbarAction.STICKERS -> activeDialog = ActiveDialog.STICKERS_GENERAL
       ToolbarAction.SCIENCE -> activeDialog = ActiveDialog.STICKERS_SCIENCE
       ToolbarAction.LASER -> {
@@ -446,7 +482,7 @@ fun CanvasScreen(
       ToolbarAction.LASSO -> viewModel.selectTool(ToolType.Lasso)
       ToolbarAction.HAND -> viewModel.selectTool(ToolType.Hand)
       ToolbarAction.CUSTOMIZE -> activeDialog = ActiveDialog.CUSTOMIZE_TOOLBAR
-      ToolbarAction.HELP -> onOpenHelp()
+      ToolbarAction.HELP -> showGuideSheet = true
     }
   }
 
@@ -495,7 +531,13 @@ fun CanvasScreen(
       override fun onSelectionScreenBoundsChanged(bounds: RectF?) { selectionScreenBounds = bounds }
       override fun onCanvasTouched() { pagePillExpanded = false }
       override fun onStampLine(a: StrokePoint, b: StrokePoint) = viewModel.stampGeometryLine(a, b)
-      override fun onStampArc(needle: StrokePoint, start: StrokePoint, end: StrokePoint) = viewModel.stampGeometryArc(needle, start, end)
+      override fun onStampArc(
+        needle: StrokePoint,
+        start: StrokePoint,
+        end: StrokePoint,
+        sweepDeg: Float,
+        strokeWidth: Float
+      ) = viewModel.stampGeometryArc(needle, start, end, sweepDeg, strokeWidth)
       override fun onStampAngle(pivot: StrokePoint, armEnd: StrokePoint, baseEnd: StrokePoint, kind: GeoStampKind) = viewModel.stampGeometryAngle(pivot, armEnd, baseEnd, kind)
       override fun onDismissGeometry() = viewModel.setGeometryTool(null)
     }
@@ -507,36 +549,48 @@ fun CanvasScreen(
   val isCurrentPageBookmarked = session?.pdfBookmarks?.contains(ui.pageIndex) == true
   val isCurrentPageHidden = session?.pdfHiddenPages?.contains(ui.pageIndex) == true
 
-  Box(modifier = Modifier.fillMaxSize()) {
-    // 1. Full-bleed Canvas
-    CanvasBoard(
-      modifier = Modifier.fillMaxSize(),
-      backgroundColor = session?.backgroundColor ?: TeachColors.BoardWhite,
-      backgroundStyle = session?.backgroundStyle ?: com.teachboard.app.domain.model.BackgroundStyle.PLAIN,
-      pdfBitmap = if (isCurrentPageHidden) null else ui.pdfBitmap,
-      layers = ui.layers,
-      objects = ui.objects,
-      activeTool = ui.activeTool,
-      eraserMode = ui.eraserMode,
-      brushColor = ui.brushColor,
-      fillColor = ui.fillColor,
-      isFilled = ui.isFilled,
-      strokeWidth = ui.strokeWidth,
-      alpha = ui.alpha,
-      laserColor = ui.laserColor,
-      laserSize = ui.laserSize,
-      palmRejection = prefs.palmRejection,
-      stylusOnly = prefs.stylusOnly,
-      zoom = ui.zoom,
-      panX = ui.panX,
-      panY = ui.panY,
-      selectedUids = ui.selectedUids,
-      lockedObjectUids = ui.lockedObjectUids,
-      smartInkPreviewStrokes = ui.smartInkStrokes,
-      activeGeometryTool = ui.activeGeometryTool,
-      callbacks = callbacks,
-      onViewReady = { canvasViewRef = it }
-    )
+  CompositionLocalProvider(LocalToolHelp provides { helpLabel = it }) {
+    Box(modifier = Modifier.fillMaxSize()) {
+    // 1. Full-bleed Canvas (adapts to split screen if active)
+    val canvasModifier = when {
+      ui.showPdfViewer && ui.pdfViewerMode == PdfViewMode.SPLIT_LEFT ->
+        Modifier.fillMaxHeight().fillMaxWidth(0.5f).align(Alignment.CenterEnd)
+      ui.showPdfViewer && ui.pdfViewerMode == PdfViewMode.SPLIT_RIGHT ->
+        Modifier.fillMaxHeight().fillMaxWidth(0.5f).align(Alignment.CenterStart)
+      else ->
+        Modifier.fillMaxSize()
+    }
+    Box(modifier = canvasModifier) {
+      CanvasBoard(
+        modifier = Modifier.fillMaxSize(),
+        backgroundColor = session?.backgroundColor ?: TeachColors.BoardWhite,
+        backgroundStyle = session?.backgroundStyle ?: com.teachboard.app.domain.model.BackgroundStyle.PLAIN,
+        pdfBitmap = if (isCurrentPageHidden) null else ui.pdfBitmap,
+        layers = ui.layers,
+        objects = ui.objects,
+        activeTool = ui.activeTool,
+        eraserMode = ui.eraserMode,
+        brushColor = ui.brushColor,
+        fillColor = ui.fillColor,
+        isFilled = ui.isFilled,
+        strokeWidth = ui.strokeWidth,
+        eraserSize = ui.eraserSize,
+        alpha = ui.alpha,
+        laserColor = ui.laserColor,
+        laserSize = ui.laserSize,
+        palmRejection = prefs.palmRejection,
+        stylusOnly = prefs.stylusOnly,
+        zoom = ui.zoom,
+        panX = ui.panX,
+        panY = ui.panY,
+        selectedUids = ui.selectedUids,
+        lockedObjectUids = ui.lockedObjectUids,
+        smartInkPreviewStrokes = ui.smartInkStrokes,
+        activeGeometryTool = ui.activeGeometryTool,
+        callbacks = callbacks,
+        onViewReady = { canvasViewRef = it }
+      )
+    }
 
     // 2. Top-Left Back Circle + Left-Edge Collapsible Vertical Page Pill (with spring animation!)
     Column(
@@ -561,6 +615,18 @@ fun CanvasScreen(
         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(22.dp))
       }
 
+      if (!session?.pdfPath.isNullOrBlank()) {
+        IconButton(
+          onClick = { viewModel.togglePdfViewer() },
+          modifier = Modifier
+            .size(42.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (ui.showPdfViewer) Color(0xFFEF4444) else Color(0xB85F656D))
+        ) {
+          Icon(Icons.Default.PictureAsPdf, contentDescription = "PDF Viewer", tint = Color.White, modifier = Modifier.size(22.dp))
+        }
+      }
+
       if (!pagePillExpanded) {
         Surface(
           shape = RoundedCornerShape(12.dp),
@@ -568,6 +634,7 @@ fun CanvasScreen(
           modifier = Modifier
             .size(42.dp)
             .clickable { pagePillExpanded = true }
+            .tourAnchor("pages")
         ) {
           Box(contentAlignment = Alignment.Center) {
             Text("${ui.pageIndex + 1}/$totalPages", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -577,7 +644,8 @@ fun CanvasScreen(
         Surface(
           shape = RoundedCornerShape(18.dp),
           color = Color(0xE633363A),
-          shadowElevation = 6.dp
+          shadowElevation = 6.dp,
+          modifier = Modifier.tourAnchor("pages")
         ) {
           Column(
             modifier = Modifier.padding(vertical = 6.dp, horizontal = 4.dp),
@@ -693,7 +761,7 @@ fun CanvasScreen(
       }
     }
 
-    // 4. Top-Right Palm Rejection Toggle Circle + Subtle "Saved ✓" Pill
+    // 4. Top-Right Palm Rejection Toggle Circle + Tool Guide Book + Subtle "Saved ✓" Pill
     Column(
       modifier = Modifier
         .align(Alignment.TopEnd)
@@ -702,14 +770,31 @@ fun CanvasScreen(
       horizontalAlignment = Alignment.End,
       verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-      IconButton(
-        onClick = { viewModel.toggleStylusOnly() },
-        modifier = Modifier
-          .size(44.dp)
-          .clip(CircleShape)
-          .background(if (prefs.stylusOnly) Color(0xFF2B7FFF) else Color(0xB85F656D))
+      Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
       ) {
-        Icon(Icons.Default.Edit, contentDescription = "Palm Rejection", tint = Color.White, modifier = Modifier.size(22.dp))
+        IconButton(
+          onClick = { showGuideSheet = true },
+          modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(Color(0xB85F656D))
+            .tourAnchor("guide")
+        ) {
+          Icon(Icons.Outlined.MenuBook, contentDescription = "Tool Guide", tint = Color.White, modifier = Modifier.size(22.dp))
+        }
+
+        IconButton(
+          onClick = { viewModel.toggleStylusOnly() },
+          modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(if (prefs.stylusOnly) Color(0xFF2B7FFF) else Color(0xB85F656D))
+            .tourAnchor("stylus")
+        ) {
+          Icon(Icons.Default.Edit, contentDescription = "Palm Rejection", tint = Color.White, modifier = Modifier.size(22.dp))
+        }
       }
 
       AnimatedVisibility(visible = ui.showSavedToast, enter = fadeIn(), exit = fadeOut()) {
@@ -1020,6 +1105,33 @@ fun CanvasScreen(
     ui.floatingVideoUri?.let { uri -> FloatingVideoOverlay(uri) { viewModel.setFloatingVideoUri(null) } }
     if (ui.showFaceCam) FaceCamBubble(ui.faceCamShape) { viewModel.setFaceCam(false) }
 
+    if (ui.showPdfViewer && !ui.session?.pdfPath.isNullOrBlank()) {
+      val pdfFile = File(ui.session!!.pdfPath!!)
+      if (pdfFile.exists()) {
+        Box(
+          modifier = when (ui.pdfViewerMode) {
+            PdfViewMode.SPLIT_LEFT -> Modifier.fillMaxHeight().fillMaxWidth(0.5f).align(Alignment.CenterStart)
+            PdfViewMode.SPLIT_RIGHT -> Modifier.fillMaxHeight().fillMaxWidth(0.5f).align(Alignment.CenterEnd)
+            else -> Modifier.fillMaxSize()
+          }
+        ) {
+          PdfViewerOverlay(
+            pdfFile = pdfFile,
+            pageCount = ui.session?.pageCount ?: 1,
+            currentPage = ui.pageIndex,
+            mode = ui.pdfViewerMode,
+            onModeChange = { viewModel.setPdfViewerMode(it) },
+            onPinPageToBoard = { page ->
+              viewModel.goToPage(page)
+              viewModel.showMessage("Page ${page + 1} set as active board page")
+            },
+            onPickNewPdf = { pdfPicker.launch(arrayOf("application/pdf")) },
+            onClose = { viewModel.setShowPdfViewer(false) }
+          )
+        }
+      }
+    }
+
     // 6. Bottom Stack: Smart Shapes Offer / Smart Writing Status / Selection Bar / PDF Quick Bar / Frosted Toolbar
     Column(
       modifier = Modifier
@@ -1127,7 +1239,9 @@ fun CanvasScreen(
           color = Color(0xFFF3F4F6),
           shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
           shadowElevation = 10.dp,
-          modifier = Modifier.fillMaxWidth()
+          modifier = Modifier
+            .fillMaxWidth()
+            .tourAnchor("toolbar")
         ) {
           Row(
             modifier = Modifier
@@ -1192,6 +1306,11 @@ fun CanvasScreen(
                   colorDot = dotColor,
                   smartShapesMode = ui.smartShapesEnabled,
                   labelOverride = penLabelOverride,
+                  modifier = when (action) {
+                    ToolbarAction.UNDO -> Modifier.tourAnchor("undo")
+                    ToolbarAction.SAVE, ToolbarAction.SHARE -> Modifier.tourAnchor("export")
+                    else -> Modifier
+                  },
                   onClick = { handleToolbarAction(action) }
                 )
               }
@@ -1298,9 +1417,9 @@ fun CanvasScreen(
     )
     ActiveDialog.ERASER -> EraserDialog(
       mode = ui.eraserMode,
-      size = ui.strokeWidth,
+      size = ui.eraserSize,
       onModeChange = { viewModel.setEraserMode(it) },
-      onSizeChange = { viewModel.setStrokeWidth(it) },
+      onSizeChange = { viewModel.setEraserSize(it) },
       onDismiss = { activeDialog = ActiveDialog.NONE }
     )
     ActiveDialog.TEXT -> TextEditorDialog(
@@ -1479,18 +1598,29 @@ fun CanvasScreen(
     ActiveDialog.NONE -> Unit
   }
 
-  if (loadedPrefs != null && prefs.tourVersionCompleted < AppConfig.CURRENT_TOUR_VERSION) {
-    OnboardingTourDialog(onFinish = { viewModel.completeTour() })
-  } else if (showSmartShapesGuide) {
-    SmartShapesGuideDialog(onDismiss = {
-      showSmartShapesGuide = false
-      viewModel.dismissHint("smart_shapes_guide")
-    })
-  } else if (showHoldGuide) {
-    HoldToMoveGuideDialog(onDismiss = {
-      showHoldGuide = false
-      viewModel.dismissHint("hold_to_move")
-    })
+    TourHost(
+      state = tourState,
+      guideOpen = showGuideSheet,
+      onGuideDismiss = { showGuideSheet = false },
+      onReplayTour = {
+        showGuideSheet = false
+        tourState.start()
+      },
+      helpLabel = helpLabel,
+      onHelpDismiss = { helpLabel = null }
+    )
+
+    if (showSmartShapesGuide) {
+      SmartShapesGuideDialog(onDismiss = {
+        showSmartShapesGuide = false
+        viewModel.dismissHint("smart_shapes_guide")
+      })
+    } else if (showHoldGuide) {
+      HoldToMoveGuideDialog(onDismiss = {
+        showHoldGuide = false
+        viewModel.dismissHint("hold_to_move")
+      })
+    }
   }
 }
 
@@ -1546,6 +1676,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMiniContours(
   }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ToolbarItemButton(
   action: ToolbarAction,
@@ -1554,10 +1685,12 @@ private fun ToolbarItemButton(
   colorDot: Color?,
   smartShapesMode: Boolean = false,
   labelOverride: String? = null,
+  modifier: Modifier = Modifier,
   onClick: () -> Unit
 ) {
   val icon = toolbarIconFor(action)
   val label = labelOverride ?: toolbarLabelFor(action)
+  val showHelp = LocalToolHelp.current
   val isUtility = action == ToolbarAction.CUSTOMIZE || action == ToolbarAction.HELP
   val isSmartBlueActive = action == ToolbarAction.SMART && selected
   val fg = when {
@@ -1568,7 +1701,7 @@ private fun ToolbarItemButton(
   }
 
   Box(
-    modifier = Modifier
+    modifier = modifier
       .widthIn(min = 52.dp)
       .clip(RoundedCornerShape(11.dp))
       .background(
@@ -1578,7 +1711,11 @@ private fun ToolbarItemButton(
           else -> Color.Transparent
         }
       )
-      .clickable(enabled = enabled, onClick = onClick)
+      .combinedClickable(
+        enabled = enabled,
+        onClick = onClick,
+        onLongClick = { showHelp(label) }
+      )
       .padding(vertical = 7.dp, horizontal = 5.dp),
     contentAlignment = Alignment.Center
   ) {

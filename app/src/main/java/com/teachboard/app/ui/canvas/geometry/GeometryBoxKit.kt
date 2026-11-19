@@ -26,6 +26,9 @@ import kotlin.math.sin
 data class P(val x: Float, val y: Float) {
     operator fun plus(o: P) = P(x + o.x, y + o.y)
     operator fun minus(o: P) = P(x - o.x, y - o.y)
+    operator fun times(k: Float) = P(x * k, y * k)
+    fun len() = hypot(x, y)
+    fun unit(): P { val l = len().coerceAtLeast(1e-4f); return P(x / l, y / l) }
 }
 
 enum class GeoInstrument(val id: Int, val label: String) {
@@ -47,7 +50,7 @@ enum class GeoStampKind { Angle, Arc, Sector }
  *
  *  Ruler        ox,oy = left-edge centre · angle · spanCm · uiScale
  *  Protractor   ox,oy = flat-baseline centre · angle · radius · armDeg
- *  Compass      ox,oy = needle tip · angle = needle→hinge bearing · legPx · opening
+ *  Compass      ox,oy = needle · hx,hy = hinge · px,py = pencil · legPx = legLen
  *  SetSquare    ox,oy = right-angle vertex · angle · legCm · uiScale
  */
 data class GeoState(
@@ -60,15 +63,63 @@ data class GeoState(
     val snapPulse: Int = 0,
     val spanCm: Float = 12.7f,
     val radius: Float = 240f,
-    val armDeg: Float = 0f,
+    val armDeg: Float = 55f,
     val legPx: Float = 200f,
     val opening: Float = 1.10f,
     val legCm: Int = 6,
     val hint: String? = null,
     val sweep: Pair<Float, Float>? = null,
     val activeEdgeLine: Pair<P, P>? = null,
+    val hx: Float = 0f,
+    val hy: Float = 0f,
+    val px: Float = 0f,
+    val py: Float = 0f,
+    val pxPerCm: Float = 37.795277f,
+    val sweepFromDeg: Float? = null,
+    val sweepArcDeg: Float = 0f,
 ) {
     val angleDeg: Float get() = Math.toDegrees(angle.toDouble()).toFloat()
+    val g: Float get() = legPx / 160f
+    val compassNeedle: P get() = P(ox, oy)
+    val compassHinge: P get() = P(hx, hy)
+    val compassPencil: P get() = P(px, py)
+    val compassRadius: Float get() = hypot(px - ox, py - oy)
+    val moveHandle: P get() = compassHinge + (compassHinge - compassNeedle).unit() * (45.8f * g)
+    val closeButton: P get() = P(hx + 36f * g, hy + 28f * g)
+
+    fun compassReadoutText(): String {
+        val r = compassRadius / pxPerCm.coerceAtLeast(1e-4f)
+        return String.format(Locale.US, "r %.1f cm  ·  d %.1f cm", r, r * 2f)
+    }
+
+    val setSquareLegPx: Float get() = legCm * 37.795277f
+    val setSquareInradius: Float get() = setSquareLegPx / 3.4142137f
+    val setSquareNotch: Float get() = 0.54f * setSquareInradius
+
+    fun setSquareToBoard(lx: Float, ly: Float): P {
+        val c = cos(angle); val s = sin(angle)
+        val x = lx * uiScale; val y = ly * uiScale
+        return P(ox + x * c - y * s, oy + y * c + x * s)
+    }
+
+    fun setSquareToLocal(p: P): P {
+        val c = cos(angle); val s = sin(angle)
+        val dx = p.x - ox; val dy = p.y - oy
+        val k = uiScale.coerceAtLeast(1e-4f)
+        return P((dy * s + dx * c) / k, (dy * c - dx * s) / k)
+    }
+
+    fun setSquareToBoard(p: P): P = setSquareToBoard(p.x, p.y)
+
+    fun setSquareCentroid(): P = setSquareToBoard(setSquareLegPx / 3f, -setSquareLegPx / 3f)
+
+    fun setSquareCloseButton(): P {
+        val i = GeoKit.clamp(setSquareNotch * 0.5f, 12f, 22f) * 0.70710677f
+        return setSquareToBoard(setSquareLegPx / 2f - i, -setSquareLegPx / 2f + i)
+    }
+
+    fun setSquareRotateButton(): P = setSquareToBoard(0f, -setSquareLegPx - 26f)
+    fun setSquareResizeButton(): P = setSquareToBoard(setSquareLegPx + 28f, 0f)
 }
 
 /** Colours and sizes. Defaults reproduce the reference app. */
@@ -84,6 +135,7 @@ data class GeoStyle(
     val arcViolet: Int = 0xFF7C3AED.toInt(),
     val sectorAmber: Int = 0xFFB45309.toInt(),
     val zoomYellow: Int = 0xFFCA8A04.toInt(),
+    val resizePink: Int = 0xFFDB2777.toInt(),
     val rotateBlue: Int = 0xFF2563EB.toInt(),
     val compassBody: Int = 0xFF3F4654.toInt(),
     val compassAccent: Int = 0xFF1D4ED8.toInt(),
@@ -103,7 +155,71 @@ interface GeoCallbacks {
     fun onDismiss()
     fun onStampLine(a: P, b: P)
     fun onStampArc(needle: P, start: P, end: P)
+    fun onStampArc(needle: P, start: P, end: P, sweepDeg: Float, strokeWidth: Float) {
+        onStampArc(needle, start, end)
+    }
     fun onStampAngle(pivot: P, armEnd: P, baseEnd: P, kind: GeoStampKind)
+}
+
+fun clampD(v: Double, lo: Double, hi: Double) = if (v < lo) lo else if (v > hi) hi else v
+
+fun bearing(a: P, b: P) =
+    Math.toDegrees(atan2((b.y - a.y).toDouble(), (b.x - a.x).toDouble())).toFloat()
+
+fun rotateAbout(p: P, deg: Float, pivot: P): P {
+    val r = Math.toRadians(deg.toDouble())
+    val c = cos(r).toFloat(); val s = sin(r).toFloat()
+    val dx = p.x - pivot.x; val dy = p.y - pivot.y
+    return P(pivot.x + dx * c - dy * s, pivot.y + dy * c + dx * s)
+}
+
+fun wrapDeg(d: Float): Float {
+    var v = d
+    while (v > 180f) v -= 360f
+    while (v < -180f) v += 360f
+    return v
+}
+
+fun wrap360(deg: Float): Float {
+    var d = deg % 360f
+    if (d < 0f) d += 360f
+    return d
+}
+
+fun inTriangle(local: P, leg: Float, tol: Float = 1.5f): Boolean =
+    local.x >= -tol && local.y <= tol && local.x - local.y <= leg + tol
+
+fun edgeLength(leg: Float, edge: Int): Float = if (edge == 2) leg * 1.4142135f else leg
+
+fun edgePoint(leg: Float, edge: Int, t: Float): P = when (edge) {
+    0 -> P(t, 0f)
+    1 -> P(0f, -t)
+    else -> P(leg - t / 1.4142135f, -t / 1.4142135f)
+}
+
+fun projectOnEdge(leg: Float, edge: Int, p: P): Float = when (edge) {
+    0 -> GeoKit.clamp(p.x, 0f, leg)
+    1 -> GeoKit.clamp(-p.y, 0f, leg)
+    else -> GeoKit.clamp((leg - p.x - p.y) / 1.4142135f, 0f, leg * 1.4142135f)
+}
+
+fun distToEdge(leg: Float, edge: Int, p: P): Float {
+    val t = projectOnEdge(leg, edge, p)
+    val q = edgePoint(leg, edge, t)
+    return hypot(p.x - q.x, p.y - q.y)
+}
+
+fun nearestSetSquareEdge(leg: Float, p: P): Int {
+    val d0 = distToEdge(leg, 0, p)
+    val d1 = distToEdge(leg, 1, p)
+    val d2 = distToEdge(leg, 2, p)
+    return if (d0 <= d1 && d0 <= d2) 0 else if (d1 <= d2) 1 else 2
+}
+
+fun offsetOutside(leg: Float, edge: Int, t: Float, d: Float): P = when (edge) {
+    0 -> P(t, d)
+    1 -> P(-d, -t)
+    else -> P(leg + d / 1.4142135f - t / 1.4142135f, -d / 1.4142135f - t / 1.4142135f)
 }
 
 // -----------------------------------------------------------------------------
@@ -129,10 +245,11 @@ object GeoKit {
         return P(x * c - y * n, x * n + y * c)
     }
 
-    fun compassHinge(s: GeoState) = P(s.ox + s.legPx * cos(s.angle), s.oy + s.legPx * sin(s.angle))
+    fun compassHinge(s: GeoState) = if (s.hx != 0f || s.hy != 0f) P(s.hx, s.hy) else P(s.ox + s.legPx * cos(s.angle), s.oy + s.legPx * sin(s.angle))
 
     /** Hinge + leg rotated by the apex angle away from the needle leg. */
     fun compassPencil(s: GeoState): P {
+        if (s.px != 0f || s.py != 0f) return P(s.px, s.py)
         val h = compassHinge(s)
         val dx = -cos(s.angle); val dy = -sin(s.angle)
         val c = cos(s.opening); val n = sin(s.opening)
@@ -166,22 +283,49 @@ object GeoKit {
             }
             GeoInstrument.Protractor -> {
                 val r = clamp(mn * 0.4f, 120f * z, 320f * z) / z
-                GeoState(inst, cx, cy + 0.42f * r, radius = r)
+                GeoState(inst, cx, cy + 0.42f * r, radius = r, armDeg = 55f)
             }
             GeoInstrument.Compass -> {
-                val leg = clamp(0.34f * mn, 120f * z, 230f * z) / z
+                val leg = clamp(0.34f * mn, 330f, 632.5f) / z
+                val chord = min(max(0.26f * mn, 66f) / z, 1.88f * leg)
+                val needle = P(cx, cy)
+                val hinge = P(cx, cy - leg)
+                val apex = 2.0 * asin(clampD((chord / (2f * leg)).toDouble(), 0.0, 0.985))
+                val dir = Math.PI / 2.0 - apex
+                val pencil = P(
+                    hinge.x + (cos(dir) * leg).toFloat(),
+                    hinge.y + (sin(dir) * leg).toFloat()
+                )
+                val pxPerCm = 37.795277f * clamp(((mn * 0.88f) / z) / 566f, 0.5f, 8f)
                 GeoState(
-                    inst, cx, cy, angle = -PI.toFloat() / 2f, legPx = leg,
-                    opening = 2f * asin(1.10f / 2f),
-                ).let { it.copy(hint = compassReadout(it, strings)) }
+                    instrument = inst,
+                    ox = needle.x,
+                    oy = needle.y,
+                    hx = hinge.x,
+                    hy = hinge.y,
+                    px = pencil.x,
+                    py = pencil.y,
+                    legPx = leg,
+                    pxPerCm = pxPerCm,
+                    snapPulse = 0,
+                    hint = null,
+                    sweepFromDeg = null,
+                    sweepArcDeg = 0f
+                )
             }
             GeoInstrument.SetSquare -> {
-                val legPx = 6 * PX_PER_CM
-                val scale = clamp((mn * 0.62f) / z / (legPx + 70f), 0.55f, 6f)
+                val ui = clamp(((mn * 0.88f) / z) / 566f, 0.5f, 8f)
+                val ppc = 37.795277f * ui
                 GeoState(
-                    inst, cx - legPx * scale / 2f, cy + legPx * scale / 2f,
-                    uiScale = scale, legCm = 6,
-                ).let { it.copy(hint = setSquareReadout(it, strings)) }
+                    instrument = inst,
+                    ox = cx - 2f * ppc,
+                    oy = cy + 2f * ppc,
+                    angle = 0f,
+                    uiScale = ui,
+                    legCm = 6,
+                    snapPulse = 0,
+                    hint = null
+                )
             }
         }
     }
@@ -254,6 +398,48 @@ class GeoController(
 
     // ---------------- input ----------------
 
+    fun pad(s: GeoState, extra: Float, zoom: Float): Float =
+        10f / zoom.coerceAtLeast(0.01f) + s.g * extra
+
+    fun padSquare(s: GeoState, extra: Float, zoom: Float): Float =
+        9f / zoom.coerceAtLeast(0.01f) + extra * s.uiScale
+
+    fun contains(x: Float, y: Float, zoom: Float): Boolean {
+        val s = state ?: return false
+        val p = P(x, y)
+        return when (s.instrument) {
+            GeoInstrument.SetSquare -> {
+                val local = s.setSquareToLocal(p)
+                val leg = s.setSquareLegPx
+                val dist = minOf(
+                    distToEdge(leg, 0, local),
+                    distToEdge(leg, 1, local),
+                    distToEdge(leg, 2, local)
+                )
+                (p - s.setSquareCloseButton()).len() <= padSquare(s, 20f, zoom) ||
+                (p - s.setSquareRotateButton()).len() <= padSquare(s, 26f, zoom) ||
+                (p - s.setSquareResizeButton()).len() <= padSquare(s, 22f, zoom) ||
+                inTriangle(local, leg) ||
+                dist <= 40f
+            }
+            GeoInstrument.Compass -> {
+                val padClose = pad(s, 21f, zoom)
+                val padHandle = pad(s, 17f, zoom)
+                val padHinge = pad(s, 32f, zoom)
+                val padTip = pad(s, 26f, zoom)
+                val padLeg = pad(s, 18.2f, zoom)
+                (p - s.closeButton).len() <= padClose ||
+                (p - s.moveHandle).len() <= padHandle ||
+                (p - s.compassHinge).len() <= padHinge ||
+                (p - s.compassPencil).len() <= padTip ||
+                distToSegment(p, s.compassHinge, s.compassPencil) <= padLeg ||
+                (p - s.compassNeedle).len() <= padTip ||
+                distToSegment(p, s.compassNeedle, s.compassHinge) <= padLeg
+            }
+            else -> true
+        }
+    }
+
     fun onDown(x: Float, y: Float, zoom: Float): Boolean {
         val s = state ?: return false
         val p = P(x, y)
@@ -261,8 +447,8 @@ class GeoController(
         gesture = when (s.instrument) {
             GeoInstrument.Ruler -> beginRuler(s, p, hit)
             GeoInstrument.Protractor -> beginProtractor(s, p, hit)
-            GeoInstrument.Compass -> beginCompass(s, p, hit)
-            GeoInstrument.SetSquare -> beginSetSquare(s, p, hit)
+            GeoInstrument.Compass -> beginCompass(s, p, zoom)
+            GeoInstrument.SetSquare -> beginSetSquare(s, p, zoom)
         }
         val g = gesture
         if (g is G.DrawEdge) {
@@ -270,6 +456,11 @@ class GeoController(
             g.hasDragged = false
             val startP = lerp(g.a, g.b, g.t0.coerceIn(0f, 1f))
             state = s.copy(activeEdgeLine = startP to g.b)
+        }
+        if (g is G.DrawSetSquareEdge) {
+            g.hasDragged = false
+            val p1 = s.setSquareToBoard(offsetOutside(s.setSquareLegPx, g.edge, g.startT, 2.5f))
+            state = s.copy(activeEdgeLine = p1 to p1)
         }
         return gesture !== G.None
     }
@@ -284,6 +475,9 @@ class GeoController(
         if (gesture === G.None) return false
         finish(gesture, P(x, y))
         gesture = G.None
+        if (state?.instrument == GeoInstrument.SetSquare && state?.hint != null) {
+            state = state?.copy(hint = null)
+        }
         return true
     }
 
@@ -367,55 +561,73 @@ class GeoController(
         return G.None
     }
 
-    private fun beginCompass(s: GeoState, p: P, hit: Float): G {
-        val needle = P(s.ox, s.oy)
-        val hinge = GeoKit.compassHinge(s)
-        val pencil = GeoKit.compassPencil(s)
+    private fun beginCompass(s: GeoState, p: P, zoom: Float): G {
+        val needle = s.compassNeedle
+        val hinge = s.compassHinge
+        val pencil = s.compassPencil
 
-        if (hypot(p.x - hinge.x, p.y - (hinge.y - 44f)) <= hit + 6f) {
-            close(); cb.onDismiss(); return G.None
+        // 1. Close button (pad 21)
+        if ((p - s.closeButton).len() <= pad(s, 21f, zoom)) {
+            close()
+            cb.onDismiss()
+            return G.None
         }
-        if (hypot(p.x - hinge.x, p.y - hinge.y) <= hit + 12f) return G.Move(s, p - hinge)
-        if (hypot(p.x - needle.x, p.y - needle.y) <= hit + 8f) return G.Move(s, p - needle)
 
-        val bearingNow = Math.toDegrees(atan2(pencil.y - needle.y, pencil.x - needle.x).toDouble()).toFloat()
-        if (hypot(p.x - pencil.x, p.y - pencil.y) <= hit + 20f) return G.Sweep(s, bearingNow)
+        // 2. Move handle capsule (pad 17)
+        if ((p - s.moveHandle).len() <= pad(s, 17f, zoom)) {
+            return G.CompassMove(s, p, needle, hinge, pencil)
+        }
 
-        val t = project(p, hinge, pencil)
-        if (t in 0.3f..0.75f && distToSegment(p, hinge, pencil) <= hit + 8f) return G.Radius(s)
+        // 3. Hinge sweep (pad 32)
+        if ((p - hinge).len() <= pad(s, 32f, zoom)) {
+            return G.CompassSweep(
+                start = s,
+                lastBearing = bearing(needle, p),
+                total = 0f,
+                lastBucket = 0,
+                sweepFrom = bearing(needle, pencil)
+            )
+        }
+
+        // 4. Pencil tip (pad 26) or pencil leg (pad 18.2)
+        if ((p - pencil).len() <= pad(s, 26f, zoom) || distToSegment(p, hinge, pencil) <= pad(s, 18.2f, zoom)) {
+            val rel = wrapDeg(bearing(hinge, pencil) - bearing(hinge, needle))
+            return G.CompassRadius(s, if (rel >= 0f) 1f else -1f)
+        }
+
+        // 5. Needle tip (pad 26) or needle leg (pad 18.2)
+        if ((p - needle).len() <= pad(s, 26f, zoom) || distToSegment(p, needle, hinge) <= pad(s, 18.2f, zoom)) {
+            return G.CompassMove(s, p, needle, hinge, pencil)
+        }
+
         return G.None
     }
 
-    private fun beginSetSquare(s: GeoState, p: P, hit: Float): G {
-        val local = GeoKit.rotate(p.x - s.ox, p.y - s.oy, -s.angle)
-        val lx = local.x / s.uiScale
-        val ly = local.y / s.uiScale
-        val leg = GeoKit.setSquareLeg(s)
-        val rim = leg / 3.4142137f
-        val d = max(12f, min(22f, 0.54f * rim * 0.5f))
-        val off = 0.70710677f * d
-
-        if (hypot(lx - (leg / 2f - off), ly - (-leg / 2f + off)) <= hit / s.uiScale + 6f) {
-            close(); cb.onDismiss(); return G.None
+    private fun beginSetSquare(s: GeoState, p: P, zoom: Float): G {
+        if ((p - s.setSquareCloseButton()).len() <= padSquare(s, 20f, zoom)) {
+            close()
+            cb.onDismiss()
+            return G.None
         }
-        if (hypot(lx, ly - (-leg - 26f)) <= hit / s.uiScale + 14f) return G.Rotate(s, bearing(s, p))
-        if (hypot(lx - (leg + 28f), ly) <= hit / s.uiScale + 8f) return G.ResizeSquare(s)
-
-        if (lx >= 0f && ly <= 0f && (lx - ly) <= leg) return G.Move(s, p - P(s.ox, s.oy))
-
-        val edges = listOf(
-            world(s, P(0f, 0f)) to world(s, P(leg, 0f)),
-            world(s, P(0f, 0f)) to world(s, P(0f, -leg)),
-            world(s, P(leg, 0f)) to world(s, P(0f, -leg)),
-        )
-        var best: Pair<P, P>? = null
-        var bestD = Float.MAX_VALUE
-        for ((a, b) in edges) {
-            val dd = distToSegment(p, a, b)
-            if (dd < bestD) { bestD = dd; best = a to b }
+        if ((p - s.setSquareRotateButton()).len() <= padSquare(s, 26f, zoom)) {
+            val pivot = s.setSquareCentroid()
+            val angleOffset = s.angle - atan2(p.y - pivot.y, p.x - pivot.x)
+            return G.RotateSetSquare(s, pivot, angleOffset)
         }
-        val e = best
-        if (e != null && bestD <= hit + 8f) return G.DrawEdge(s, e.first, e.second, project(p, e.first, e.second))
+        if ((p - s.setSquareResizeButton()).len() <= padSquare(s, 22f, zoom)) {
+            return G.ResizeSetSquare(s, s.legCm)
+        }
+        val local = s.setSquareToLocal(p)
+        val leg = s.setSquareLegPx
+        val edge = nearestSetSquareEdge(leg, local)
+        val dist = distToEdge(leg, edge, local)
+        if (dist <= 26f || (!inTriangle(local, leg) && dist <= 40f)) {
+            val t0 = projectOnEdge(leg, edge, local)
+            return G.DrawSetSquareEdge(s, edge, t0, t0)
+        }
+        if (inTriangle(local, leg)) {
+            return G.Move(s, p - P(s.ox, s.oy))
+        }
         return G.None
     }
 
@@ -443,30 +655,117 @@ class GeoController(
                 s.copy(spanCm = snapped).let { it.copy(hint = GeoKit.rulerReadout(it, strings)) }
             }
 
-            is G.ResizeSquare -> {
-                val local = GeoKit.rotate(p.x - s.ox, p.y - s.oy, -s.angle)
-                val cm = (local.x / s.uiScale / GeoKit.PX_PER_CM).roundToInt().coerceIn(4, 8)
-                s.copy(legCm = cm).let { it.copy(hint = GeoKit.setSquareReadout(it, strings)) }
+            is G.RotateSetSquare -> {
+                val deg = Math.toDegrees(
+                    (atan2(p.y - g.pivot.y, p.x - g.pivot.x) + g.angleOffset).toDouble()
+                ).toFloat()
+                val snapped = Math.round(deg / 15f) * 15f
+                val onSnap = abs(deg - snapped) <= 3.5f
+                val bucket = if (onSnap) (snapped / 15f).toInt() else null
+                var pulse = s.snapPulse
+                if (onSnap && bucket != g.lastBucket) { pulse++; g.lastBucket = bucket }
+                if (!onSnap) g.lastBucket = null
+
+                val use = if (onSnap) snapped else deg
+                val rad = Math.toRadians(use.toDouble()).toFloat()
+                val ox = (s.setSquareLegPx / 3f) * s.uiScale
+                val oy = (-s.setSquareLegPx / 3f) * s.uiScale
+                val c = cos(rad); val sn = sin(rad)
+                val vx = g.pivot.x - (ox * c - oy * sn)
+                val vy = g.pivot.y - (oy * c + ox * sn)
+
+                val degNorm = wrap360(use).toInt()
+                val check = if (onSnap) "  ✓" else ""
+                s.copy(
+                    ox = vx,
+                    oy = vy,
+                    angle = rad,
+                    snapPulse = pulse,
+                    hint = "$degNorm°$check"
+                )
+            }
+
+            is G.ResizeSetSquare -> {
+                val k = s.uiScale.coerceAtLeast(1e-4f)
+                val raw = Math.round(((p - P(s.ox, s.oy)).len() - 28f * k) / (k * 37.795277f))
+                val leg = raw.coerceIn(4, 8)
+                var pulse = s.snapPulse
+                if (leg != g.lastLeg) { g.lastLeg = leg; pulse++ }
+                val hyp = leg * 1.4142135f
+                val max = if (leg == 8) "  MAX" else ""
+                s.copy(
+                    legCm = leg,
+                    snapPulse = pulse,
+                    hint = String.format(Locale.US, "leg %d cm  ·  hyp %.1f cm%s", leg, hyp, max)
+                )
             }
 
             is G.Swing -> s.copy(armDeg = normalizeDeg(armDeg(p, s)))
 
             is G.Zoom -> s.copy(radius = (g.start.radius * (1f + (p.y - g.downY) / 260f)).coerceIn(90f, 480f))
 
-            is G.Radius -> {
-                val chord = 2f * max(8f, hypot(p.x - s.ox, p.y - s.oy))
-                val half = asin((chord / 2f / max(1f, s.legPx)).coerceIn(0f, 0.985f))
-                s.copy(opening = (2f * half).coerceIn(0.05f, 2.9f))
-                    .let { it.copy(hint = GeoKit.compassReadout(it, strings)) }
+            is G.CompassMove -> {
+                val d = p - g.down
+                s.copy(
+                    ox = g.sNeedle.x + d.x,
+                    oy = g.sNeedle.y + d.y,
+                    hx = g.sHinge.x + d.x,
+                    hy = g.sHinge.y + d.y,
+                    px = g.sPencil.x + d.x,
+                    py = g.sPencil.y + d.y
+                )
             }
 
-            is G.Sweep -> {
-                val needle = P(g.start.ox, g.start.oy)
-                val now = Math.toDegrees(atan2(p.y - needle.y, p.x - needle.x).toDouble()).toFloat()
-                s.copy(
-                    angle = g.start.angle + Math.toRadians((now - g.startBearing).toDouble()).toFloat(),
-                    sweep = g.startBearing to now,
+            is G.CompassSweep -> {
+                val needle = s.compassNeedle
+                val b = bearing(needle, p)
+                val delta = wrapDeg(b - g.lastBearing)
+                g.lastBearing = b
+
+                val next = GeoKit.clamp(g.total + delta, -360f, 360f)
+                val applied = next - g.total
+                g.total = next
+
+                val hinge = rotateAbout(P(s.hx, s.hy), applied, needle)
+                val pencil = rotateAbout(P(s.px, s.py), applied, needle)
+
+                val bucket = (abs(g.total) / 90f).toInt()
+                var pulse = s.snapPulse
+                if (bucket != g.lastBucket) {
+                    g.lastBucket = bucket
+                    pulse++
+                }
+
+                val a = abs(g.total)
+                val tail = if (a >= 359.5f) "  ·  ⭕ 360°" else "  ·  ${a.toInt()}°"
+                val moved = s.copy(
+                    hx = hinge.x,
+                    hy = hinge.y,
+                    px = pencil.x,
+                    py = pencil.y,
+                    snapPulse = pulse,
+                    sweepFromDeg = g.sweepFrom,
+                    sweepArcDeg = g.total
                 )
+                moved.copy(hint = moved.compassReadoutText() + tail)
+            }
+
+            is G.CompassRadius -> {
+                val hinge = s.compassHinge
+                val needle = s.compassNeedle
+                val base = Math.toRadians(bearing(hinge, needle).toDouble())
+                val rel = Math.toRadians(
+                    wrapDeg(bearing(hinge, p) - bearing(hinge, needle)).toDouble()
+                )
+                val minA = 2.0 * asin(clampD(24.0 / (2.0 * s.legPx), 0.0, 1.0))
+                val maxA = 2.0 * asin(0.985)
+                val ang = g.radiusSign * clampD(abs(rel), minA, maxA) + base
+                val pencil = P(
+                    hinge.x + (cos(ang) * s.legPx).toFloat(),
+                    hinge.y + (sin(ang) * s.legPx).toFloat()
+                )
+                val moved = s.copy(px = pencil.x, py = pencil.y)
+                moved.copy(hint = moved.compassReadoutText())
             }
 
             is G.DrawEdge -> {
@@ -479,6 +778,22 @@ class GeoController(
                 s.copy(
                     hint = String.format(Locale.US, strings.rulerDraw, len / GeoKit.PX_PER_CM, len / 96f),
                     activeEdgeLine = lineStart to lineEnd
+                )
+            }
+
+            is G.DrawSetSquareEdge -> {
+                g.hasDragged = true
+                val leg = s.setSquareLegPx
+                val local = s.setSquareToLocal(p)
+                val currentT = projectOnEdge(leg, g.edge, local)
+                g.currentT = currentT
+                val p1 = s.setSquareToBoard(offsetOutside(leg, g.edge, g.startT, 2.5f))
+                val p2 = s.setSquareToBoard(offsetOutside(leg, g.edge, currentT, 2.5f))
+                val lenLocal = abs(currentT - g.startT)
+                val lenCm = lenLocal / 37.795277f
+                s.copy(
+                    hint = String.format(Locale.US, "%.1f cm", lenCm),
+                    activeEdgeLine = p1 to p2
                 )
             }
 
@@ -497,22 +812,31 @@ class GeoController(
                 }
                 state = s.copy(hint = null, activeEdgeLine = null)
             }
-            is G.Sweep -> {
-                val needle = P(g.start.ox, g.start.oy)
-                val now = Math.toDegrees(atan2(p.y - needle.y, p.x - needle.x).toDouble()).toFloat()
-                val delta = now - g.startBearing
-                val r = GeoKit.compassRadius(g.start)
-                if (abs(delta) >= 4f && r > 8f) {
-                    val a0 = Math.toRadians(g.startBearing.toDouble()).toFloat()
-                    val a1 = Math.toRadians(now.toDouble()).toFloat()
-                    cb.onStampArc(
-                        needle,
-                        P(needle.x + cos(a0) * r, needle.y + sin(a0) * r),
-                        P(needle.x + cos(a1) * r, needle.y + sin(a1) * r),
-                    )
+            is G.DrawSetSquareEdge -> {
+                val leg = s.setSquareLegPx
+                val p1 = s.setSquareToBoard(offsetOutside(leg, g.edge, g.startT, 2.5f))
+                val p2 = s.setSquareToBoard(offsetOutside(leg, g.edge, g.currentT, 2.5f))
+                val lenLocal = abs(g.currentT - g.startT)
+                if (g.hasDragged && lenLocal >= 6f) {
+                    cb.onStampLine(p1, p2)
                 }
-                // put the compass back where it started, keep the measured radius
-                state = s.copy(angle = g.start.angle, sweep = null)
+                state = s.copy(hint = null, activeEdgeLine = null)
+            }
+            is G.CompassSweep -> {
+                val needle = s.compassNeedle
+                val r = s.compassRadius
+                if (abs(g.total) >= 4f && r >= 1f) {
+                    val strokeW = GeoKit.clamp(4f * s.g, 3f, 14f)
+                    val a0 = Math.toRadians(g.sweepFrom.toDouble())
+                    val a1 = Math.toRadians((g.sweepFrom + g.total).toDouble())
+                    val startP = P(needle.x + (cos(a0) * r).toFloat(), needle.y + (sin(a0) * r).toFloat())
+                    val endP = P(needle.x + (cos(a1) * r).toFloat(), needle.y + (sin(a1) * r).toFloat())
+                    cb.onStampArc(needle, startP, endP, g.total, strokeW)
+                }
+                state = s.copy(hint = null, sweepFromDeg = null, sweepArcDeg = 0f)
+            }
+            is G.CompassRadius -> {
+                state = s.copy(hint = null)
             }
             else -> Unit
         }
@@ -574,11 +898,36 @@ class GeoController(
         data class Move(override val start: GeoState, val grab: P) : G
         data class Rotate(override val start: GeoState, val downDeg: Float) : G
         data class ResizeRuler(override val start: GeoState) : G
-        data class ResizeSquare(override val start: GeoState) : G
+        data class RotateSetSquare(
+            override val start: GeoState,
+            val pivot: P,
+            val angleOffset: Float,
+            var lastBucket: Int? = null,
+        ) : G
+        data class ResizeSetSquare(
+            override val start: GeoState,
+            var lastLeg: Int = start.legCm,
+        ) : G
         data class Swing(override val start: GeoState, val downDeg: Float) : G
         data class Zoom(override val start: GeoState, val downY: Float) : G
-        data class Radius(override val start: GeoState) : G
-        data class Sweep(override val start: GeoState, val startBearing: Float) : G
+        data class CompassMove(
+            override val start: GeoState,
+            val down: P,
+            val sNeedle: P,
+            val sHinge: P,
+            val sPencil: P,
+        ) : G
+        data class CompassSweep(
+            override val start: GeoState,
+            var lastBearing: Float,
+            var total: Float,
+            var lastBucket: Int,
+            val sweepFrom: Float,
+        ) : G
+        data class CompassRadius(
+            override val start: GeoState,
+            val radiusSign: Float,
+        ) : G
         data class DrawEdge(
             override val start: GeoState,
             val a: P,
@@ -588,6 +937,13 @@ class GeoController(
             var t1: Float = 1f
             var hasDragged: Boolean = false
         }
+        data class DrawSetSquareEdge(
+            override val start: GeoState,
+            val edge: Int,
+            val startT: Float,
+            var currentT: Float,
+            var hasDragged: Boolean = false,
+        ) : G
         data object None : G {
             override val start: GeoState get() = error("no gesture")
         }
@@ -601,17 +957,19 @@ class GeoController(
 internal class GeoRenderer(private val st: GeoStyle, private val str: GeoStrings) {
 
     fun draw(c: Canvas, s: GeoState) {
-        s.activeEdgeLine?.let { (a, b) ->
-            val p = stroke(tint(st.ink, 0.95f), 3.5f * s.uiScale)
-            c.drawLine(a.x, a.y, b.x, b.y, p)
-        }
         when (s.instrument) {
             GeoInstrument.Ruler -> ruler(c, s)
             GeoInstrument.Protractor -> protractor(c, s)
             GeoInstrument.Compass -> compass(c, s)
             GeoInstrument.SetSquare -> setSquare(c, s)
         }
-        s.hint?.let { hint(c, s, it) }
+        s.activeEdgeLine?.let { (a, b) ->
+            val p = stroke(tint(st.ink, 0.95f), 3.5f * s.uiScale)
+            c.drawLine(a.x, a.y, b.x, b.y, p)
+        }
+        if (s.instrument != GeoInstrument.Compass && s.instrument != GeoInstrument.SetSquare) {
+            s.hint?.let { hint(c, s, it) }
+        }
     }
 
     private fun tint(c: Int, a: Float): Int =
@@ -704,72 +1062,117 @@ internal class GeoRenderer(private val st: GeoStyle, private val str: GeoStrings
     // ---- set square ----
 
     private fun setSquare(c: Canvas, s: GeoState) {
-        val leg = GeoKit.setSquareLeg(s)
-        val rim = leg / 3.4142137f
-        val inset = 0.54f * rim
+        val L = s.setSquareLegPx
+        val r = s.setSquareInradius
+        val notch = s.setSquareNotch
+
         c.save()
         c.translate(s.ox, s.oy)
         c.rotate(s.angleDeg)
         c.scale(s.uiScale, s.uiScale)
 
-        val outer = tri(ssPoints(leg, inset, 1f))
-        val hole = tri(ssPoints(leg, inset, 0.46f))
-        val combined = Path().apply {
-            fillType = Path.FillType.EVEN_ODD
-            addPath(outer); addPath(hole)
-        }
-        c.drawPath(combined, fill(tint(st.tan, st.bodyAlpha)))
-        c.drawPath(tri(ssPoints(leg, inset, 0.955f)), stroke(tint(st.dark, 0.85f), 1.2f))
-        c.drawPath(outer, stroke(tint(st.dark, 0.95f), 2.2f))
-        c.drawPath(hole, stroke(tint(st.brown, 0.95f), 1.5f))
+        val outer = trianglePoints(L, 1f, r)
+        val inner = trianglePoints(L, 0.46f, r)
+        val bevel = trianglePoints(L, 0.955f, r)
 
-        val mark = stroke(st.ink, 1.4f)
+        val frame = Path().apply {
+            fillType = Path.FillType.EVEN_ODD
+            moveTo(outer[0], outer[1]); lineTo(outer[2], outer[3]); lineTo(outer[4], outer[5]); close()
+            moveTo(inner[0], inner[1]); lineTo(inner[2], inner[3]); lineTo(inner[4], inner[5]); close()
+        }
+        c.drawPath(frame, fill(0x73FFCE54.toInt()))
+        c.drawPath(polyPath(bevel), stroke(0xCCFFF1C7.toInt(), 1.2f))
+        c.drawPath(polyPath(outer), stroke(0xD95A4408.toInt(), 2.2f))
+        c.drawPath(polyPath(inner), stroke(0x806E530A.toInt(), 1.5f))
+
+        val ink = 0xFF3A2F10.toInt()
+        val mark = stroke(ink, 1.4f)
         c.drawLine(15f, 0f, 15f, -15f, mark)
         c.drawLine(15f, -15f, 0f, -15f, mark)
 
-        ticks(c, true, leg, inset, s.legCm, st.ink)
-        ticks(c, false, leg, inset, s.legCm, st.ink)
+        setSquareTicks(c, true, L, notch, s.legCm, ink)
+        setSquareTicks(c, false, L, notch, s.legCm, ink)
 
-        val d = max(12f, min(22f, inset * 0.5f))
-        val off = 0.70710677f * d
-        button(c, P(leg / 2f - off, -leg / 2f + off), 11f, st.closeRed, "close", 14f)
-        button(c, P(0f, -leg - 26f), 18f, st.rotateBlue, "rotate", 20f)
-        button(c, P(leg + 28f, 0f), 14f, st.rotateBlue, "resize", 17f)
+        val inset = GeoKit.clamp(notch * 0.5f, 12f, 22f) * 0.70710677f
+        button(c, P(L / 2f - inset, -L / 2f + inset), 11f, 0xFFEF4444.toInt(), "close", 14f)
+        button(c, P(0f, -L - 26f), 18f, 0xFF2563EB.toInt(), "rotate", 20f)
+        button(c, P(L + 28f, 0f), 14f, 0xFF2563EB.toInt(), "resize", 17f)
+
         c.restore()
+
+        s.hint?.let { text ->
+            val size = 13f * s.uiScale
+            val p = text(size, 0xFFFFFFFF.toInt(), bold = true).apply {
+                textAlign = Paint.Align.CENTER
+            }
+            val cp = s.setSquareCentroid()
+            val halfW = p.measureText(text) / 2f + 7f * s.uiScale
+            val halfH = 3.5f * s.uiScale + size * 0.72f
+            val bg = fill(0xF03A2F10.toInt())
+            c.drawRoundRect(
+                RectF(cp.x - halfW, cp.y - halfH, cp.x + halfW, cp.y + halfH),
+                7f * s.uiScale, 7f * s.uiScale, bg
+            )
+            val fm = p.fontMetrics
+            c.drawText(text, cp.x, cp.y - (fm.ascent + fm.descent) / 2f, p)
+        }
     }
 
-    private fun ssPoints(size: Float, inset: Float, t: Float): FloatArray {
-        val xs = floatArrayOf(0f, size, 0f)
-        val ys = floatArrayOf(0f, 0f, -size)
+    private fun trianglePoints(leg: Float, k: Float, r: Float): FloatArray {
+        val cx = r
+        val cy = -r
+        val vx = floatArrayOf(0f, leg, 0f)
+        val vy = floatArrayOf(0f, 0f, -leg)
         val out = FloatArray(6)
         for (i in 0..2) {
-            out[i * 2] = xs[i] * t + inset * (1f - t)
-            out[i * 2 + 1] = ys[i] * t - inset * (1f - t)
+            out[i * 2] = (vx[i] - cx) * k + cx
+            out[i * 2 + 1] = (vy[i] - cy) * k + cy
         }
         return out
     }
 
-    private fun tri(p: FloatArray) = Path().apply {
+    private fun polyPath(p: FloatArray): Path = Path().apply {
         moveTo(p[0], p[1]); lineTo(p[2], p[3]); lineTo(p[4], p[5]); close()
     }
 
-    private fun ticks(c: Canvas, alongX: Boolean, len: Float, thickness: Float, cm: Int, color: Int) {
-        val tickLen = GeoKit.clamp(0.28f * thickness, 6f, 12f)
-        val labelAt = GeoKit.clamp(0.55f * thickness, tickLen + 6f, thickness - 0.6f * 12f - 2f)
-        val paint = stroke(color, 1f)
-        val mm = (len / GeoKit.MM).toInt().coerceAtMost(cm * 10)
-        for (i in 0..mm) {
-            val d = i * GeoKit.MM
-            val l = min(if (i % 10 == 0) tickLen else if (i % 5 == 0) 0.64f * tickLen else 0.4f * tickLen, len - d - 1f)
-            if (l < 1f) break
-            if (alongX) c.drawLine(d, 0f, d, -l, paint) else c.drawLine(0f, -d, l, -d, paint)
+    private fun setSquareTicks(
+        c: Canvas, horizontal: Boolean, leg: Float,
+        notch: Float, legCm: Int, ink: Int
+    ) {
+        val count = Math.round(legCm * 10f)
+        val labelSize = GeoKit.clamp(0.052f * leg, 8f, 12f)
+        val tickBase = GeoKit.clamp(0.28f * notch, 6f, 12f)
+        val labelInset = GeoKit.clamp(
+            0.55f * notch,
+            tickBase + 6f,
+            notch - 0.6f * labelSize - 2f
+        )
+
+        val p = stroke(ink, 1f)
+        for (i in 0..count) {
+            val pos = 3.7795277f * i
+            val len = min(
+                if (i % 10 == 0) tickBase
+                else if (i % 5 == 0) 0.64f * tickBase
+                else 0.4f * tickBase,
+                leg - pos - 1f
+            )
+            if (len < 1f) continue
+            if (horizontal) c.drawLine(pos, 0f, pos, -len, p)
+            else c.drawLine(0f, -pos, len, -pos, p)
         }
-        val label = text(min(12f, max(8f, 0.052f * len)), color)
-        for (i in 1 until cm) {
-            val d = min(i * GeoKit.PX_PER_CM, len - labelAt - 6f)
-            if (d < 6f) continue
-            if (alongX) c.drawText(i.toString(), d, -labelAt + 4f, label)
-            else c.drawText(i.toString(), labelAt, -d + 4f, label)
+
+        val tp = text(Math.round(labelSize).toFloat(), ink, bold = true).apply {
+            textAlign = Paint.Align.CENTER
+            isFakeBoldText = true
+        }
+        val fm = tp.fontMetrics
+        val vCenter = -(fm.ascent + fm.descent) / 2f
+        for (i in 1 until legCm) {
+            val pos = min(i * 37.795277f, leg - labelInset - 6f)
+            if (pos < 6f) continue
+            if (horizontal) c.drawText("$i", pos, -labelInset + vCenter, tp)
+            else c.drawText("$i", labelInset, -pos + vCenter, tp)
         }
     }
 
@@ -838,16 +1241,15 @@ internal class GeoRenderer(private val st: GeoStyle, private val str: GeoStrings
 
         val ax = cos(arm) * 186f; val ay = -sin(arm) * 186f
         c.drawLine(0f, 0f, ax, ay, stroke(st.brown, 3.5f))
-        c.drawCircle(ax, ay, 10f, fill(st.brown))
-        c.drawCircle(ax, ay, 10f, stroke(0xFFFFFFFF.toInt(), 2f))
-        c.drawCircle(ax, ay, 3.2f, fill(0xFFFFFFFF.toInt()))
+        // Hollow ring handle at arm tip matching competitor
+        c.drawCircle(ax, ay, 6.5f, stroke(st.brown, 4.2f))
 
         val buttons = listOf(
             Triple(0, st.closeRed, "close"),
             Triple(1, st.angleTeal, "angle"),
             Triple(2, st.arcViolet, "arc"),
             Triple(3, st.sectorAmber, "sector"),
-            Triple(4, st.zoomYellow, "zoom"),
+            Triple(4, st.resizePink, "vertical_resize"),
             Triple(5, st.rotateBlue, "rotate"),
         )
         for ((i, color, icon) in buttons) button(c, P(i * 52f - 130f, 28f), 12.3f, color, icon, 15f)
@@ -859,57 +1261,149 @@ internal class GeoRenderer(private val st: GeoStyle, private val str: GeoStrings
         val py = s.oy - cos(s.angle) * d
         val pr = 18f * k
         c.drawCircle(px, py, pr, fill(st.brown))
-        c.drawCircle(px, py, pr, stroke(0xCD0000FF.toInt(), 1.2f))
         c.drawText("${s.armDeg.roundToInt()}°", px, py + pr * 0.35f, text(0.95f * pr, 0xFFFFFFFF.toInt()))
     }
 
     // ---- compass ----
 
     private fun compass(c: Canvas, s: GeoState) {
-        val needle = P(s.ox, s.oy)
-        val hinge = GeoKit.compassHinge(s)
-        val pencil = GeoKit.compassPencil(s)
-        val r = GeoKit.compassRadius(s)
+        val g = s.g
+        val needle = s.compassNeedle
+        val hinge = s.compassHinge
+        val pencil = s.compassPencil
+        val r = s.compassRadius
 
-        val legs = stroke(st.compassBody, 11f)
-        c.drawLine(needle.x, needle.y, hinge.x, hinge.y, legs)
-        c.drawLine(hinge.x, hinge.y, pencil.x, pencil.y, legs)
+        val body = 0xFF3F4654.toInt()
+        val pencilOuter = 0xFF2563EB.toInt()
+        val pencilDot = 0xFF1D4ED8.toInt()
+        val needleArrow = 0xFF334155.toInt()
+        val accent = 0xFF1F6FE0.toInt()
+        val arcPreview = 0x801F6FE0.toInt()
+        val hingeDisc = 0xFF374151.toInt()
+        val hingeRing = 0xE6FFFFFF.toInt()
+        val closeBtnColor = 0xFFE06B8B.toInt()
+        val white = 0xFFFFFFFF.toInt()
 
-        val dx = hinge.x - needle.x; val dy = hinge.y - needle.y
-        val n = max(hypot(dx, dy), 1e-4f)
-        val ux = dx / n; val uy = dy / n
-        val tip = P(needle.x + ux * 14f, needle.y + uy * 14f)
-        val needleTri = Path().apply {
+        // 1. Preview arc
+        s.sweepFromDeg?.let { from ->
+            val rect = RectF(needle.x - r, needle.y - r, needle.x + r, needle.y + r)
+            c.drawArc(rect, from, s.sweepArcDeg, false, stroke(arcPreview, 4f * g))
+        }
+
+        // 2. Needle leg (needle -> hinge)
+        c.drawLine(needle.x, needle.y, hinge.x, hinge.y, stroke(body, 11f * g))
+
+        // 3. Pencil leg (hinge -> pencil)
+        c.drawLine(hinge.x, hinge.y, pencil.x, pencil.y, stroke(body, 11f * g))
+
+        // 4. Pencil leg blue section (hinge + 62% -> pencil)
+        val blueFrom = P(
+            hinge.x + (pencil.x - hinge.x) * 0.62f,
+            hinge.y + (pencil.y - hinge.y) * 0.62f
+        )
+        c.drawLine(blueFrom.x, blueFrom.y, pencil.x, pencil.y, stroke(pencilOuter, 11f * g))
+
+        // 5. Needle arrowhead
+        val u = (hinge - needle).unit()
+        val n = P(-u.y, u.x)
+        val base = needle + u * (14f * g)
+        val tri = Path().apply {
             moveTo(needle.x, needle.y)
-            lineTo(tip.x - uy * 4.5f, tip.y + ux * 4.5f)
-            lineTo(tip.x + uy * 4.5f, tip.y - ux * 4.5f)
+            lineTo(base.x + n.x * 4.5f * g, base.y + n.y * 4.5f * g)
+            lineTo(base.x - n.x * 4.5f * g, base.y - n.y * 4.5f * g)
             close()
         }
-        c.drawPath(needleTri, fill(st.compassAccent))
-        c.drawCircle(needle.x, needle.y, 3f, fill(st.compassAccent))
-        c.drawCircle(pencil.x, pencil.y, 5f, fill(st.compassAccent))
+        c.drawPath(tri, fill(needleArrow))
 
-        c.drawCircle(hinge.x, hinge.y, 22f, fill(st.compassBody))
-        c.drawCircle(hinge.x, hinge.y, 22f, stroke(0xFFFFFFFF.toInt(), 2f))
-        val arc = Path().apply {
-            addArc(hinge.x - 8.4f, hinge.y - 8.4f, hinge.x + 8.4f, hinge.y + 8.4f, -95f, 250f)
-        }
-        c.drawPath(arc, stroke(st.ink, 2.4f))
-        val ah = P(hinge.x + cos(-1.5208f) * 8.4f, hinge.y + sin(-1.5208f) * 8.4f)
-        val head = Path().apply {
-            moveTo(ah.x + 3.4f, ah.y); lineTo(ah.x - 1.8f, ah.y - 2.8f); lineTo(ah.x - 1.8f, ah.y + 2.8f); close()
-        }
-        c.drawPath(head, fill(st.ink))
+        // 6. Needle dot
+        c.drawCircle(needle.x, needle.y, 3f * g, fill(accent))
 
-        button(c, P(hinge.x, hinge.y - 44f), 16f, 0xFFE0608B.toInt(), "close", 16f)
+        // 7. Pencil dot
+        c.drawCircle(pencil.x, pencil.y, 5f * g, fill(pencilDot))
 
-        s.sweep?.let { (a0, a1) ->
-            if (abs(a1 - a0) >= 0.5f) {
-                val rect = RectF(needle.x - r, needle.y - r, needle.x + r, needle.y + r)
-                c.drawArc(rect, a0, a1 - a0, false,
-                    stroke(tint(st.compassAccent, 0.85f), max(3f, min(r * 0.04f, 14f))))
-            }
+        // 8. Needle glyph (at needle + 0.30*(hinge - needle), r = 18g)
+        glyph(c, needle + (hinge - needle) * 0.30f, 18f * g, true)
+
+        // 9. Pencil glyph (at hinge + 0.42*(pencil - hinge), r = 18g)
+        glyph(c, hinge + (pencil - hinge) * 0.42f, 18f * g, false)
+
+        // 10. Hinge disc
+        c.drawCircle(hinge.x, hinge.y, 22f * g, fill(hingeDisc))
+
+        // 11. Hinge ring
+        c.drawCircle(hinge.x, hinge.y, 22f * g, stroke(hingeRing, 2f * g))
+
+        // 12. Hinge rotate button / dial (clean circular rotate arrow matching opponent app)
+        val dialR = 8.4f * g
+        c.save()
+        c.translate(hinge.x, hinge.y)
+        c.drawArc(RectF(-dialR, -dialR, dialR, dialR), -80f, 290f, false, stroke(white, 2.4f * g))
+        val arrowAngleRad = Math.toRadians(-80.0)
+        val arrowX = (cos(arrowAngleRad) * dialR).toFloat()
+        val arrowY = (sin(arrowAngleRad) * dialR).toFloat()
+        c.save()
+        c.translate(arrowX, arrowY)
+        c.rotate(15f)
+        val pointer = Path().apply {
+            moveTo(3.5f * g, 0f)
+            lineTo(-2f * g, -2.8f * g)
+            lineTo(-2f * g, 2.8f * g)
+            close()
         }
+        c.drawPath(pointer, fill(white))
+        c.restore()
+        c.restore()
+
+        // 13. Move capsule
+        val a = s.moveHandle
+        c.save()
+        c.translate(a.x, a.y)
+        c.rotate(bearing(needle, hinge) + 90f)
+        c.drawRoundRect(RectF(-10f * g, -17f * g, 10f * g, 17f * g), 9f * g, 9f * g, fill(body))
+        c.restore()
+
+        // 14. Close button
+        val b = s.closeButton
+        c.drawCircle(b.x, b.y, 13f * g, fill(closeBtnColor))
+        val xPaint = stroke(white, 2.2f * g)
+        c.drawLine(b.x - 4f * g, b.y - 4f * g, b.x + 4f * g, b.y + 4f * g, xPaint)
+        c.drawLine(b.x + 4f * g, b.y - 4f * g, b.x - 4f * g, b.y + 4f * g, xPaint)
+
+        // 15. Prominent Blue Readout Pill (matching opponent app Image 1)
+        val textStr = s.hint ?: s.compassReadoutText()
+        val textPaint = text(max(13f * g, 16f), white, bold = true)
+        val textW = textPaint.measureText(textStr)
+        val pillPadX = 14f * g
+        val pillW = textW + pillPadX * 2f
+        val pillH = max(24f * g, 32f)
+        val pillU = (needle - hinge).unit()
+        val pillCenter = hinge + pillU * (17f * g)
+        val pillRect = RectF(
+            pillCenter.x - pillW / 2f,
+            pillCenter.y - pillH / 2f,
+            pillCenter.x + pillW / 2f,
+            pillCenter.y + pillH / 2f
+        )
+        val pillRadius = 11f * g
+        c.drawRoundRect(pillRect, pillRadius, pillRadius, fill(0xFF3D67DE.toInt()))
+        c.drawText(textStr, pillCenter.x, pillCenter.y + (textPaint.textSize * 0.35f), textPaint)
+    }
+
+    private fun glyph(c: Canvas, at: P, r: Float, needle: Boolean) {
+        c.drawCircle(at.x, at.y, r / 2f, fill(0xFF1F2733.toInt()))
+        c.save()
+        c.translate(at.x, at.y)
+        c.scale(r / 18f, r / 18f)
+        val p = stroke(0xFFFFFFFF.toInt(), 1.6f)
+        if (needle) {
+            c.drawLine(-3.6f, -3.5f, -3.6f, 3.5f, p)
+            c.drawLine(3.6f, -3.5f, 3.6f, 3.5f, p)
+        } else {
+            c.drawLine(-4.5f, 0f, 4.0f, 0f, p)
+            c.drawLine(1.5f, -3.0f, 4.5f, 0f, p)
+            c.drawLine(4.5f, 0f, 1.5f, 3.0f, p)
+        }
+        c.restore()
     }
 
     // ---- shared widgets ----
@@ -957,8 +1451,18 @@ internal class GeoRenderer(private val st: GeoStyle, private val str: GeoStrings
             }
             "sector" -> {
                 c.drawPath(Path().apply {
-                    moveTo(4f, 20f); arcTo(RectF(4f, 4f, 20f, 20f), 180f, -90f, false); close()
+                    moveTo(7f, 17f)
+                    lineTo(7f, 7f)
+                    arcTo(RectF(-3f, 7f, 17f, 27f), 270f, 90f, false)
+                    close()
                 }, f)
+            }
+            "vertical_resize" -> {
+                c.drawLine(12f, 5.5f, 12f, 18.5f, p)
+                c.drawLine(8f, 9.5f, 12f, 5.5f, p)
+                c.drawLine(16f, 9.5f, 12f, 5.5f, p)
+                c.drawLine(8f, 14.5f, 12f, 18.5f, p)
+                c.drawLine(16f, 14.5f, 12f, 18.5f, p)
             }
             "zoom" -> {
                 c.drawCircle(11f, 11f, 6f, p)
@@ -982,6 +1486,10 @@ internal class GeoRenderer(private val st: GeoStyle, private val str: GeoStrings
                 val leg = GeoKit.setSquareLeg(s) * s.uiScale
                 val r = GeoKit.rotate(leg / 3f, -leg / 3f, s.angle)
                 P(s.ox + r.x, s.oy + r.y)
+            }
+            GeoInstrument.Compass -> {
+                val h = s.compassHinge
+                P(h.x, h.y - 48f * s.g)
             }
             else -> P(s.ox, s.oy + 90f)
         }

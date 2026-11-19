@@ -182,3 +182,10 @@ enum class SortOption {
 enum class EraserMode {
   PIXEL_INK, STROKE
 }
+
+enum class PdfViewMode {
+  WINDOW,
+  SPLIT_LEFT,
+  SPLIT_RIGHT,
+  FULLSCREEN
+}

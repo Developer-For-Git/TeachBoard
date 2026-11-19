@@ -1,13 +1,16 @@
 package com.teachboard.app.ui.canvas
 
+import android.graphics.Bitmap
 import android.media.RingtoneManager
 import android.net.Uri
 import android.view.ViewGroup
+import java.io.File
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,8 +18,11 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,6 +30,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,17 +44,25 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Functions
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.SquareFoot
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.VerticalSplit
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -67,11 +84,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -90,18 +109,35 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.teachboard.app.R
 import com.teachboard.app.domain.calc.ExpressionEvaluator
+import com.teachboard.app.domain.export.LazyPdfCache
 import com.teachboard.app.domain.model.Contour
 import com.teachboard.app.domain.model.FaceCamShape
 import com.teachboard.app.domain.model.GeometryToolType
+import com.teachboard.app.domain.model.PdfViewMode
 import com.teachboard.app.domain.model.StrokePoint
 import com.teachboard.app.ui.theme.TeachColors
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import kotlin.math.PI
+import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.hypot
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-// ===== 1. Geometry Box Bottom-Docked Card (Matching ref_21_geometry.png!) =====
+// ===== 1. Geometry Box Bottom-Docked Card (Matching reverse-engineered spec) =====
 
 @Composable
 fun GeometryPickerDialog(
@@ -109,58 +145,247 @@ fun GeometryPickerDialog(
   onSelect: (GeometryToolType?) -> Unit,
   onDismiss: () -> Unit
 ) {
-  BottomDockCard(
-    title = stringResource(R.string.geometry_box_title),
-    icon = Icons.Default.SquareFoot,
-    badgeColor = TeachColors.AccentAmber,
-    headerTint = TeachColors.HeaderAmberTint,
-    onDismiss = onDismiss
-  ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-      val items = listOf(
-        Triple(GeometryToolType.RULER, "Ruler", Icons.Default.Straighten),
-        Triple(GeometryToolType.PROTRACTOR, "Protractor", Icons.Default.SquareFoot),
-        Triple(GeometryToolType.COMPASS, "Compass", Icons.Default.Create),
-        Triple(
-          if (activeTool == GeometryToolType.SET_SQUARE_30_60) GeometryToolType.SET_SQUARE_45_45 else GeometryToolType.SET_SQUARE_30_60,
-          "Set Square",
-          Icons.Default.SquareFoot
-        )
+  val cfg = LocalConfiguration.current
+  val minSide = kotlin.math.min(cfg.screenWidthDp, cfg.screenHeightDp).toFloat()
+  val sheetW = (cfg.screenWidthDp * 0.84f).coerceIn(300f, 430f)
+  val bottomInset = (minSide * 0.22f).coerceIn(92f, 104f)
+  val iconSize = (minSide * 0.066f).coerceIn(24f, 32f)
+  val tileW = (sheetW - 27f) / 4f
+
+  Box(
+    modifier = Modifier
+      .fillMaxSize()
+      .clickable(
+        interactionSource = remember { MutableInteractionSource() },
+        indication = null,
+        onClick = onDismiss
       )
-      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items.forEach { (type, label, icon) ->
-          val isSel = activeTool == type || (label == "Set Square" && (activeTool == GeometryToolType.SET_SQUARE_30_60 || activeTool == GeometryToolType.SET_SQUARE_45_45))
-          Surface(
+  ) {
+    Column(
+      modifier = Modifier.fillMaxSize(),
+      verticalArrangement = Arrangement.Bottom,
+      horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+      Surface(
+        modifier = Modifier
+          .width(sheetW.dp)
+          .padding(bottom = bottomInset.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = Color.White,
+        shadowElevation = 6.dp
+      ) {
+        Column {
+          // Amber wash gradient header
+          Row(
             modifier = Modifier
-              .weight(1f)
-              .height(78.dp)
-              .clip(RoundedCornerShape(14.dp))
-              .border(if (isSel) 2.dp else 1.dp, if (isSel) TeachColors.AccentAmber else TeachColors.TrayBorder, RoundedCornerShape(14.dp))
-              .clickable {
-                onSelect(if (isSel && label != "Set Square") null else type)
-                onDismiss()
-              },
-            color = if (isSel) TeachColors.HeaderAmberTint else Color.White
+              .fillMaxWidth()
+              .background(Brush.horizontalGradient(listOf(Color(0x73FFCE54), Color(0x1FFFCE54))))
+              .padding(horizontal = 10.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically
           ) {
-            Column(
-              modifier = Modifier.fillMaxSize().padding(6.dp),
-              horizontalAlignment = Alignment.CenterHorizontally,
-              verticalArrangement = Arrangement.Center
+            Box(
+              modifier = Modifier
+                .size(18.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color(0xFFB45309)),
+              contentAlignment = Alignment.Center
             ) {
-              Icon(icon, contentDescription = label, tint = TeachColors.AccentAmber, modifier = Modifier.size(24.dp))
-              Spacer(Modifier.height(6.dp))
-              Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B), maxLines = 1)
+              Icon(
+                painter = painterResource(R.drawable.ic_geo_box),
+                contentDescription = null,
+                modifier = Modifier.size(11.dp),
+                tint = Color.White
+              )
+            }
+            Spacer(Modifier.width(6.dp))
+            Text(
+              text = stringResource(R.string.tb_geometry_box),
+              color = Color(0xFF0F172A),
+              fontSize = 12.sp,
+              fontWeight = FontWeight.W800
+            )
+          }
+
+          HorizontalDivider(
+            thickness = 1.dp,
+            color = Color(0xFFB45309).copy(alpha = 0.14f)
+          )
+
+          // 4 Tiles Row: Ruler · Protractor · Compass · Set Square
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 6.dp, vertical = 7.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+          ) {
+            GeometryBoxTile(
+              icon = R.drawable.ic_geo_ruler,
+              label = stringResource(R.string.tb_geo_ruler),
+              selected = activeTool == GeometryToolType.RULER,
+              iconSize = iconSize.dp,
+              tileW = tileW.dp
+            ) {
+              onSelect(if (activeTool == GeometryToolType.RULER) null else GeometryToolType.RULER)
+              onDismiss()
+            }
+
+            GeometryBoxTile(
+              icon = R.drawable.ic_geo_protractor,
+              label = stringResource(R.string.tb_geo_protractor),
+              selected = activeTool == GeometryToolType.PROTRACTOR,
+              iconSize = iconSize.dp,
+              tileW = tileW.dp
+            ) {
+              onSelect(if (activeTool == GeometryToolType.PROTRACTOR) null else GeometryToolType.PROTRACTOR)
+              onDismiss()
+            }
+
+            GeometryBoxTile(
+              icon = R.drawable.ic_geo_compass,
+              label = stringResource(R.string.tb_geo_compass),
+              selected = activeTool == GeometryToolType.COMPASS,
+              iconSize = iconSize.dp,
+              tileW = tileW.dp
+            ) {
+              onSelect(if (activeTool == GeometryToolType.COMPASS) null else GeometryToolType.COMPASS)
+              onDismiss()
+            }
+
+            val isSetSquareSel = activeTool == GeometryToolType.SET_SQUARE_30_60 || activeTool == GeometryToolType.SET_SQUARE_45_45
+            GeometryBoxTile(
+              icon = R.drawable.ic_geo_setsquare,
+              label = stringResource(R.string.tb_geo_setsquare),
+              selected = isSetSquareSel,
+              iconSize = iconSize.dp,
+              tileW = tileW.dp
+            ) {
+              onSelect(if (isSetSquareSel) null else GeometryToolType.SET_SQUARE_45_45)
+              onDismiss()
             }
           }
         }
       }
-      if (activeTool != null) {
-        TextButton(onClick = { onSelect(null); onDismiss() }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-          Text(stringResource(R.string.hide_geometry_tool), color = TeachColors.AccentAmber, fontSize = 12.sp)
-        }
+    }
+  }
+}
+
+@Composable
+fun GeometryBoxTile(
+  icon: Int,
+  label: String,
+  selected: Boolean,
+  iconSize: Dp,
+  tileW: Dp,
+  onClick: () -> Unit
+) {
+  val measurer = rememberTextMeasurer()
+  val density = LocalDensity.current
+  val limitPx = with(density) { (tileW - 8.dp).toPx() }
+  val style = TextStyle(fontWeight = FontWeight.W600, color = Color(0xFF0F172A))
+  val size = remember(label, limitPx) {
+    var sp = 13f
+    while (sp > 8f && measurer.measure(label, style.copy(fontSize = sp.sp)).size.width > limitPx) {
+      sp -= 0.5f
+    }
+    sp
+  }
+  val fitsOneLine = remember(label, limitPx, size) {
+    measurer.measure(label, style.copy(fontSize = size.sp)).size.width <= limitPx
+  }
+
+  Column(
+    modifier = Modifier
+      .width(tileW)
+      .clip(RoundedCornerShape(11.dp))
+      .background(if (selected) Color(0x29FFCE54) else Color(0xFFFBFAF7))
+      .border(
+        width = 1.25.dp,
+        color = if (selected) Color(0xFFB45309) else Color(0xFFE2E8F0),
+        shape = RoundedCornerShape(11.dp)
+      )
+      .clickable(onClick = onClick)
+      .padding(horizontal = 2.dp, vertical = 7.dp),
+    horizontalAlignment = Alignment.CenterHorizontally
+  ) {
+    Icon(
+      painter = painterResource(icon),
+      contentDescription = label,
+      modifier = Modifier.size(iconSize),
+      tint = Color(0xFFB45309)
+    )
+    Spacer(Modifier.height(4.dp))
+    Text(
+      text = label,
+      modifier = Modifier.fillMaxWidth(),
+      color = Color(0xFF0F172A),
+      fontSize = size.sp,
+      fontWeight = FontWeight.W600,
+      textAlign = TextAlign.Center,
+      maxLines = if (fitsOneLine) 1 else 2,
+      lineHeight = (size * 1.4f).sp
+    )
+    if (selected) {
+      Spacer(Modifier.height(4.dp))
+      Box(
+        modifier = Modifier
+          .size(14.dp)
+          .clip(CircleShape)
+          .background(Color(0xFFB45309)),
+        contentAlignment = Alignment.Center
+      ) {
+        Icon(
+          imageVector = Icons.Default.Check,
+          contentDescription = null,
+          modifier = Modifier.size(9.dp),
+          tint = Color.White
+        )
       }
     }
   }
+}
+
+// ===== Realistic Translucent Amber Acrylic Styling Constants =====
+private val AcrylicAmberFill = Color(0xE8FBF2CC)
+private val AcrylicAmberBorder = Color(0xFF8B6B32)
+private val AcrylicTickColor = Color(0xFF3E2C11)
+private val AcrylicTextColor = Color(0xFF261906)
+private val AcrylicAccentOrange = Color(0xFFEA580C)
+private val AcrylicArmColor = Color(0xFF5A4A1C)
+
+@Composable
+private fun GeometryActionCircle(
+  icon: androidx.compose.ui.graphics.vector.ImageVector,
+  contentDescription: String,
+  backgroundColor: Color,
+  iconColor: Color = Color.White,
+  sizeDp: Int = 36,
+  onClick: () -> Unit
+) {
+  Box(
+    modifier = Modifier
+      .size(sizeDp.coerceAtLeast(36).dp)
+      .shadow(3.dp, CircleShape)
+      .clip(CircleShape)
+      .background(backgroundColor)
+      .clickable(onClick = onClick),
+    contentAlignment = Alignment.Center
+  ) {
+    Icon(
+      icon,
+      contentDescription = contentDescription,
+      tint = iconColor,
+      modifier = Modifier.size((sizeDp.coerceAtLeast(36) * 0.54f).dp)
+    )
+  }
+}
+
+private fun rotatePointAround(px: Float, py: Float, cx: Float, cy: Float, deg: Float): Offset {
+  val rad = Math.toRadians(deg.toDouble())
+  val cos = cos(rad).toFloat()
+  val sin = sin(rad).toFloat()
+  val dx = px - cx
+  val dy = py - cy
+  return Offset(cx + dx * cos - dy * sin, cy + dx * sin + dy * cos)
 }
 
 @Composable
@@ -172,11 +397,16 @@ fun GeometryBoxOverlay(
   onDrawContour: (Contour) -> Unit,
   onClose: () -> Unit
 ) {
-  var offsetX by remember { mutableFloatStateOf(90f) }
-  var offsetY by remember { mutableFloatStateOf(260f) }
-  var rotationDeg by remember { mutableFloatStateOf(0f) }
-  var angleArmDeg by remember { mutableFloatStateOf(60f) }
-  var compassRadius by remember { mutableFloatStateOf(160f) }
+  var offsetX by remember(tool) { mutableFloatStateOf(240f) }
+  var offsetY by remember(tool) { mutableFloatStateOf(90f) }
+  var rotationDeg by remember(tool) { mutableFloatStateOf(0f) }
+  var scaleFactor by remember(tool) { mutableFloatStateOf(1.0f) }
+  var angleArmDeg by remember(tool) { mutableFloatStateOf(90f) }
+  var rulerLengthDp by remember(tool) { mutableFloatStateOf(380f) }
+  var compassRadiusDp by remember(tool) { mutableFloatStateOf(120f) }
+  var currentToolType by remember(tool) { mutableStateOf(tool) }
+
+  val density = LocalDensity.current.density
 
   fun screenToWorld(sx: Float, sy: Float): StrokePoint =
     StrokePoint((sx - panX) / zoom.coerceAtLeast(0.1f), (sy - panY) / zoom.coerceAtLeast(0.1f))
@@ -184,107 +414,1107 @@ fun GeometryBoxOverlay(
   Box(
     modifier = Modifier
       .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
-      .pointerInput(tool) {
-        detectDragGestures { change, drag -> change.consume(); offsetX += drag.x; offsetY += drag.y }
+  ) {
+    when (currentToolType) {
+      GeometryToolType.PROTRACTOR -> {
+        ProtractorOverlay(
+          scale = scaleFactor,
+          rotationDeg = rotationDeg,
+          angleArmDeg = angleArmDeg,
+          density = density,
+          onMove = { dx, dy -> offsetX += dx; offsetY += dy },
+          onRotateDelta = { dDeg -> rotationDeg = (rotationDeg + dDeg + 360f) % 360f },
+          onAngleArmChange = { angleArmDeg = it },
+          onCycleScale = {
+            scaleFactor = when {
+              scaleFactor < 0.95f -> 1.0f
+              scaleFactor < 1.2f -> 1.25f
+              else -> 0.85f
+            }
+          },
+          onClose = onClose,
+          onDrawAngle = {
+            val w = 360f * scaleFactor * density
+            val h = 230f * scaleFactor * density
+            val boxCenterX = offsetX + w / 2f
+            val boxCenterY = offsetY + h / 2f
+            val cx = w / 2f
+            val cy = h - 42f * density * scaleFactor
+            val r = (w / 2f) - 18f * density * scaleFactor
+            val armRad = Math.toRadians(-angleArmDeg.toDouble())
+
+            val originScreen = rotatePointAround(offsetX + cx, offsetY + cy, boxCenterX, boxCenterY, rotationDeg)
+            val baseScreen = rotatePointAround(offsetX + cx + r, offsetY + cy, boxCenterX, boxCenterY, rotationDeg)
+            val armScreen = rotatePointAround(offsetX + cx + (cos(armRad) * r).toFloat(), offsetY + cy + (sin(armRad) * r).toFloat(), boxCenterX, boxCenterY, rotationDeg)
+
+            val arcPts = (0..24).map { i ->
+              val a = Math.toRadians(-angleArmDeg.toDouble() * (i / 24.0))
+              val sc = rotatePointAround(offsetX + cx + (cos(a) * r * 0.45f).toFloat(), offsetY + cy + (sin(a) * r * 0.45f).toFloat(), boxCenterX, boxCenterY, rotationDeg)
+              screenToWorld(sc.x, sc.y)
+            }
+
+            val pts = listOf(screenToWorld(baseScreen.x, baseScreen.y), screenToWorld(originScreen.x, originScreen.y), screenToWorld(armScreen.x, armScreen.y)) + arcPts
+            onDrawContour(Contour(closed = false, points = pts))
+          },
+          onDrawArc = {
+            val w = 360f * scaleFactor * density
+            val h = 230f * scaleFactor * density
+            val boxCenterX = offsetX + w / 2f
+            val boxCenterY = offsetY + h / 2f
+            val cx = w / 2f
+            val cy = h - 42f * density * scaleFactor
+            val r = (w / 2f) - 18f * density * scaleFactor
+            val steps = 36
+            val pts = (0..steps).map { i ->
+              val a = Math.toRadians(-angleArmDeg.toDouble() * (i.toDouble() / steps))
+              val sc = rotatePointAround(offsetX + cx + (cos(a) * r).toFloat(), offsetY + cy + (sin(a) * r).toFloat(), boxCenterX, boxCenterY, rotationDeg)
+              screenToWorld(sc.x, sc.y)
+            }
+            onDrawContour(Contour(closed = false, points = pts))
+          },
+          onDrawSector = {
+            val w = 360f * scaleFactor * density
+            val h = 230f * scaleFactor * density
+            val boxCenterX = offsetX + w / 2f
+            val boxCenterY = offsetY + h / 2f
+            val cx = w / 2f
+            val cy = h - 42f * density * scaleFactor
+            val r = (w / 2f) - 18f * density * scaleFactor
+            val originScreen = rotatePointAround(offsetX + cx, offsetY + cy, boxCenterX, boxCenterY, rotationDeg)
+            val steps = 32
+            val pts = mutableListOf(screenToWorld(originScreen.x, originScreen.y))
+            for (i in 0..steps) {
+              val a = Math.toRadians(-angleArmDeg.toDouble() * (i.toDouble() / steps))
+              val sc = rotatePointAround(offsetX + cx + (cos(a) * r).toFloat(), offsetY + cy + (sin(a) * r).toFloat(), boxCenterX, boxCenterY, rotationDeg)
+              pts.add(screenToWorld(sc.x, sc.y))
+            }
+            pts.add(screenToWorld(originScreen.x, originScreen.y))
+            onDrawContour(Contour(closed = true, points = pts))
+          }
+        )
+      }
+
+      GeometryToolType.RULER -> {
+        val hPx = 76f * density
+        RulerOverlay(
+          lengthDp = rulerLengthDp,
+          rotationDeg = rotationDeg,
+          density = density,
+          onMove = { dx, dy -> offsetX += dx; offsetY += dy },
+          onResizeLength = { dWidth -> rulerLengthDp = (rulerLengthDp + dWidth).coerceIn(240f, 620f) },
+          onRotateDelta = { dDeg -> rotationDeg = (rotationDeg + dDeg + 360f) % 360f },
+          onClose = onClose,
+          onDrawTopEdge = {
+            val wPx = rulerLengthDp * density
+            val boxCenterX = offsetX + wPx / 2f
+            val boxCenterY = offsetY + hPx / 2f
+            val p1 = rotatePointAround(offsetX + 64f * density, offsetY + 6f * density, boxCenterX, boxCenterY, rotationDeg)
+            val p2 = rotatePointAround(offsetX + wPx - 40f * density, offsetY + 6f * density, boxCenterX, boxCenterY, rotationDeg)
+            onDrawContour(Contour(closed = false, points = listOf(screenToWorld(p1.x, p1.y), screenToWorld(p2.x, p2.y))))
+          },
+          onDrawBottomEdge = {
+            val wPx = rulerLengthDp * density
+            val boxCenterX = offsetX + wPx / 2f
+            val boxCenterY = offsetY + hPx / 2f
+            val p1 = rotatePointAround(offsetX + 64f * density, offsetY + hPx - 6f * density, boxCenterX, boxCenterY, rotationDeg)
+            val p2 = rotatePointAround(offsetX + wPx - 40f * density, offsetY + hPx - 6f * density, boxCenterX, boxCenterY, rotationDeg)
+            onDrawContour(Contour(closed = false, points = listOf(screenToWorld(p1.x, p1.y), screenToWorld(p2.x, p2.y))))
+          }
+        )
+      }
+
+      GeometryToolType.COMPASS -> {
+        val widthDp = (compassRadiusDp * 2f + 80f).coerceAtLeast(200f)
+        val heightDp = 290f
+        val w = widthDp * density
+        val h = heightDp * density
+        val boxCenterX = offsetX + w / 2f
+        val boxCenterY = offsetY + h / 2f
+
+        val hingeX = w / 2f
+        val hingeY = 70f * density
+        val needleX = hingeX - (compassRadiusDp * 0.85f * density)
+        val pencilX = hingeX + (compassRadiusDp * 0.85f * density)
+        val footY = hingeY + 170f * density
+
+        val needleScreen = rotatePointAround(offsetX + needleX, offsetY + footY, boxCenterX, boxCenterY, rotationDeg)
+        val circleRadiusPx = pencilX - needleX
+
+        CompassOverlay(
+          radiusDp = compassRadiusDp,
+          rotationDeg = rotationDeg,
+          density = density,
+          onMove = { dx, dy -> offsetX += dx; offsetY += dy },
+          onRadiusChange = { dRadius -> compassRadiusDp = (compassRadiusDp + dRadius).coerceIn(40f, 200f) },
+          onRotateDelta = { dDeg -> rotationDeg = (rotationDeg + dDeg + 360f) % 360f },
+          onClose = onClose,
+          onDrawCircle = {
+            val steps = 64
+            val pts = (0..steps).map { i ->
+              val a = 2.0 * PI * (i.toDouble() / steps)
+              val px = needleScreen.x + (cos(a) * circleRadiusPx).toFloat()
+              val py = needleScreen.y + (sin(a) * circleRadiusPx).toFloat()
+              screenToWorld(px, py)
+            }
+            onDrawContour(Contour(closed = true, points = pts))
+          },
+          onDrawArc = {
+            val steps = 36
+            val startRad = Math.toRadians(rotationDeg.toDouble())
+            val pts = (0..steps).map { i ->
+              val a = startRad + (PI * (i.toDouble() / steps))
+              val px = needleScreen.x + (cos(a) * circleRadiusPx).toFloat()
+              val py = needleScreen.y + (sin(a) * circleRadiusPx).toFloat()
+              screenToWorld(px, py)
+            }
+            onDrawContour(Contour(closed = false, points = pts))
+          }
+        )
+      }
+
+      GeometryToolType.SET_SQUARE_30_60, GeometryToolType.SET_SQUARE_45_45 -> {
+        val is45 = currentToolType == GeometryToolType.SET_SQUARE_45_45
+        val w = (if (is45) 230f else 260f) * scaleFactor * density
+        val h = (if (is45) 230f else 170f) * scaleFactor * density
+        val boxCenterX = offsetX + w / 2f
+        val boxCenterY = offsetY + h / 2f
+
+        SetSquareOverlay(
+          is45 = is45,
+          scale = scaleFactor,
+          rotationDeg = rotationDeg,
+          density = density,
+          onMove = { dx, dy -> offsetX += dx; offsetY += dy },
+          onRotateDelta = { dDeg -> rotationDeg = (rotationDeg + dDeg + 360f) % 360f },
+          onResizeScale = { dScale -> scaleFactor = (scaleFactor + dScale).coerceIn(0.7f, 1.6f) },
+          onToggleType = {
+            currentToolType = if (is45) GeometryToolType.SET_SQUARE_30_60 else GeometryToolType.SET_SQUARE_45_45
+          },
+          onClose = onClose,
+          onDrawTriangle = {
+            val pLeftTop = rotatePointAround(offsetX + 10f * density, offsetY + 10f * density, boxCenterX, boxCenterY, rotationDeg)
+            val pLeftBottom = rotatePointAround(offsetX + 10f * density, offsetY + h - 10f * density, boxCenterX, boxCenterY, rotationDeg)
+            val pRightBottom = rotatePointAround(offsetX + w - 10f * density, offsetY + h - 10f * density, boxCenterX, boxCenterY, rotationDeg)
+
+            val pts = listOf(
+              screenToWorld(pLeftTop.x, pLeftTop.y),
+              screenToWorld(pLeftBottom.x, pLeftBottom.y),
+              screenToWorld(pRightBottom.x, pRightBottom.y)
+            )
+            onDrawContour(Contour(closed = true, points = pts))
+          },
+          onDrawHypotenuse = {
+            val pLeftTop = rotatePointAround(offsetX + 10f * density, offsetY + 10f * density, boxCenterX, boxCenterY, rotationDeg)
+            val pRightBottom = rotatePointAround(offsetX + w - 10f * density, offsetY + h - 10f * density, boxCenterX, boxCenterY, rotationDeg)
+
+            val pts = listOf(
+              screenToWorld(pLeftTop.x, pLeftTop.y),
+              screenToWorld(pRightBottom.x, pRightBottom.y)
+            )
+            onDrawContour(Contour(closed = false, points = pts))
+          }
+        )
+      }
+    }
+  }
+}
+
+// ===== 1A. High-Fidelity Protractor Overlay =====
+@Composable
+private fun ProtractorOverlay(
+  scale: Float,
+  rotationDeg: Float,
+  angleArmDeg: Float,
+  density: Float,
+  onMove: (Float, Float) -> Unit,
+  onRotateDelta: (Float) -> Unit,
+  onAngleArmChange: (Float) -> Unit,
+  onCycleScale: () -> Unit,
+  onClose: () -> Unit,
+  onDrawAngle: () -> Unit,
+  onDrawArc: () -> Unit,
+  onDrawSector: () -> Unit
+) {
+  val widthDp = 360f * scale
+  val heightDp = 230f * scale
+  val widthPx = widthDp * density
+  val heightPx = heightDp * density
+
+  val cx = widthPx / 2f
+  val cy = heightPx - 42f * density * scale
+  val outerR = (widthPx / 2f) - 18f * density * scale
+  val innerWindowR = outerR * 0.44f
+
+  Box(
+    modifier = Modifier
+      .size(widthDp.dp, heightDp.dp)
+      .rotate(rotationDeg)
+      .pointerInput(Unit) {
+        detectDragGestures { change, drag ->
+          change.consume()
+          onMove(drag.x, drag.y)
+        }
       }
   ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-      Box(modifier = Modifier.rotate(rotationDeg)) {
-        when (tool) {
-          GeometryToolType.RULER -> {
-            Canvas(modifier = Modifier.width(300.dp).height(62.dp)) {
-              drawRect(TeachColors.GeometryWoodFill)
-              drawRect(TeachColors.GeometryWoodBorder, style = Stroke(3f))
-              for (i in 0..30) {
-                val x = 14f + i * (size.width - 28f) / 30f
-                val h = if (i % 5 == 0) 24f else 13f
-                drawLine(TeachColors.GeometryTickMark, Offset(x, 0f), Offset(x, h), strokeWidth = 2f)
-              }
-            }
-          }
-          GeometryToolType.PROTRACTOR -> {
-            Canvas(modifier = Modifier.width(240.dp).height(130.dp)) {
-              val r = size.width / 2f - 8f
-              val cx = size.width / 2f; val cy = size.height - 10f
-              drawArc(TeachColors.GeometryWoodFill, 180f, 180f, true, Offset(cx - r, cy - r), Size(r * 2, r * 2))
-              drawArc(TeachColors.GeometryWoodBorder, 180f, 180f, true, Offset(cx - r, cy - r), Size(r * 2, r * 2), style = Stroke(3f))
-              for (deg in 0..180 step 10) {
-                val rad = Math.toRadians(180.0 + deg)
-                val inner = if (deg % 30 == 0) r * 0.80f else r * 0.88f
-                drawLine(TeachColors.GeometryTickMark, Offset(cx + cos(rad).toFloat() * inner, cy + sin(rad).toFloat() * inner), Offset(cx + cos(rad).toFloat() * r, cy + sin(rad).toFloat() * r), strokeWidth = 2f)
-              }
-              val armRad = Math.toRadians(180.0 + angleArmDeg)
-              drawLine(TeachColors.GeometryAngleArm, Offset(cx, cy), Offset(cx + cos(armRad).toFloat() * r, cy + sin(armRad).toFloat() * r), strokeWidth = 4f)
-            }
-          }
-          GeometryToolType.COMPASS -> {
-            Canvas(modifier = Modifier.size(210.dp)) {
-              val cx = size.width / 2f; val cy = size.height / 2f
-              val r = (compassRadius * 0.5f).coerceIn(30f, size.width * 0.46f)
-              drawCircle(TeachColors.GeometryWoodFill.copy(alpha = 0.35f), r, Offset(cx, cy))
-              drawCircle(TeachColors.GeometryWoodBorder, r, Offset(cx, cy), style = Stroke(3f))
-              drawLine(TeachColors.GeometryAngleArm, Offset(cx, cy), Offset(cx + r, cy), strokeWidth = 3f)
-              drawCircle(TeachColors.GeometryTickMark, 6f, Offset(cx, cy))
-            }
-          }
-          GeometryToolType.SET_SQUARE_30_60, GeometryToolType.SET_SQUARE_45_45 -> {
-            val is45 = tool == GeometryToolType.SET_SQUARE_45_45
-            Canvas(modifier = Modifier.width(if (is45) 180.dp else 210.dp).height(180.dp)) {
-              val path = Path().apply { moveTo(8f, size.height - 8f); lineTo(size.width - 8f, size.height - 8f); lineTo(8f, 8f); close() }
-              drawPath(path, TeachColors.GeometryWoodFill)
-              drawPath(path, TeachColors.GeometryWoodBorder, style = Stroke(3f))
-            }
+    // Acrylic Protractor Body with Dual Scale & Number Markings
+    Canvas(modifier = Modifier.fillMaxSize()) {
+      val canvas = drawContext.canvas.nativeCanvas
+
+      // 1. Outer Arch Path
+      val archPath = Path().apply {
+        // Base plate rounded bottom
+        moveTo(cx - outerR, cy)
+        lineTo(cx - outerR, cy + 28f * density * scale)
+        quadraticTo(cx - outerR, cy + 38f * density * scale, cx - outerR + 10f * density * scale, cy + 38f * density * scale)
+        lineTo(cx + outerR - 10f * density * scale, cy + 38f * density * scale)
+        quadraticTo(cx + outerR, cy + 38f * density * scale, cx + outerR, cy + 28f * density * scale)
+        lineTo(cx + outerR, cy)
+        // Outer dome
+        arcTo(
+          rect = androidx.compose.ui.geometry.Rect(cx - outerR, cy - outerR, cx + outerR, cy + outerR),
+          startAngleDegrees = 0f,
+          sweepAngleDegrees = -180f,
+          forceMoveTo = false
+        )
+        close()
+      }
+
+      drawPath(archPath, AcrylicAmberFill)
+      drawPath(archPath, AcrylicAmberBorder, style = Stroke(width = 2.5f * density))
+
+      // 2. Inner Transparent Window (Cutout)
+      val windowPath = Path().apply {
+        moveTo(cx - innerWindowR, cy)
+        lineTo(cx + innerWindowR, cy)
+        arcTo(
+          rect = androidx.compose.ui.geometry.Rect(cx - innerWindowR, cy - innerWindowR, cx + innerWindowR, cy + innerWindowR),
+          startAngleDegrees = 0f,
+          sweepAngleDegrees = -180f,
+          forceMoveTo = false
+        )
+        close()
+      }
+      drawPath(windowPath, Color(0x33FFFFFF))
+      drawPath(windowPath, Color(0x668B6B32), style = Stroke(width = 1.8f * density))
+
+      // 3. Center Origin Pivot Circle and Crosshair
+      drawCircle(Color(0xFF8B6B32), radius = 18f * density * scale, center = Offset(cx, cy), style = Stroke(1.5f * density))
+      drawCircle(AcrylicAccentOrange, radius = 3.5f * density, center = Offset(cx, cy))
+      drawLine(Color(0xFF8B6B32), Offset(cx - 18f * density * scale, cy), Offset(cx + 18f * density * scale, cy), strokeWidth = 1.5f * density)
+      drawLine(Color(0xFF8B6B32), Offset(cx, cy - 18f * density * scale), Offset(cx, cy), strokeWidth = 1.5f * density)
+
+      // 4. Center 90° Dashed Line
+      drawLine(
+        color = AcrylicAccentOrange.copy(alpha = 0.75f),
+        start = Offset(cx, cy - 18f * density * scale),
+        end = Offset(cx, cy - outerR),
+        strokeWidth = 2f * density
+      )
+
+      // 5. Degree Tick Marks and Numbers (Dual Scale: Outer 0-180, Inner 180-0)
+      val textPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        textAlign = android.graphics.Paint.Align.CENTER
+        color = android.graphics.Color.parseColor("#2A1C08")
+        textSize = (9.5f * scale * density).coerceAtLeast(16f)
+        typeface = android.graphics.Typeface.create(android.graphics.Typeface.SANS_SERIF, android.graphics.Typeface.BOLD)
+      }
+      val innerTextPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        textAlign = android.graphics.Paint.Align.CENTER
+        color = android.graphics.Color.parseColor("#4A3716")
+        textSize = (8.5f * scale * density).coerceAtLeast(14f)
+        typeface = android.graphics.Typeface.create(android.graphics.Typeface.SANS_SERIF, android.graphics.Typeface.NORMAL)
+      }
+      val accentTextPaint = android.graphics.Paint(textPaint).apply {
+        color = android.graphics.Color.parseColor("#EA580C")
+      }
+
+      for (deg in 0..180) {
+        val rad = Math.toRadians(-deg.toDouble())
+        val cosA = cos(rad).toFloat()
+        val sinA = sin(rad).toFloat()
+
+        val is10 = deg % 10 == 0
+        val is5 = deg % 5 == 0 && !is10
+        val tickLen = when {
+          is10 -> 14f * density * scale
+          is5 -> 8.5f * density * scale
+          else -> 4.5f * density * scale
+        }
+
+        val xOuter = cx + cosA * outerR
+        val yOuter = cy + sinA * outerR
+        val xInner = cx + cosA * (outerR - tickLen)
+        val yInner = cy + sinA * (outerR - tickLen)
+
+        val tickColor = if (deg == 90) AcrylicAccentOrange else AcrylicTickColor
+        drawLine(
+          color = tickColor,
+          start = Offset(xOuter, yOuter),
+          end = Offset(xInner, yInner),
+          strokeWidth = if (is10) 2.2f * density else 1.2f * density
+        )
+
+        // Draw dual degree numbers every 10 degrees
+        if (is10) {
+          val outerNumR = outerR - 20f * density * scale
+          val innerNumR = outerR - 38f * density * scale
+
+          val numX1 = cx + cosA * outerNumR
+          val numY1 = if (deg == 0 || deg == 180) cy - 4f * density else cy + sinA * outerNumR + 4f * density
+
+          val numX2 = cx + cosA * innerNumR
+          val numY2 = cy + sinA * innerNumR + 4f * density
+
+          val paint1 = if (deg == 90) accentTextPaint else textPaint
+          val paint2 = if (deg == 90) accentTextPaint else innerTextPaint
+
+          canvas.drawText("$deg", numX1, numY1, paint1)
+          if (deg != 0 && deg != 180) {
+            canvas.drawText("${180 - deg}", numX2, numY2, paint2)
           }
         }
       }
 
-      Surface(shape = RoundedCornerShape(20.dp), color = TeachColors.DarkPillBg, modifier = Modifier.padding(top = 6.dp)) {
-        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-          when (tool) {
-            GeometryToolType.PROTRACTOR -> {
-              Text("${angleArmDeg.roundToInt()}°", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-              Slider(value = angleArmDeg, onValueChange = { angleArmDeg = it }, valueRange = 0f..180f, modifier = Modifier.width(100.dp))
+      // 6. Baseline Millimeter & Centimeter Ticks
+      for (mm in -60..60) {
+        val xMm = cx + mm * (outerR / 65f)
+        if (xMm in (cx - outerR + 4f)..(cx + outerR - 4f)) {
+          val isCm = mm % 10 == 0
+          val isHalfCm = mm % 5 == 0 && !isCm
+          val len = if (isCm) 9f * density else if (isHalfCm) 6f * density else 3.5f * density
+          drawLine(
+            color = AcrylicTickColor,
+            start = Offset(xMm, cy),
+            end = Offset(xMm, cy + len),
+            strokeWidth = 1f * density
+          )
+        }
+      }
+
+      // 7. Interactive Angle Needle Arm
+      val armRad = Math.toRadians(-angleArmDeg.toDouble())
+      val armCos = cos(armRad).toFloat()
+      val armSin = sin(armRad).toFloat()
+      val needleTipX = cx + armCos * (outerR + 18f * density * scale)
+      val needleTipY = cy + armSin * (outerR + 18f * density * scale)
+
+      drawLine(
+        color = AcrylicArmColor,
+        start = Offset(cx, cy),
+        end = Offset(needleTipX, needleTipY),
+        strokeWidth = 3.5f * density
+      )
+    }
+
+    // Interactive Drag Bead at the tip of the angle needle
+    val armRad = Math.toRadians(-angleArmDeg.toDouble())
+    val beadR = outerR + 18f * density * scale
+    val beadScreenX = (cx + cos(armRad).toFloat() * beadR) / density
+    val beadScreenY = (cy + sin(armRad).toFloat() * beadR) / density
+
+    Box(
+      modifier = Modifier
+        .offset { IntOffset((beadScreenX * density - 18f * density).roundToInt(), (beadScreenY * density - 18f * density).roundToInt()) }
+        .size(36.dp)
+        .shadow(4.dp, CircleShape)
+        .clip(CircleShape)
+        .background(Color(0xFF6B5822))
+        .border(2.5.dp, Color.White, CircleShape)
+        .pointerInput(Unit) {
+          detectDragGestures { change, _ ->
+            change.consume()
+            val touchPos = change.position
+            // Compute angle relative to center (cx, cy)
+            val globalTouchX = beadScreenX * density + touchPos.x - 18f * density
+            val globalTouchY = beadScreenY * density + touchPos.y - 18f * density
+            val dx = globalTouchX - cx
+            val dy = globalTouchY - cy
+            var deg = Math.toDegrees(atan2(-dy.toDouble(), dx.toDouble())).toFloat()
+            if (deg < 0f) deg = 0f
+            if (deg > 180f) deg = 180f
+            onAngleArmChange(deg)
+          }
+        },
+      contentAlignment = Alignment.Center
+    ) {
+      Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color.White))
+    }
+
+    // Live Angle Pill Badge on the needle
+    val badgeR = outerR * 0.72f
+    val badgeX = (cx + cos(armRad).toFloat() * badgeR) / density
+    val badgeY = (cy + sin(armRad).toFloat() * badgeR) / density
+    Surface(
+      shape = RoundedCornerShape(12.dp),
+      color = Color(0xFF6B5822),
+      shadowElevation = 3.dp,
+      modifier = Modifier
+        .offset { IntOffset((badgeX * density - 26f * density).roundToInt(), (badgeY * density - 12f * density).roundToInt()) }
+    ) {
+      Text(
+        text = "${angleArmDeg.roundToInt()}°",
+        color = Color.White,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+      )
+    }
+
+    // Bottom Tray Action Buttons: Close, Draw Angle, Draw Arc, Draw Sector, Resize, Rotate
+    Row(
+      modifier = Modifier
+        .align(Alignment.BottomCenter)
+        .offset(y = 8.dp)
+        .padding(horizontal = 8.dp),
+      horizontalArrangement = Arrangement.spacedBy(8.dp),
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      // 1. Red ✖ Close Button
+      GeometryActionCircle(
+        icon = Icons.Default.Close,
+        contentDescription = "Close",
+        backgroundColor = Color(0xFFEF4444),
+        onClick = onClose
+      )
+
+      // 2. Teal ∠ Draw Angle
+      GeometryActionCircle(
+        icon = Icons.Default.Create,
+        contentDescription = "Draw Angle",
+        backgroundColor = Color(0xFF0D9488),
+        onClick = onDrawAngle
+      )
+
+      // 3. Purple ⌒ Draw Arc
+      GeometryActionCircle(
+        icon = Icons.Default.Timer,
+        contentDescription = "Draw Arc",
+        backgroundColor = Color(0xFF8B5CF6),
+        onClick = onDrawArc
+      )
+
+      // 4. Amber ◺ Draw Sector
+      GeometryActionCircle(
+        icon = Icons.Default.SquareFoot,
+        contentDescription = "Draw Sector",
+        backgroundColor = Color(0xFFD97706),
+        onClick = onDrawSector
+      )
+
+      // 5. Pink ↕ Resize/Scale
+      GeometryActionCircle(
+        icon = Icons.Default.Add,
+        contentDescription = "Scale Tool",
+        backgroundColor = Color(0xFFEC4899),
+        onClick = onCycleScale
+      )
+
+      // 6. Blue ↻ Rotate Handle (Tap +15°, or drag to rotate)
+      Box(
+        modifier = Modifier
+          .size(34.dp)
+          .shadow(3.dp, CircleShape)
+          .clip(CircleShape)
+          .background(Color(0xFF2563EB))
+          .pointerInput(Unit) {
+            detectDragGestures { change, drag ->
+              change.consume()
+              onRotateDelta(drag.x * 0.5f)
             }
-            GeometryToolType.COMPASS -> {
-              Text("r=${compassRadius.roundToInt()}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-              Slider(value = compassRadius, onValueChange = { compassRadius = it }, valueRange = 50f..320f, modifier = Modifier.width(100.dp))
+          }
+          .clickable { onRotateDelta(15f) },
+        contentAlignment = Alignment.Center
+      ) {
+        Icon(
+          Icons.AutoMirrored.Filled.RotateRight,
+          contentDescription = "Rotate",
+          tint = Color.White,
+          modifier = Modifier.size(19.dp)
+        )
+      }
+    }
+  }
+}
+
+// ===== 1B. High-Fidelity Ruler Overlay =====
+@Composable
+private fun RulerOverlay(
+  lengthDp: Float,
+  rotationDeg: Float,
+  density: Float,
+  onMove: (Float, Float) -> Unit,
+  onResizeLength: (Float) -> Unit,
+  onRotateDelta: (Float) -> Unit,
+  onClose: () -> Unit,
+  onDrawTopEdge: () -> Unit,
+  onDrawBottomEdge: () -> Unit
+) {
+  val heightDp = 76f
+  val widthPx = lengthDp * density
+  val heightPx = heightDp * density
+
+  Box(
+    modifier = Modifier
+      .size(lengthDp.dp, heightDp.dp)
+      .rotate(rotationDeg)
+      .pointerInput(Unit) {
+        detectDragGestures { change, drag ->
+          change.consume()
+          onMove(drag.x, drag.y)
+        }
+      }
+  ) {
+    // Acrylic Ruler Body
+    Canvas(modifier = Modifier.fillMaxSize()) {
+      val canvas = drawContext.canvas.nativeCanvas
+
+      val rRect = androidx.compose.ui.geometry.RoundRect(
+        0f, 0f, widthPx, heightPx,
+        androidx.compose.ui.geometry.CornerRadius(14f * density, 14f * density)
+      )
+      val path = Path().apply { addRoundRect(rRect) }
+      drawPath(path, AcrylicAmberFill)
+      drawPath(path, AcrylicAmberBorder, style = Stroke(2.5f * density))
+
+      val textPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        textAlign = android.graphics.Paint.Align.CENTER
+        color = android.graphics.Color.parseColor("#261906")
+        textSize = 12f * density
+        typeface = android.graphics.Typeface.create(android.graphics.Typeface.SANS_SERIF, android.graphics.Typeface.BOLD)
+      }
+      val labelPaint = android.graphics.Paint(textPaint).apply {
+        textSize = 10f * density
+        color = android.graphics.Color.parseColor("#8B6B32")
+      }
+
+      // Top Edge: Inches (in)
+      canvas.drawText("in", 46f * density, 22f * density, labelPaint)
+      val inchStepPx = 54f * density
+      var inch = 0
+      var inchX = 64f * density
+      while (inchX <= widthPx - 40f * density) {
+        drawLine(AcrylicTickColor, Offset(inchX, 0f), Offset(inchX, 16f * density), strokeWidth = 2.2f * density)
+        canvas.drawText("$inch", inchX, 28f * density, textPaint)
+
+        // Subdivisions: 1/4, 1/2, 3/4
+        val q1 = inchX + inchStepPx * 0.25f
+        val q2 = inchX + inchStepPx * 0.50f
+        val q3 = inchX + inchStepPx * 0.75f
+        if (q1 < widthPx - 40f * density) drawLine(AcrylicTickColor, Offset(q1, 0f), Offset(q1, 8f * density), strokeWidth = 1.2f * density)
+        if (q2 < widthPx - 40f * density) drawLine(AcrylicTickColor, Offset(q2, 0f), Offset(q2, 12f * density), strokeWidth = 1.6f * density)
+        if (q3 < widthPx - 40f * density) drawLine(AcrylicTickColor, Offset(q3, 0f), Offset(q3, 8f * density), strokeWidth = 1.2f * density)
+
+        inch++
+        inchX += inchStepPx
+      }
+
+      // Bottom Edge: Centimeters (cm)
+      canvas.drawText("cm", 46f * density, heightPx - 18f * density, labelPaint)
+      val cmStepPx = 21.5f * density
+      var cm = 0
+      var cmX = 64f * density
+      while (cmX <= widthPx - 40f * density) {
+        val isCm = true
+        drawLine(AcrylicTickColor, Offset(cmX, heightPx), Offset(cmX, heightPx - 15f * density), strokeWidth = 2f * density)
+        canvas.drawText("$cm", cmX, heightPx - 18f * density, textPaint)
+
+        // Millimeter ticks
+        for (m in 1..9) {
+          val mx = cmX + m * (cmStepPx / 10f)
+          if (mx < widthPx - 40f * density) {
+            val len = if (m == 5) 9f * density else 5f * density
+            drawLine(AcrylicTickColor, Offset(mx, heightPx), Offset(mx, heightPx - len), strokeWidth = 1.1f * density)
+          }
+        }
+        cm++
+        cmX += cmStepPx
+      }
+    }
+
+    // Left End: Red ✖ Close Button
+    Box(
+      modifier = Modifier
+        .align(Alignment.CenterStart)
+        .padding(start = 8.dp)
+    ) {
+      GeometryActionCircle(
+        icon = Icons.Default.Close,
+        contentDescription = "Close",
+        backgroundColor = Color(0xFFEF4444),
+        sizeDp = 30,
+        onClick = onClose
+      )
+    }
+
+    // Right End: Length Grip Handle `|||` and Blue `↻` Rotate Button
+    Row(
+      modifier = Modifier
+        .align(Alignment.CenterEnd)
+        .padding(end = 6.dp),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+      // Length stretch handle
+      Box(
+        modifier = Modifier
+          .width(22.dp)
+          .height(48.dp)
+          .clip(RoundedCornerShape(6.dp))
+          .background(Color(0xFFE2C88F))
+          .border(1.dp, Color(0xFF8B6B32), RoundedCornerShape(6.dp))
+          .pointerInput(Unit) {
+            detectDragGestures { change, drag ->
+              change.consume()
+              onResizeLength(drag.x / density)
             }
-            else -> Text("${rotationDeg.roundToInt()}°", color = Color.White, fontSize = 12.sp)
+          },
+        contentAlignment = Alignment.Center
+      ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+          Box(modifier = Modifier.width(3.dp).height(24.dp).background(Color(0xFF8B6B32)))
+          Box(modifier = Modifier.width(3.dp).height(24.dp).background(Color(0xFF8B6B32)))
+        }
+      }
+
+      // Blue Rotate Handle
+      Box(
+        modifier = Modifier
+          .size(32.dp)
+          .shadow(3.dp, CircleShape)
+          .clip(CircleShape)
+          .background(Color(0xFF2563EB))
+          .pointerInput(Unit) {
+            detectDragGestures { change, drag ->
+              change.consume()
+              onRotateDelta(drag.y * 0.5f)
+            }
           }
-          IconButton(onClick = { rotationDeg = (rotationDeg + 15f) % 360f }, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = "Rotate", tint = Color.White, modifier = Modifier.size(18.dp))
+          .clickable { onRotateDelta(15f) },
+        contentAlignment = Alignment.Center
+      ) {
+        Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = "Rotate", tint = Color.White, modifier = Modifier.size(18.dp))
+      }
+    }
+
+    // Quick Draw Action Chips in the center strip of the ruler
+    Row(
+      modifier = Modifier
+        .align(Alignment.Center)
+        .padding(horizontal = 60.dp),
+      horizontalArrangement = Arrangement.spacedBy(8.dp),
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = Color(0xDD0F172A),
+        shadowElevation = 2.dp,
+        modifier = Modifier.clickable(onClick = onDrawTopEdge)
+      ) {
+        Text(
+          "✏️ in",
+          color = Color(0xFF4ADE80),
+          fontSize = 11.sp,
+          fontWeight = FontWeight.Bold,
+          modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
+        )
+      }
+      Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = Color(0xDD0F172A),
+        shadowElevation = 2.dp,
+        modifier = Modifier.clickable(onClick = onDrawBottomEdge)
+      ) {
+        Text(
+          "✏️ cm",
+          color = Color(0xFF67E8F9),
+          fontSize = 11.sp,
+          fontWeight = FontWeight.Bold,
+          modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
+        )
+      }
+    }
+  }
+}
+
+// ===== 1C. High-Fidelity Compass Overlay =====
+@Composable
+private fun CompassOverlay(
+  radiusDp: Float,
+  rotationDeg: Float,
+  density: Float,
+  onMove: (Float, Float) -> Unit,
+  onRadiusChange: (Float) -> Unit,
+  onRotateDelta: (Float) -> Unit,
+  onClose: () -> Unit,
+  onDrawCircle: () -> Unit,
+  onDrawArc: () -> Unit
+) {
+  val widthDp = (radiusDp * 2f + 80f).coerceAtLeast(200f)
+  val heightDp = 290f
+  val widthPx = widthDp * density
+  val heightPx = heightDp * density
+
+  val hingeX = widthPx / 2f
+  val hingeY = 70f * density
+  val needleX = hingeX - (radiusDp * 0.85f * density)
+  val pencilX = hingeX + (radiusDp * 0.85f * density)
+  val footY = hingeY + 170f * density
+
+  Box(
+    modifier = Modifier
+      .size(widthDp.dp, heightDp.dp)
+      .rotate(rotationDeg)
+      .pointerInput(Unit) {
+        detectDragGestures { change, drag ->
+          change.consume()
+          onMove(drag.x, drag.y)
+        }
+      }
+  ) {
+    // Mechanical Compass Rendering
+    Canvas(modifier = Modifier.fillMaxSize()) {
+      // 1. Top Knurled Handle Grip
+      drawRoundRect(
+        color = Color(0xFF334155),
+        topLeft = Offset(hingeX - 7f * density, hingeY - 50f * density),
+        size = Size(14f * density, 34f * density),
+        cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f * density, 6f * density)
+      )
+
+      // 2. Central Hinge Disc
+      drawCircle(Color(0xFF475569), radius = 22f * density, center = Offset(hingeX, hingeY))
+      drawCircle(Color(0xFF94A3B8), radius = 17f * density, center = Offset(hingeX, hingeY), style = Stroke(2f * density))
+
+      // 3. Left Needle Arm
+      drawLine(Color(0xFF475569), Offset(hingeX - 8f * density, hingeY), Offset(needleX, footY - 14f * density), strokeWidth = 7f * density)
+      // Steel needle tip
+      drawLine(Color(0xFFE2E8F0), Offset(needleX, footY - 14f * density), Offset(needleX, footY), strokeWidth = 3f * density)
+      drawCircle(Color(0xFF1E293B), radius = 4f * density, center = Offset(needleX, footY))
+
+      // 4. Right Pencil Arm
+      drawLine(Color(0xFF475569), Offset(hingeX + 8f * density, hingeY), Offset(pencilX, footY - 30f * density), strokeWidth = 7f * density)
+      // Pencil barrel
+      drawRoundRect(
+        color = Color(0xFF2563EB),
+        topLeft = Offset(pencilX - 5f * density, footY - 32f * density),
+        size = Size(10f * density, 26f * density),
+        cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f * density, 3f * density)
+      )
+      // Pencil wooden cone and lead tip
+      val tipPath = Path().apply {
+        moveTo(pencilX - 5f * density, footY - 6f * density)
+        lineTo(pencilX + 5f * density, footY - 6f * density)
+        lineTo(pencilX, footY)
+        close()
+      }
+      drawPath(tipPath, Color(0xFFE2C88F))
+      drawCircle(Color(0xFF2563EB), radius = 3.5f * density, center = Offset(pencilX, footY))
+
+      // 5. Cross-brace and Radius Guide
+      drawLine(Color(0x88475569), Offset(hingeX - 30f * density, hingeY + 80f * density), Offset(hingeX + 30f * density, hingeY + 80f * density), strokeWidth = 3f * density)
+    }
+
+    // Blue Rotate Handle right at the hinge center
+    Box(
+      modifier = Modifier
+        .align(Alignment.TopCenter)
+        .offset(y = 54.dp)
+        .size(32.dp)
+        .shadow(3.dp, CircleShape)
+        .clip(CircleShape)
+        .background(Color(0xFF2563EB))
+        .pointerInput(Unit) {
+          detectDragGestures { change, drag ->
+            change.consume()
+            onRotateDelta(drag.x * 0.6f)
           }
-          IconButton(
-            onClick = {
-              val rad = Math.toRadians(rotationDeg.toDouble())
-              val contour = when (tool) {
-                GeometryToolType.COMPASS -> {
-                  val cx = offsetX + 260f; val cy = offsetY + 260f
-                  val pts = (0..64).map { i ->
-                    val a = 2.0 * PI * i / 64.0
-                    screenToWorld(cx + cos(a).toFloat() * compassRadius, cy + sin(a).toFloat() * compassRadius)
-                  }
-                  Contour(closed = true, points = pts)
-                }
-                GeometryToolType.PROTRACTOR -> {
-                  val cx = offsetX + 300f; val cy = offsetY + 280f; val r = 240f
-                  val a1 = Math.toRadians(rotationDeg.toDouble()); val a2 = Math.toRadians(rotationDeg.toDouble() - angleArmDeg.toDouble())
-                  Contour(false, listOf(screenToWorld(cx + cos(a1).toFloat() * r, cy + sin(a1).toFloat() * r), screenToWorld(cx, cy), screenToWorld(cx + cos(a2).toFloat() * r, cy + sin(a2).toFloat() * r)))
-                }
-                else -> {
-                  val cx = offsetX + 360f; val cy = offsetY + 120f; val half = 260f
-                  Contour(false, listOf(screenToWorld(cx - cos(rad).toFloat() * half, cy - sin(rad).toFloat() * half), screenToWorld(cx + cos(rad).toFloat() * half, cy + sin(rad).toFloat() * half)))
-                }
-              }
-              onDrawContour(contour)
-            },
-            modifier = Modifier.size(32.dp)
-          ) {
-            Icon(Icons.Default.Create, contentDescription = "Draw", tint = Color(0xFF4ADE80), modifier = Modifier.size(18.dp))
+        }
+        .clickable { onRotateDelta(15f) },
+      contentAlignment = Alignment.Center
+    ) {
+      Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = "Rotate", tint = Color.White, modifier = Modifier.size(18.dp))
+    }
+
+    // Red Close Button on Pencil Arm
+    Box(
+      modifier = Modifier
+        .align(Alignment.TopCenter)
+        .offset(x = 36.dp, y = 78.dp)
+    ) {
+      GeometryActionCircle(
+        icon = Icons.Default.Close,
+        contentDescription = "Close",
+        backgroundColor = Color(0xFFEF4444),
+        sizeDp = 28,
+        onClick = onClose
+      )
+    }
+
+    // Spread Adjustment Slider Handle on the right leg
+    Surface(
+      shape = RoundedCornerShape(12.dp),
+      color = Color(0xFF0F172A),
+      shadowElevation = 3.dp,
+      modifier = Modifier
+        .align(Alignment.Center)
+        .offset(y = 10.dp)
+        .pointerInput(Unit) {
+          detectDragGestures { change, drag ->
+            change.consume()
+            onRadiusChange(drag.x / density)
           }
-          IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(18.dp))
+        }
+    ) {
+      Row(modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("↔ r=${(radiusDp / 24f).toString().take(3)} cm", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+      }
+    }
+
+    // Action Buttons at the bottom
+    Surface(
+      shape = RoundedCornerShape(16.dp),
+      color = TeachColors.DarkPillBg,
+      shadowElevation = 4.dp,
+      modifier = Modifier
+        .align(Alignment.BottomCenter)
+        .offset(y = 12.dp)
+    ) {
+      Row(
+        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Box(
+          modifier = Modifier
+            .size(28.dp)
+            .clip(CircleShape)
+            .background(Color(0xFFEF4444))
+            .clickable(onClick = onClose),
+          contentAlignment = Alignment.Center
+        ) {
+          Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(16.dp))
+        }
+        TextButton(onClick = onDrawCircle) {
+          Text("⭕ Draw Circle", color = Color(0xFF4ADE80), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+        TextButton(onClick = onDrawArc) {
+          Text("⌒ Draw Arc", color = Color(0xFF67E8F9), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+      }
+    }
+  }
+}
+
+// ===== 1D. High-Fidelity Set Square Overlay =====
+@Composable
+private fun SetSquareOverlay(
+  is45: Boolean,
+  scale: Float,
+  rotationDeg: Float,
+  density: Float,
+  onMove: (Float, Float) -> Unit,
+  onRotateDelta: (Float) -> Unit,
+  onResizeScale: (Float) -> Unit,
+  onToggleType: () -> Unit,
+  onClose: () -> Unit,
+  onDrawTriangle: () -> Unit,
+  onDrawHypotenuse: () -> Unit
+) {
+  val widthDp = (if (is45) 240f else 270f) * scale
+  val heightDp = (if (is45) 240f else 180f) * scale
+  val widthPx = widthDp * density
+  val heightPx = heightDp * density
+
+  Box(
+    modifier = Modifier
+      .size(widthDp.dp, heightDp.dp)
+      .rotate(rotationDeg)
+      .pointerInput(Unit) {
+        detectDragGestures { change, drag ->
+          change.consume()
+          onMove(drag.x, drag.y)
+        }
+      }
+  ) {
+    // Acrylic Triangle Body with Scales and Cutout
+    Canvas(modifier = Modifier.fillMaxSize()) {
+      val canvas = drawContext.canvas.nativeCanvas
+
+      // Outer Triangle Path
+      val triPath = Path().apply {
+        moveTo(10f * density, 10f * density)
+        lineTo(10f * density, heightPx - 10f * density)
+        lineTo(widthPx - 10f * density, heightPx - 10f * density)
+        close()
+      }
+      drawPath(triPath, AcrylicAmberFill)
+      drawPath(triPath, AcrylicAmberBorder, style = Stroke(2.5f * density))
+
+      // Inner Cutout Triangle
+      val inPadX = widthPx * 0.22f
+      val inPadY = heightPx * 0.22f
+      val inTriPath = Path().apply {
+        moveTo(10f * density + inPadX, 10f * density + inPadY * 1.6f)
+        lineTo(10f * density + inPadX, heightPx - 10f * density - inPadY)
+        lineTo(widthPx - 10f * density - inPadX * 1.6f, heightPx - 10f * density - inPadY)
+        close()
+      }
+      drawPath(inTriPath, Color(0x33FFFFFF))
+      drawPath(inTriPath, Color(0x668B6B32), style = Stroke(1.8f * density))
+
+      // Right-Angle Corner Indicator ⊾
+      val raSize = 14f * density
+      drawLine(AcrylicTickColor, Offset(10f * density, heightPx - 10f * density - raSize), Offset(10f * density + raSize, heightPx - 10f * density - raSize), strokeWidth = 1.5f * density)
+      drawLine(AcrylicTickColor, Offset(10f * density + raSize, heightPx - 10f * density - raSize), Offset(10f * density + raSize, heightPx - 10f * density), strokeWidth = 1.5f * density)
+
+      // Scales on Vertical and Horizontal legs
+      val textPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        textAlign = android.graphics.Paint.Align.CENTER
+        color = android.graphics.Color.parseColor("#261906")
+        textSize = 10f * density * scale.coerceAtLeast(0.8f)
+        typeface = android.graphics.Typeface.create(android.graphics.Typeface.SANS_SERIF, android.graphics.Typeface.BOLD)
+      }
+
+      val cmPx = 28f * density * scale
+      // Vertical Leg cm ticks
+      for (i in 1..6) {
+        val y = heightPx - 10f * density - i * cmPx
+        if (y > 18f * density) {
+          drawLine(AcrylicTickColor, Offset(10f * density, y), Offset(22f * density, y), strokeWidth = 1.8f * density)
+          canvas.drawText("$i", 30f * density, y + 4f * density, textPaint)
+          for (m in 1..4) {
+            val my = y + m * (cmPx / 5f)
+            drawLine(AcrylicTickColor, Offset(10f * density, my), Offset(16f * density, my), strokeWidth = 1.1f * density)
           }
+        }
+      }
+
+      // Horizontal Leg cm ticks
+      for (i in 1..7) {
+        val x = 10f * density + i * cmPx
+        if (x < widthPx - 18f * density) {
+          drawLine(AcrylicTickColor, Offset(x, heightPx - 10f * density), Offset(x, heightPx - 22f * density), strokeWidth = 1.8f * density)
+          canvas.drawText("$i", x, heightPx - 26f * density, textPaint)
+          for (m in 1..4) {
+            val mx = x - m * (cmPx / 5f)
+            drawLine(AcrylicTickColor, Offset(mx, heightPx - 10f * density), Offset(mx, heightPx - 16f * density), strokeWidth = 1.1f * density)
+          }
+        }
+      }
+    }
+
+    // Top Vertex: Blue Rotate Button
+    Box(
+      modifier = Modifier
+        .align(Alignment.TopStart)
+        .offset(x = 0.dp, y = 0.dp)
+        .size(32.dp)
+        .shadow(3.dp, CircleShape)
+        .clip(CircleShape)
+        .background(Color(0xFF2563EB))
+        .pointerInput(Unit) {
+          detectDragGestures { change, drag ->
+            change.consume()
+            onRotateDelta(drag.x * 0.5f)
+          }
+        }
+        .clickable { onRotateDelta(15f) },
+      contentAlignment = Alignment.Center
+    ) {
+      Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = "Rotate", tint = Color.White, modifier = Modifier.size(18.dp))
+    }
+
+    // Bottom-Right Vertex: Blue Resize Button
+    Box(
+      modifier = Modifier
+        .align(Alignment.BottomEnd)
+        .offset(x = 4.dp, y = 4.dp)
+        .size(32.dp)
+        .shadow(3.dp, CircleShape)
+        .clip(CircleShape)
+        .background(Color(0xFF2563EB))
+        .pointerInput(Unit) {
+          detectDragGestures { change, drag ->
+            change.consume()
+            onResizeScale((drag.x + drag.y) * 0.005f)
+          }
+        },
+      contentAlignment = Alignment.Center
+    ) {
+      Icon(Icons.Default.Add, contentDescription = "Resize", tint = Color.White, modifier = Modifier.size(18.dp))
+    }
+
+    // Hypotenuse Center: Red Close Button
+    Box(
+      modifier = Modifier
+        .align(Alignment.Center)
+        .offset(x = 10.dp, y = (-10).dp)
+    ) {
+      GeometryActionCircle(
+        icon = Icons.Default.Close,
+        contentDescription = "Close",
+        backgroundColor = Color(0xFFEF4444),
+        sizeDp = 30,
+        onClick = onClose
+      )
+    }
+
+    // Action Controls integrated inside the open triangular cutout window
+    Surface(
+      shape = RoundedCornerShape(12.dp),
+      color = Color(0xEE0F172A),
+      shadowElevation = 3.dp,
+      modifier = Modifier
+        .align(Alignment.Center)
+        .offset(x = (-16).dp, y = 14.dp)
+    ) {
+      Row(
+        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Surface(
+          shape = RoundedCornerShape(6.dp),
+          color = Color(0x33FFFFFF),
+          modifier = Modifier.clickable(onClick = onToggleType)
+        ) {
+          Text(
+            if (is45) "45°" else "30°-60°",
+            color = Color(0xFFFDE047),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+          )
+        }
+        Surface(
+          shape = RoundedCornerShape(6.dp),
+          color = Color(0x33FFFFFF),
+          modifier = Modifier.clickable(onClick = onDrawTriangle)
+        ) {
+          Text(
+            "✏️ △",
+            color = Color(0xFF4ADE80),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+          )
+        }
+        Surface(
+          shape = RoundedCornerShape(6.dp),
+          color = Color(0x33FFFFFF),
+          modifier = Modifier.clickable(onClick = onDrawHypotenuse)
+        ) {
+          Text(
+            "✏️ Hyp",
+            color = Color(0xFF67E8F9),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+          )
         }
       }
     }
@@ -872,6 +2102,468 @@ fun OnboardingTourDialog(onFinish: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
       Text(steps[step].first, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
       Text(steps[step].second, style = MaterialTheme.typography.bodyLarge, color = Color(0xFF334155))
+    }
+  }
+}
+
+// ===== 8. Floating / Split / Fullscreen PDF Viewer Overlay (Continuous Vertical Scroll) =====
+
+@Composable
+fun PdfViewerOverlay(
+  pdfFile: File,
+  pageCount: Int,
+  currentPage: Int,
+  mode: PdfViewMode,
+  onModeChange: (PdfViewMode) -> Unit,
+  onPinPageToBoard: (Int) -> Unit,
+  onPickNewPdf: () -> Unit,
+  onClose: () -> Unit
+) {
+  val config = LocalConfiguration.current
+  val density = LocalDensity.current
+  val isLandscape = config.screenWidthDp > config.screenHeightDp
+
+  // Window position & size state for WINDOW mode
+  val defaultWidthDp = if (isLandscape) 440f else 320f
+  val defaultHeightDp = if (isLandscape) 470f else 490f
+
+  var widthDp by remember { mutableFloatStateOf(defaultWidthDp) }
+  var heightDp by remember { mutableFloatStateOf(defaultHeightDp) }
+
+  var offsetX by remember {
+    mutableFloatStateOf(
+      with(density) {
+        if (isLandscape) 50.dp.toPx()
+        else 16.dp.toPx()
+      }
+    )
+  }
+  var offsetY by remember {
+    mutableFloatStateOf(
+      with(density) {
+        if (isLandscape) 60.dp.toPx()
+        else 90.dp.toPx()
+      }
+    )
+  }
+
+  var minimized by remember { mutableStateOf(false) }
+  val listState = rememberLazyListState()
+  val scope = rememberCoroutineScope()
+
+  val visiblePage = remember {
+    derivedStateOf { listState.firstVisibleItemIndex }
+  }
+
+  if (minimized) {
+    // Draggable circular Red PDF bubble (tap to restore!)
+    Surface(
+      modifier = Modifier
+        .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+        .size(56.dp)
+        .pointerInput(Unit) {
+          detectDragGestures { change, drag ->
+            change.consume()
+            val maxW = with(density) { (config.screenWidthDp - 60).dp.toPx() }
+            val maxH = with(density) { (config.screenHeightDp - 60).dp.toPx() }
+            offsetX = (offsetX + drag.x).coerceIn(0f, maxW)
+            offsetY = (offsetY + drag.y).coerceIn(0f, maxH)
+          }
+        }
+        .clickable { minimized = false },
+      shape = CircleShape,
+      color = Color(0xFFEF4444),
+      shadowElevation = 10.dp
+    ) {
+      Box(contentAlignment = Alignment.Center) {
+        Icon(
+          Icons.Default.PictureAsPdf,
+          contentDescription = "Expand PDF",
+          tint = Color.White,
+          modifier = Modifier.size(26.dp)
+        )
+      }
+    }
+    return
+  }
+
+  val containerModifier = when (mode) {
+    PdfViewMode.WINDOW -> {
+      Modifier
+        .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+        .size(widthDp.dp, heightDp.dp)
+        .pointerInput(Unit) {
+          detectDragGestures { change, drag ->
+            change.consume()
+            val maxW = with(density) { (config.screenWidthDp - 80).dp.toPx() }
+            val maxH = with(density) { (config.screenHeightDp - 80).dp.toPx() }
+            offsetX = (offsetX + drag.x).coerceIn(0f, maxW)
+            offsetY = (offsetY + drag.y).coerceIn(0f, maxH)
+          }
+        }
+    }
+    PdfViewMode.SPLIT_LEFT -> {
+      Modifier
+        .fillMaxHeight()
+        .fillMaxWidth()
+    }
+    PdfViewMode.SPLIT_RIGHT -> {
+      Modifier
+        .fillMaxHeight()
+        .fillMaxWidth()
+    }
+    PdfViewMode.FULLSCREEN -> {
+      Modifier.fillMaxSize()
+    }
+  }
+
+  val containerShape = when (mode) {
+    PdfViewMode.WINDOW -> RoundedCornerShape(16.dp)
+    PdfViewMode.SPLIT_LEFT -> RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
+    PdfViewMode.SPLIT_RIGHT -> RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+    PdfViewMode.FULLSCREEN -> RoundedCornerShape(0.dp)
+  }
+
+  Surface(
+    modifier = containerModifier,
+    shape = containerShape,
+    shadowElevation = if (mode == PdfViewMode.WINDOW) 12.dp else 4.dp,
+    color = Color(0xFFF8FAFC),
+    border = if (mode == PdfViewMode.WINDOW) androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)) else null
+  ) {
+    Column(modifier = Modifier.fillMaxSize()) {
+      // ===== 1. Header Bar =====
+      Surface(
+        color = Color(0xFF0F172A),
+        modifier = Modifier.fillMaxWidth()
+      ) {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          Icon(
+            Icons.Default.PictureAsPdf,
+            contentDescription = null,
+            tint = Color(0xFFF87171),
+            modifier = Modifier.size(20.dp)
+          )
+
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              pdfFile.nameWithoutExtension,
+              color = Color.White,
+              fontSize = 13.sp,
+              fontWeight = FontWeight.Bold,
+              maxLines = 1
+            )
+            Text(
+              "Page ${visiblePage.value + 1} of $pageCount · Swipe up/down to scroll",
+              color = Color(0xFF94A3B8),
+              fontSize = 10.sp
+            )
+          }
+
+          // Pin current visible page to Whiteboard
+          IconButton(
+            onClick = { onPinPageToBoard(visiblePage.value) },
+            modifier = Modifier.size(30.dp)
+          ) {
+            Icon(
+              Icons.Default.PushPin,
+              contentDescription = "Pin to Board",
+              tint = Color(0xFF38BDF8),
+              modifier = Modifier.size(17.dp)
+            )
+          }
+
+          // Mode buttons
+          // 1. Floating Window mode
+          IconButton(
+            onClick = { onModeChange(PdfViewMode.WINDOW) },
+            modifier = Modifier
+              .size(30.dp)
+              .clip(RoundedCornerShape(6.dp))
+              .background(if (mode == PdfViewMode.WINDOW) Color(0x3338BDF8) else Color.Transparent)
+          ) {
+            Icon(
+              Icons.Default.OpenInNew,
+              contentDescription = "Floating Window",
+              tint = if (mode == PdfViewMode.WINDOW) Color(0xFF38BDF8) else Color(0xFFCBD5E1),
+              modifier = Modifier.size(16.dp)
+            )
+          }
+
+          // 2. Split Screen mode
+          IconButton(
+            onClick = {
+              val nextSplit = if (mode == PdfViewMode.SPLIT_LEFT) PdfViewMode.SPLIT_RIGHT else PdfViewMode.SPLIT_LEFT
+              onModeChange(nextSplit)
+            },
+            modifier = Modifier
+              .size(30.dp)
+              .clip(RoundedCornerShape(6.dp))
+              .background(if (mode == PdfViewMode.SPLIT_LEFT || mode == PdfViewMode.SPLIT_RIGHT) Color(0x3338BDF8) else Color.Transparent)
+          ) {
+            Icon(
+              Icons.Default.VerticalSplit,
+              contentDescription = "Split Screen",
+              tint = if (mode == PdfViewMode.SPLIT_LEFT || mode == PdfViewMode.SPLIT_RIGHT) Color(0xFF38BDF8) else Color(0xFFCBD5E1),
+              modifier = Modifier.size(16.dp)
+            )
+          }
+
+          // 3. Fullscreen mode
+          IconButton(
+            onClick = {
+              if (mode == PdfViewMode.FULLSCREEN) onModeChange(PdfViewMode.WINDOW)
+              else onModeChange(PdfViewMode.FULLSCREEN)
+            },
+            modifier = Modifier
+              .size(30.dp)
+              .clip(RoundedCornerShape(6.dp))
+              .background(if (mode == PdfViewMode.FULLSCREEN) Color(0x3338BDF8) else Color.Transparent)
+          ) {
+            Icon(
+              if (mode == PdfViewMode.FULLSCREEN) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+              contentDescription = "Full Screen",
+              tint = if (mode == PdfViewMode.FULLSCREEN) Color(0xFF38BDF8) else Color(0xFFCBD5E1),
+              modifier = Modifier.size(18.dp)
+            )
+          }
+
+          // Minimize button (WINDOW mode)
+          if (mode == PdfViewMode.WINDOW) {
+            IconButton(
+              onClick = { minimized = true },
+              modifier = Modifier.size(30.dp)
+            ) {
+              Icon(Icons.Default.Remove, contentDescription = "Minimize", tint = Color.White, modifier = Modifier.size(16.dp))
+            }
+          }
+
+          // Close button
+          IconButton(
+            onClick = onClose,
+            modifier = Modifier.size(30.dp)
+          ) {
+            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(16.dp))
+          }
+        }
+      }
+
+      // ===== 2. Continuous Vertical Scroll Area (Swipe Up / Down) =====
+      Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+        LazyColumn(
+          state = listState,
+          modifier = Modifier.fillMaxSize(),
+          verticalArrangement = Arrangement.spacedBy(10.dp),
+          contentPadding = PaddingValues(10.dp)
+        ) {
+          items(pageCount) { pIdx ->
+            PdfContinuousPageItem(
+              pdfFile = pdfFile,
+              pageIndex = pIdx,
+              onPinToBoard = { onPinPageToBoard(pIdx) }
+            )
+          }
+        }
+
+        // Floating Quick Page Jumper / Indicator Pill at Bottom Center
+        Surface(
+          shape = RoundedCornerShape(20.dp),
+          color = Color(0xE60F172A),
+          shadowElevation = 8.dp,
+          modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(bottom = 12.dp)
+        ) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+          ) {
+            IconButton(
+              onClick = {
+                val target = (visiblePage.value - 1).coerceAtLeast(0)
+                scope.launch { listState.animateScrollToItem(target) }
+              },
+              enabled = visiblePage.value > 0,
+              modifier = Modifier.size(28.dp)
+            ) {
+              Icon(
+                Icons.Default.KeyboardArrowUp,
+                contentDescription = "Previous Page",
+                tint = if (visiblePage.value > 0) Color.White else Color(0xFF64748B),
+                modifier = Modifier.size(18.dp)
+              )
+            }
+
+            Text(
+              "${visiblePage.value + 1} / $pageCount",
+              color = Color.White,
+              fontSize = 12.sp,
+              fontWeight = FontWeight.Bold,
+              modifier = Modifier.padding(horizontal = 4.dp)
+            )
+
+            IconButton(
+              onClick = {
+                val target = (visiblePage.value + 1).coerceAtMost(pageCount - 1)
+                scope.launch { listState.animateScrollToItem(target) }
+              },
+              enabled = visiblePage.value < pageCount - 1,
+              modifier = Modifier.size(28.dp)
+            ) {
+              Icon(
+                Icons.Default.KeyboardArrowDown,
+                contentDescription = "Next Page",
+                tint = if (visiblePage.value < pageCount - 1) Color.White else Color(0xFF64748B),
+                modifier = Modifier.size(18.dp)
+              )
+            }
+          }
+        }
+      }
+
+      // ===== 3. Bottom Utility Bar in Window Mode (Resize handle + actions) =====
+      if (mode == PdfViewMode.WINDOW) {
+        Surface(
+          color = Color(0xFFF1F5F9),
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+          ) {
+            TextButton(onClick = onPickNewPdf) {
+              Text("Open different PDF", fontSize = 11.sp, color = Color(0xFF0284C7))
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              TextButton(
+                onClick = {
+                  widthDp = if (widthDp < 500f) 540f else 420f
+                  heightDp = if (heightDp < 500f) 580f else 460f
+                }
+              ) {
+                Text(if (widthDp < 500f) "Enlarge" else "Standard", fontSize = 11.sp, color = Color(0xFF475569))
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@Composable
+private fun PdfContinuousPageItem(
+  pdfFile: File,
+  pageIndex: Int,
+  onPinToBoard: () -> Unit
+) {
+  var bitmap by remember(pdfFile.absolutePath, pageIndex) { mutableStateOf<Bitmap?>(null) }
+  var loading by remember(pdfFile.absolutePath, pageIndex) { mutableStateOf(true) }
+
+  LaunchedEffect(pdfFile.absolutePath, pageIndex) {
+    loading = true
+    val bmp = LazyPdfCache.renderPage(pdfFile, pageIndex, maxLongSide = 1200)
+    bitmap = bmp
+    loading = false
+  }
+
+  Surface(
+    shape = RoundedCornerShape(8.dp),
+    color = Color.White,
+    shadowElevation = 2.dp,
+    modifier = Modifier
+      .fillMaxWidth()
+      .wrapContentHeight()
+  ) {
+    Box(
+      modifier = Modifier
+        .fillMaxWidth()
+        .wrapContentHeight(),
+      contentAlignment = Alignment.Center
+    ) {
+      if (bitmap != null && !bitmap!!.isRecycled) {
+        val bmp = bitmap!!
+        val aspect = bmp.width.toFloat() / bmp.height.toFloat()
+        Image(
+          bitmap = bmp.asImageBitmap(),
+          contentDescription = "Page ${pageIndex + 1}",
+          modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(aspect)
+            .clip(RoundedCornerShape(8.dp)),
+          contentScale = ContentScale.Fit
+        )
+      } else {
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(260.dp)
+            .background(Color(0xFFF8FAFC)),
+          contentAlignment = Alignment.Center
+        ) {
+          if (loading) {
+            Column(
+              horizontalAlignment = Alignment.CenterHorizontally,
+              verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+              CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                strokeWidth = 2.5.dp,
+                color = Color(0xFFEF4444)
+              )
+              Text("Rendering Page ${pageIndex + 1}…", fontSize = 11.sp, color = Color(0xFF64748B))
+            }
+          } else {
+            Text("Page ${pageIndex + 1}", fontSize = 12.sp, color = Color(0xFF94A3B8))
+          }
+        }
+      }
+
+      // Small Page Pill Tag at Top-Left
+      Surface(
+        shape = RoundedCornerShape(4.dp),
+        color = Color(0xCC0F172A),
+        modifier = Modifier
+          .align(Alignment.TopStart)
+          .padding(6.dp)
+      ) {
+        Text(
+          "P. ${pageIndex + 1}",
+          color = Color.White,
+          fontSize = 10.sp,
+          fontWeight = FontWeight.Bold,
+          modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+        )
+      }
+
+      // Pin Page to Board Button at Top-Right
+      IconButton(
+        onClick = onPinToBoard,
+        modifier = Modifier
+          .align(Alignment.TopEnd)
+          .padding(4.dp)
+          .size(28.dp)
+          .clip(CircleShape)
+          .background(Color(0xDD0F172A))
+      ) {
+        Icon(
+          Icons.Default.PushPin,
+          contentDescription = "Set as board page",
+          tint = Color(0xFF38BDF8),
+          modifier = Modifier.size(15.dp)
+        )
+      }
     }
   }
 }

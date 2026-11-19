@@ -22,6 +22,7 @@ import com.teachboard.app.domain.model.EraserMode
 import com.teachboard.app.domain.model.FaceCamShape
 import com.teachboard.app.domain.model.GeometryToolType
 import com.teachboard.app.domain.model.OcrScanRecord
+import com.teachboard.app.domain.model.PdfViewMode
 import com.teachboard.app.domain.model.Serialization
 import com.teachboard.app.domain.model.StrokePoint
 import com.teachboard.app.domain.model.ToolType
@@ -83,6 +84,14 @@ data class CanvasUiState(
   val fillColor: Int? = null,
   val isFilled: Boolean = false,
   val strokeWidth: Float = 12f,
+  val eraserSize: Float = 28f,
+  val toolSizes: Map<ToolType, Float> = mapOf(
+    ToolType.Pen to 12f,
+    ToolType.Brush to 16f,
+    ToolType.Marker to 22f,
+    ToolType.Highlighter to 32f,
+    ToolType.Calligraphy to 14f
+  ),
   val alpha: Float = 1f,
   val fontSize: Float = 44f,
   val laserColor: Int = TeachColors.LaserRed,
@@ -101,6 +110,8 @@ data class CanvasUiState(
   val activeGeometryTool: GeometryToolType? = null,
   val showCalculator: Boolean = false,
   val showTimer: Boolean = false,
+  val showPdfViewer: Boolean = false,
+  val pdfViewerMode: PdfViewMode = PdfViewMode.WINDOW,
   val floatingVideoUri: Uri? = null,
   val showFaceCam: Boolean = false,
   val faceCamShape: FaceCamShape = FaceCamShape.ROUND,
@@ -159,6 +170,8 @@ class CanvasViewModel(
           lastBrushTool = initialPrefs.defaultBrush,
           brushColor = initialPrefs.defaultBrushColor,
           strokeWidth = initialPrefs.defaultBrushSize,
+          eraserSize = initialPrefs.defaultEraserSize,
+          toolSizes = it.toolSizes + (initialPrefs.defaultBrush to initialPrefs.defaultBrushSize),
           smartShapesEnabled = initialPrefs.smartShapesEnabled
         )
       }
@@ -281,10 +294,12 @@ class CanvasViewModel(
 
   fun selectTool(tool: ToolType) {
     _ui.update { cur ->
+      val newStrokeWidth = if (tool.isBrush) cur.toolSizes[tool] ?: cur.strokeWidth else cur.strokeWidth
       cur.copy(
         activeTool = tool,
         lastBrushTool = if (tool.isBrush) tool else cur.lastBrushTool,
         lastShapeTool = if (tool.isShape) tool else cur.lastShapeTool,
+        strokeWidth = newStrokeWidth,
         selectedUids = if (tool == ToolType.Lasso) cur.selectedUids else emptySet(),
         smartShapeOffer = null,
         activeGeometryTool = null
@@ -293,10 +308,24 @@ class CanvasViewModel(
   }
 
   fun setEraserMode(mode: EraserMode) = _ui.update { it.copy(eraserMode = mode) }
+  fun setEraserSize(size: Float) {
+    val clamped = size.coerceIn(6f, 100f)
+    _ui.update { it.copy(eraserSize = clamped) }
+    viewModelScope.launch { prefsRepo.setEraserSize(clamped) }
+  }
   fun setBrushColor(color: Int) = _ui.update { it.copy(brushColor = color) }
   fun setFillColor(color: Int?) = _ui.update { it.copy(fillColor = color) }
   fun setIsFilled(filled: Boolean) = _ui.update { it.copy(isFilled = filled) }
-  fun setStrokeWidth(width: Float) = _ui.update { it.copy(strokeWidth = width.coerceIn(2f, 72f)) }
+  fun setStrokeWidth(width: Float) {
+    val clamped = width.coerceIn(2f, 72f)
+    _ui.update { cur ->
+      val currentTool = if (cur.activeTool.isBrush) cur.activeTool else cur.lastBrushTool
+      cur.copy(
+        strokeWidth = clamped,
+        toolSizes = cur.toolSizes + (currentTool to clamped)
+      )
+    }
+  }
   fun setAlpha(alpha: Float) = _ui.update { it.copy(alpha = alpha.coerceIn(0.1f, 1f)) }
   fun setFontSize(size: Float) = _ui.update { it.copy(fontSize = size.coerceIn(14f, 140f)) }
   fun setLaserColor(color: Int) = _ui.update { it.copy(laserColor = color) }
@@ -357,7 +386,7 @@ class CanvasViewModel(
       layerId = cur.activeLayerId,
       type = if (isEraser) ToolType.Eraser else tool,
       color = cur.brushColor,
-      strokeWidth = cur.strokeWidth,
+      strokeWidth = if (isEraser) cur.eraserSize else cur.strokeWidth,
       alpha = cur.alpha,
       isEraser = isEraser,
       zIndex = nextZIndex(),
@@ -475,30 +504,39 @@ class CanvasViewModel(
     addObjectWithUndo(obj)
   }
 
-  fun stampGeometryArc(needle: StrokePoint, start: StrokePoint, end: StrokePoint) {
+  fun stampGeometryArc(
+    needle: StrokePoint,
+    start: StrokePoint,
+    end: StrokePoint,
+    sweepDeg: Float = 0f,
+    strokeWidth: Float = 0f
+  ) {
     if (isActiveLayerLocked()) return
     val cur = _ui.value
     val r = hypot(start.x - needle.x, start.y - needle.y)
     val a0 = Math.toDegrees(atan2((start.y - needle.y).toDouble(), (start.x - needle.x).toDouble())).toFloat()
-    val a1 = Math.toDegrees(atan2((end.y - needle.y).toDouble(), (end.x - needle.x).toDouble())).toFloat()
-    val sweep = GeoStampPath.normSweep(a1 - a0)
-    val steps = 36
+    val sweep = if (sweepDeg != 0f) sweepDeg else {
+      val a1 = Math.toDegrees(atan2((end.y - needle.y).toDouble(), (end.x - needle.x).toDouble())).toFloat()
+      GeoStampPath.normSweep(a1 - a0)
+    }
+    val isFullCircle = abs(sweep) >= 359.5f
+    val steps = if (isFullCircle) 64 else max(16, (abs(sweep) / 4f).roundToInt())
     val pts = (0..steps).map { i ->
       val rad = Math.toRadians((a0 + sweep * (i.toDouble() / steps)).toDouble())
       StrokePoint(needle.x + (cos(rad) * r).toFloat(), needle.y + (sin(rad) * r).toFloat())
     }
-    val contour = Contour(closed = false, points = pts)
+    val contour = Contour(closed = isFullCircle, points = pts)
     val obj = CanvasObject(
       sessionId = sessionId,
       pageIndex = cur.pageIndex,
       layerId = cur.activeLayerId,
       type = ToolType.Circle,
-      color = cur.brushColor,
-      strokeWidth = cur.strokeWidth.coerceAtLeast(2.5f),
-      alpha = cur.alpha,
+      color = 0xFF1F6FE0.toInt(),
+      strokeWidth = if (strokeWidth > 0f) strokeWidth else cur.strokeWidth.coerceAtLeast(2.5f),
+      alpha = 1.0f,
       zIndex = nextZIndex(),
       geometry = listOf(contour),
-      points = pts
+      points = listOf(needle) + pts
     )
     addObjectWithUndo(obj)
   }
@@ -1291,9 +1329,15 @@ class CanvasViewModel(
         updatedAt = System.currentTimeMillis()
       )
       withContext(Dispatchers.IO) { db.sessionDao().upsert(updated.toEntity()) }
-      _ui.update { it.copy(session = updated) }
+      _ui.update {
+        it.copy(
+          session = updated,
+          showPdfViewer = true,
+          pdfViewerMode = PdfViewMode.WINDOW
+        )
+      }
       observePage(0)
-      showMessage("Imported $pageCount PDF pages")
+      showMessage("Imported $pageCount PDF pages · Floating PDF window opened")
     }
   }
 
@@ -1334,6 +1378,9 @@ class CanvasViewModel(
   fun setGeometryTool(tool: GeometryToolType?) = _ui.update { it.copy(activeGeometryTool = tool) }
   fun setShowCalculator(show: Boolean) = _ui.update { it.copy(showCalculator = show) }
   fun setShowTimer(show: Boolean) = _ui.update { it.copy(showTimer = show) }
+  fun setShowPdfViewer(show: Boolean) = _ui.update { it.copy(showPdfViewer = show) }
+  fun setPdfViewerMode(mode: PdfViewMode) = _ui.update { it.copy(pdfViewerMode = mode) }
+  fun togglePdfViewer() = _ui.update { it.copy(showPdfViewer = !it.showPdfViewer) }
   fun setFloatingVideoUri(uri: Uri?) = _ui.update { it.copy(floatingVideoUri = uri) }
   fun setFaceCam(show: Boolean, shape: FaceCamShape = _ui.value.faceCamShape) =
     _ui.update { it.copy(showFaceCam = show, faceCamShape = shape) }

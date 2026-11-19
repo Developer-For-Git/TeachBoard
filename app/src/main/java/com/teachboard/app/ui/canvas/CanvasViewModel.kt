@@ -131,7 +131,7 @@ class CanvasViewModel(
 
   val userPrefs: StateFlow<UserPrefs> = prefsRepo.prefs.stateIn(
     viewModelScope,
-    SharingStarted.WhileSubscribed(5000),
+    SharingStarted.Eagerly,
     UserPrefs()
   )
 
@@ -307,9 +307,12 @@ class CanvasViewModel(
   }
 
   fun toggleStylusOnly() {
-    val next = !userPrefs.value.stylusOnly
-    viewModelScope.launch { prefsRepo.setStylusOnly(next) }
-    showMessage(if (next) "Palm Rejection (Stylus-Only): ON" else "Palm Rejection (Stylus-Only): OFF")
+    viewModelScope.launch {
+      val current = loadedUserPrefs.value?.stylusOnly ?: prefsRepo.prefs.first().stylusOnly
+      val next = !current
+      prefsRepo.setStylusOnly(next)
+      showMessage(if (next) "Palm Rejection (Stylus-Only): ON" else "Palm Rejection (Stylus-Only): OFF")
+    }
   }
 
   fun updateViewport(scale: Float, panX: Float, panY: Float) {

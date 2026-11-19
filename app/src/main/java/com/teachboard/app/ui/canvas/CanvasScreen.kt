@@ -541,7 +541,8 @@ fun CanvasScreen(
     Column(
       modifier = Modifier
         .align(Alignment.TopStart)
-        .padding(start = 12.dp, top = 12.dp)
+        .statusBarsPadding()
+        .padding(start = 12.dp, top = 8.dp)
         .animateContentSize(spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)),
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -695,7 +696,8 @@ fun CanvasScreen(
     Column(
       modifier = Modifier
         .align(Alignment.TopEnd)
-        .padding(end = 12.dp, top = 12.dp),
+        .statusBarsPadding()
+        .padding(end = 12.dp, top = 8.dp),
       horizontalAlignment = Alignment.End,
       verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -728,10 +730,11 @@ fun CanvasScreen(
     Column(
       modifier = Modifier
         .align(if (sideDockOnLeft) Alignment.TopStart else Alignment.TopEnd)
+        .statusBarsPadding()
         .padding(
           start = if (sideDockOnLeft) 12.dp else 0.dp,
           end = if (sideDockOnLeft) 0.dp else 12.dp,
-          top = if (sideDockOnLeft) 130.dp else 68.dp
+          top = if (sideDockOnLeft) 130.dp else 60.dp
         ),
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(8.dp)

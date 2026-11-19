@@ -98,6 +98,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -2114,6 +2115,7 @@ fun PdfViewerOverlay(
   pageCount: Int,
   currentPage: Int,
   mode: PdfViewMode,
+  activeBrushColor: Color = Color(0xFF38BDF8),
   onModeChange: (PdfViewMode) -> Unit,
   onPinPageToBoard: (Int) -> Unit,
   onPickNewPdf: () -> Unit,
@@ -2240,7 +2242,7 @@ fun PdfViewerOverlay(
         Row(
           modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
@@ -2248,108 +2250,169 @@ fun PdfViewerOverlay(
             Icons.Default.PictureAsPdf,
             contentDescription = null,
             tint = Color(0xFFF87171),
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(18.dp)
           )
 
-          Column(modifier = Modifier.weight(1f)) {
-            Text(
-              pdfFile.nameWithoutExtension,
-              color = Color.White,
-              fontSize = 13.sp,
-              fontWeight = FontWeight.Bold,
-              maxLines = 1
-            )
-            Text(
-              "Page ${visiblePage.value + 1} of $pageCount · Swipe up/down to scroll",
-              color = Color(0xFF94A3B8),
-              fontSize = 10.sp
-            )
+          // Document title
+          Text(
+            pdfFile.nameWithoutExtension,
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+          )
+
+          // Compact Page Stepper in Header: [▲] 1/5 [▼]
+          Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = Color(0xFF1E293B)
+          ) {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(1.dp),
+              modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+            ) {
+              IconButton(
+                onClick = {
+                  val target = (visiblePage.value - 1).coerceAtLeast(0)
+                  scope.launch { listState.animateScrollToItem(target) }
+                },
+                enabled = visiblePage.value > 0,
+                modifier = Modifier.size(24.dp)
+              ) {
+                Icon(
+                  Icons.Default.KeyboardArrowUp,
+                  contentDescription = "Previous Page",
+                  tint = if (visiblePage.value > 0) Color.White else Color(0xFF64748B),
+                  modifier = Modifier.size(15.dp)
+                )
+              }
+
+              Text(
+                "${visiblePage.value + 1}/$pageCount",
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 2.dp)
+              )
+
+              IconButton(
+                onClick = {
+                  val target = (visiblePage.value + 1).coerceAtMost(pageCount - 1)
+                  scope.launch { listState.animateScrollToItem(target) }
+                },
+                enabled = visiblePage.value < pageCount - 1,
+                modifier = Modifier.size(24.dp)
+              ) {
+                Icon(
+                  Icons.Default.KeyboardArrowDown,
+                  contentDescription = "Next Page",
+                  tint = if (visiblePage.value < pageCount - 1) Color.White else Color(0xFF64748B),
+                  modifier = Modifier.size(15.dp)
+                )
+              }
+            }
           }
 
-          // Pin current visible page to Whiteboard
+          // Pin current page to board
           IconButton(
             onClick = { onPinPageToBoard(visiblePage.value) },
-            modifier = Modifier.size(30.dp)
+            modifier = Modifier.size(26.dp)
           ) {
             Icon(
               Icons.Default.PushPin,
               contentDescription = "Pin to Board",
-              tint = Color(0xFF38BDF8),
-              modifier = Modifier.size(17.dp)
+              tint = activeBrushColor,
+              modifier = Modifier.size(15.dp)
             )
           }
 
-          // Mode buttons
-          // 1. Floating Window mode
-          IconButton(
-            onClick = { onModeChange(PdfViewMode.WINDOW) },
-            modifier = Modifier
-              .size(30.dp)
-              .clip(RoundedCornerShape(6.dp))
-              .background(if (mode == PdfViewMode.WINDOW) Color(0x3338BDF8) else Color.Transparent)
+          // Sleek Segmented Mode Switcher (Window | Split | Fullscreen)
+          Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = Color(0xFF1E293B)
           ) {
-            Icon(
-              Icons.Default.OpenInNew,
-              contentDescription = "Floating Window",
-              tint = if (mode == PdfViewMode.WINDOW) Color(0xFF38BDF8) else Color(0xFFCBD5E1),
-              modifier = Modifier.size(16.dp)
-            )
-          }
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              modifier = Modifier.padding(2.dp)
+            ) {
+              // 1. Window Mode
+              Box(
+                modifier = Modifier
+                  .size(24.dp)
+                  .clip(RoundedCornerShape(6.dp))
+                  .background(if (mode == PdfViewMode.WINDOW) activeBrushColor.copy(alpha = 0.25f) else Color.Transparent)
+                  .clickable { onModeChange(PdfViewMode.WINDOW) },
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  Icons.Default.OpenInNew,
+                  contentDescription = "Window Mode",
+                  tint = if (mode == PdfViewMode.WINDOW) activeBrushColor else Color(0xFF94A3B8),
+                  modifier = Modifier.size(13.dp)
+                )
+              }
 
-          // 2. Split Screen mode
-          IconButton(
-            onClick = {
-              val nextSplit = if (mode == PdfViewMode.SPLIT_LEFT) PdfViewMode.SPLIT_RIGHT else PdfViewMode.SPLIT_LEFT
-              onModeChange(nextSplit)
-            },
-            modifier = Modifier
-              .size(30.dp)
-              .clip(RoundedCornerShape(6.dp))
-              .background(if (mode == PdfViewMode.SPLIT_LEFT || mode == PdfViewMode.SPLIT_RIGHT) Color(0x3338BDF8) else Color.Transparent)
-          ) {
-            Icon(
-              Icons.Default.VerticalSplit,
-              contentDescription = "Split Screen",
-              tint = if (mode == PdfViewMode.SPLIT_LEFT || mode == PdfViewMode.SPLIT_RIGHT) Color(0xFF38BDF8) else Color(0xFFCBD5E1),
-              modifier = Modifier.size(16.dp)
-            )
-          }
+              // 2. Split Mode
+              Box(
+                modifier = Modifier
+                  .size(24.dp)
+                  .clip(RoundedCornerShape(6.dp))
+                  .background(if (mode == PdfViewMode.SPLIT_LEFT || mode == PdfViewMode.SPLIT_RIGHT) activeBrushColor.copy(alpha = 0.25f) else Color.Transparent)
+                  .clickable {
+                    val nextSplit = if (mode == PdfViewMode.SPLIT_LEFT) PdfViewMode.SPLIT_RIGHT else PdfViewMode.SPLIT_LEFT
+                    onModeChange(nextSplit)
+                  },
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  Icons.Default.VerticalSplit,
+                  contentDescription = "Split Mode",
+                  tint = if (mode == PdfViewMode.SPLIT_LEFT || mode == PdfViewMode.SPLIT_RIGHT) activeBrushColor else Color(0xFF94A3B8),
+                  modifier = Modifier.size(13.dp)
+                )
+              }
 
-          // 3. Fullscreen mode
-          IconButton(
-            onClick = {
-              if (mode == PdfViewMode.FULLSCREEN) onModeChange(PdfViewMode.WINDOW)
-              else onModeChange(PdfViewMode.FULLSCREEN)
-            },
-            modifier = Modifier
-              .size(30.dp)
-              .clip(RoundedCornerShape(6.dp))
-              .background(if (mode == PdfViewMode.FULLSCREEN) Color(0x3338BDF8) else Color.Transparent)
-          ) {
-            Icon(
-              if (mode == PdfViewMode.FULLSCREEN) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-              contentDescription = "Full Screen",
-              tint = if (mode == PdfViewMode.FULLSCREEN) Color(0xFF38BDF8) else Color(0xFFCBD5E1),
-              modifier = Modifier.size(18.dp)
-            )
+              // 3. Fullscreen Mode
+              Box(
+                modifier = Modifier
+                  .size(24.dp)
+                  .clip(RoundedCornerShape(6.dp))
+                  .background(if (mode == PdfViewMode.FULLSCREEN) activeBrushColor.copy(alpha = 0.25f) else Color.Transparent)
+                  .clickable {
+                    if (mode == PdfViewMode.FULLSCREEN) onModeChange(PdfViewMode.WINDOW)
+                    else onModeChange(PdfViewMode.FULLSCREEN)
+                  },
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  if (mode == PdfViewMode.FULLSCREEN) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                  contentDescription = "Fullscreen Mode",
+                  tint = if (mode == PdfViewMode.FULLSCREEN) activeBrushColor else Color(0xFF94A3B8),
+                  modifier = Modifier.size(14.dp)
+                )
+              }
+            }
           }
 
           // Minimize button (WINDOW mode)
           if (mode == PdfViewMode.WINDOW) {
             IconButton(
               onClick = { minimized = true },
-              modifier = Modifier.size(30.dp)
+              modifier = Modifier.size(26.dp)
             ) {
-              Icon(Icons.Default.Remove, contentDescription = "Minimize", tint = Color.White, modifier = Modifier.size(16.dp))
+              Icon(Icons.Default.Remove, contentDescription = "Minimize", tint = Color.White, modifier = Modifier.size(15.dp))
             }
           }
 
           // Close button
           IconButton(
             onClick = onClose,
-            modifier = Modifier.size(30.dp)
+            modifier = Modifier.size(26.dp)
           ) {
-            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(15.dp))
           }
         }
       }
@@ -2365,65 +2428,8 @@ fun PdfViewerOverlay(
           items(pageCount) { pIdx ->
             PdfContinuousPageItem(
               pdfFile = pdfFile,
-              pageIndex = pIdx,
-              onPinToBoard = { onPinPageToBoard(pIdx) }
+              pageIndex = pIdx
             )
-          }
-        }
-
-        // Floating Quick Page Jumper / Indicator Pill at Bottom Center
-        Surface(
-          shape = RoundedCornerShape(20.dp),
-          color = Color(0xE60F172A),
-          shadowElevation = 8.dp,
-          modifier = Modifier
-            .align(Alignment.BottomCenter)
-            .padding(bottom = 12.dp)
-        ) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-          ) {
-            IconButton(
-              onClick = {
-                val target = (visiblePage.value - 1).coerceAtLeast(0)
-                scope.launch { listState.animateScrollToItem(target) }
-              },
-              enabled = visiblePage.value > 0,
-              modifier = Modifier.size(28.dp)
-            ) {
-              Icon(
-                Icons.Default.KeyboardArrowUp,
-                contentDescription = "Previous Page",
-                tint = if (visiblePage.value > 0) Color.White else Color(0xFF64748B),
-                modifier = Modifier.size(18.dp)
-              )
-            }
-
-            Text(
-              "${visiblePage.value + 1} / $pageCount",
-              color = Color.White,
-              fontSize = 12.sp,
-              fontWeight = FontWeight.Bold,
-              modifier = Modifier.padding(horizontal = 4.dp)
-            )
-
-            IconButton(
-              onClick = {
-                val target = (visiblePage.value + 1).coerceAtMost(pageCount - 1)
-                scope.launch { listState.animateScrollToItem(target) }
-              },
-              enabled = visiblePage.value < pageCount - 1,
-              modifier = Modifier.size(28.dp)
-            ) {
-              Icon(
-                Icons.Default.KeyboardArrowDown,
-                contentDescription = "Next Page",
-                tint = if (visiblePage.value < pageCount - 1) Color.White else Color(0xFF64748B),
-                modifier = Modifier.size(18.dp)
-              )
-            }
           }
         }
       }
@@ -2465,8 +2471,7 @@ fun PdfViewerOverlay(
 @Composable
 private fun PdfContinuousPageItem(
   pdfFile: File,
-  pageIndex: Int,
-  onPinToBoard: () -> Unit
+  pageIndex: Int
 ) {
   var bitmap by remember(pdfFile.absolutePath, pageIndex) { mutableStateOf<Bitmap?>(null) }
   var loading by remember(pdfFile.absolutePath, pageIndex) { mutableStateOf(true) }
@@ -2528,41 +2533,6 @@ private fun PdfContinuousPageItem(
             Text("Page ${pageIndex + 1}", fontSize = 12.sp, color = Color(0xFF94A3B8))
           }
         }
-      }
-
-      // Small Page Pill Tag at Top-Left
-      Surface(
-        shape = RoundedCornerShape(4.dp),
-        color = Color(0xCC0F172A),
-        modifier = Modifier
-          .align(Alignment.TopStart)
-          .padding(6.dp)
-      ) {
-        Text(
-          "P. ${pageIndex + 1}",
-          color = Color.White,
-          fontSize = 10.sp,
-          fontWeight = FontWeight.Bold,
-          modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
-        )
-      }
-
-      // Pin Page to Board Button at Top-Right
-      IconButton(
-        onClick = onPinToBoard,
-        modifier = Modifier
-          .align(Alignment.TopEnd)
-          .padding(4.dp)
-          .size(28.dp)
-          .clip(CircleShape)
-          .background(Color(0xDD0F172A))
-      ) {
-        Icon(
-          Icons.Default.PushPin,
-          contentDescription = "Set as board page",
-          tint = Color(0xFF38BDF8),
-          modifier = Modifier.size(15.dp)
-        )
       }
     }
   }

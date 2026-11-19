@@ -1120,6 +1120,7 @@ fun CanvasScreen(
             pageCount = ui.session?.pageCount ?: 1,
             currentPage = ui.pageIndex,
             mode = ui.pdfViewerMode,
+            activeBrushColor = Color(ui.brushColor),
             onModeChange = { viewModel.setPdfViewerMode(it) },
             onPinPageToBoard = { page ->
               viewModel.goToPage(page)
@@ -1215,19 +1216,103 @@ fun CanvasScreen(
 
       // PDF Quick Annotation Bar
       if (isPdfMode) {
-        Surface(shape = RoundedCornerShape(22.dp), color = TeachColors.DarkPillBg, modifier = Modifier.padding(bottom = 6.dp)) {
-          Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            IconButton(onClick = { viewModel.selectTool(ToolType.Pen) }, modifier = Modifier.size(32.dp)) {
-              Icon(Icons.Default.Draw, contentDescription = "Pen", tint = if (ui.activeTool == ToolType.Pen) TeachColors.PrimaryDark else Color.White, modifier = Modifier.size(18.dp))
+        val activeBrushColor = Color(ui.brushColor)
+        val isDarkBrush = TeachColors.isDarkColor(ui.brushColor)
+        val onActiveBrushColor = if (isDarkBrush) Color.White else Color(0xFF0F172A)
+
+        Surface(
+          shape = RoundedCornerShape(22.dp),
+          color = TeachColors.DarkPillBg,
+          shadowElevation = 8.dp,
+          modifier = Modifier.padding(bottom = 6.dp)
+        ) {
+          Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            // 1. Pen Tool Button (actively adopts the selected color!)
+            val isPenActive = ui.activeTool == ToolType.Pen
+            Box(
+              modifier = Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(if (isPenActive) activeBrushColor else Color.Transparent)
+                .clickable { viewModel.selectTool(ToolType.Pen) },
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(
+                Icons.Default.Draw,
+                contentDescription = "Pen",
+                tint = if (isPenActive) onActiveBrushColor else Color.White,
+                modifier = Modifier.size(18.dp)
+              )
             }
-            IconButton(onClick = { viewModel.selectTool(ToolType.Highlighter) }, modifier = Modifier.size(32.dp)) {
-              Icon(Icons.Default.Highlight, contentDescription = "Highlighter", tint = if (ui.activeTool == ToolType.Highlighter) TeachColors.PrimaryDark else Color.White, modifier = Modifier.size(18.dp))
+
+            // 2. Highlighter Tool Button (actively adopts the selected color!)
+            val isHighlighterActive = ui.activeTool == ToolType.Highlighter
+            Box(
+              modifier = Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(if (isHighlighterActive) activeBrushColor else Color.Transparent)
+                .clickable { viewModel.selectTool(ToolType.Highlighter) },
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(
+                Icons.Default.Highlight,
+                contentDescription = "Highlighter",
+                tint = if (isHighlighterActive) onActiveBrushColor else Color.White,
+                modifier = Modifier.size(18.dp)
+              )
             }
-            IconButton(onClick = { viewModel.selectTool(ToolType.Eraser) }, modifier = Modifier.size(32.dp)) {
-              Icon(Icons.Default.CleaningServices, contentDescription = "Eraser", tint = if (ui.activeTool == ToolType.Eraser) TeachColors.Danger else Color.White, modifier = Modifier.size(18.dp))
+
+            // 3. Eraser Tool Button
+            val isEraserActive = ui.activeTool == ToolType.Eraser
+            Box(
+              modifier = Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(if (isEraserActive) Color(0xFFEF4444) else Color.Transparent)
+                .clickable { viewModel.selectTool(ToolType.Eraser) },
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(
+                Icons.Default.CleaningServices,
+                contentDescription = "Eraser",
+                tint = Color.White,
+                modifier = Modifier.size(18.dp)
+              )
             }
+
+            // Subtle vertical separator
+            Box(
+              modifier = Modifier
+                .width(1.dp)
+                .height(18.dp)
+                .background(Color(0x33FFFFFF))
+            )
+
+            // 4. Color Chips (Yellow, Green, Blue, Pink, Orange)
             TeachColors.PdfQuickColors.forEach { c ->
-              Box(modifier = Modifier.size(22.dp).clip(CircleShape).background(Color(c)).border(if (ui.brushColor == c) 2.dp else 0.dp, Color.White, CircleShape).clickable { viewModel.setBrushColor(c) })
+              val isSelected = ui.brushColor == c
+              Box(
+                modifier = Modifier
+                  .size(if (isSelected) 26.dp else 22.dp)
+                  .clip(CircleShape)
+                  .background(Color(c))
+                  .border(
+                    width = if (isSelected) 2.5.dp else 0.dp,
+                    color = Color.White,
+                    shape = CircleShape
+                  )
+                  .clickable {
+                    viewModel.setBrushColor(c)
+                    if (ui.activeTool == ToolType.Eraser) {
+                      viewModel.selectTool(ToolType.Pen)
+                    }
+                  }
+              )
             }
           }
         }

@@ -66,6 +66,7 @@ data class GeoState(
     val legCm: Int = 6,
     val hint: String? = null,
     val sweep: Pair<Float, Float>? = null,
+    val activeEdgeLine: Pair<P, P>? = null,
 ) {
     val angleDeg: Float get() = Math.toDegrees(angle.toDouble()).toFloat()
 }
@@ -263,6 +264,12 @@ class GeoController(
             GeoInstrument.Compass -> beginCompass(s, p, hit)
             GeoInstrument.SetSquare -> beginSetSquare(s, p, hit)
         }
+        val g = gesture
+        if (g is G.DrawEdge) {
+            val a = if (g.fullSpan) g.a else lerp(g.a, g.b, g.t0.coerceIn(0f, 1f))
+            val b = if (g.fullSpan) g.b else a
+            state = s.copy(activeEdgeLine = a to b)
+        }
         return gesture !== G.None
     }
 
@@ -287,21 +294,44 @@ class GeoController(
         val ly = local.y / s.uiScale
         val len = GeoKit.rulerLen(s)
 
-        if (hypot(lx - (len + 30f), ly) <= hit / s.uiScale + 10f) return G.Rotate(s, bearing(s, p))
+        // 1. Close button (✕) at starting of ruler (-26f, 0f)
+        val closeBtn = P(s.ox, s.oy) + GeoKit.rotate(-26f * s.uiScale, 0f, s.angle)
+        if (hypot(p.x - closeBtn.x, p.y - closeBtn.y) <= 24f + hit || hypot(lx - (-26f), ly) <= hit / s.uiScale + 14f) {
+            close()
+            cb.onDismiss()
+            return G.None
+        }
+
+        // 2. Rotate knob at right end
+        val rotateBtn = P(s.ox, s.oy) + GeoKit.rotate((len + 30f) * s.uiScale, 0f, s.angle)
+        if (hypot(p.x - rotateBtn.x, p.y - rotateBtn.y) <= 24f + hit || hypot(lx - (len + 30f), ly) <= hit / s.uiScale + 12f) {
+            return G.Rotate(s, bearing(s, p))
+        }
+
+        // 3. Resize grip at right end
         if (lx in (len - 40f)..(len + 12f) && abs(ly) <= 32f) return G.ResizeRuler(s)
+
+        // 4. Middle strip for dragging / moving ruler
+        if (lx in 0f..(len - 40f) && abs(ly) <= 14f) return G.Move(s, p - P(s.ox, s.oy))
+
+        // 5. Automatic line stamping on upward (top) and downward (bottom) edges according to ruler length
+        val hitMargin = hit / s.uiScale + 30f
+        val isTopEdge = lx in -20f..(len + 20f) && ly in (-32f - hitMargin)..(-14f)
+        val isBottomEdge = lx in -20f..(len + 20f) && ly in 14f..(32f + hitMargin)
+
+        if (isTopEdge) {
+            val a = world(s, P(0f, -32f))
+            val b = world(s, P(len, -32f))
+            return G.DrawEdge(s, a, b, 0f, fullSpan = true).apply { t1 = 1f }
+        }
+        if (isBottomEdge) {
+            val a = world(s, P(0f, 32f))
+            val b = world(s, P(len, 32f))
+            return G.DrawEdge(s, a, b, 0f, fullSpan = true).apply { t1 = 1f }
+        }
+
         if (lx in 0f..len && abs(ly) <= 32f) return G.Move(s, p - P(s.ox, s.oy))
 
-        val edge = when {
-            ly in (-32f - hit)..(-32f) -> -32f
-            ly in 32f..(32f + hit) -> 32f
-            else -> null
-        }
-        if (edge != null) {
-            val a = world(s, P(0f, edge))
-            val b = world(s, P(len, edge))
-            val t = project(p, a, b)
-            return G.DrawEdge(s, a, b, t)
-        }
         return G.None
     }
 
@@ -437,11 +467,23 @@ class GeoController(
             }
 
             is G.DrawEdge -> {
-                g.t1 = project(p, g.a, g.b)
-                val a = lerp(g.a, g.b, g.t0.coerceIn(0f, 1f))
-                val b = lerp(g.a, g.b, g.t1.coerceIn(0f, 1f))
-                val len = hypot(b.x - a.x, b.y - a.y)
-                s.copy(hint = String.format(Locale.US, strings.rulerDraw, len / GeoKit.PX_PER_CM, len / 96f))
+                if (g.fullSpan) {
+                    g.t1 = 1f
+                    val len = hypot(g.b.x - g.a.x, g.b.y - g.a.y)
+                    s.copy(
+                        hint = String.format(Locale.US, strings.rulerDraw, len / GeoKit.PX_PER_CM, len / 96f),
+                        activeEdgeLine = g.a to g.b
+                    )
+                } else {
+                    g.t1 = project(p, g.a, g.b)
+                    val a = lerp(g.a, g.b, g.t0.coerceIn(0f, 1f))
+                    val b = lerp(g.a, g.b, g.t1.coerceIn(0f, 1f))
+                    val len = hypot(b.x - a.x, b.y - a.y)
+                    s.copy(
+                        hint = String.format(Locale.US, strings.rulerDraw, len / GeoKit.PX_PER_CM, len / 96f),
+                        activeEdgeLine = a to b
+                    )
+                }
             }
 
             G.None -> null
@@ -452,10 +494,10 @@ class GeoController(
         val s = state ?: return
         when (g) {
             is G.DrawEdge -> {
-                val a = lerp(g.a, g.b, g.t0.coerceIn(0f, 1f))
-                val b = lerp(g.a, g.b, g.t1.coerceIn(0f, 1f))
+                val a = if (g.fullSpan) g.a else lerp(g.a, g.b, g.t0.coerceIn(0f, 1f))
+                val b = if (g.fullSpan) g.b else lerp(g.a, g.b, g.t1.coerceIn(0f, 1f))
                 if (hypot(b.x - a.x, b.y - a.y) > 6f) cb.onStampLine(a, b)
-                state = s.copy(hint = null)
+                state = s.copy(hint = null, activeEdgeLine = null)
             }
             is G.Sweep -> {
                 val needle = P(g.start.ox, g.start.oy)
@@ -539,7 +581,13 @@ class GeoController(
         data class Zoom(override val start: GeoState, val downY: Float) : G
         data class Radius(override val start: GeoState) : G
         data class Sweep(override val start: GeoState, val startBearing: Float) : G
-        data class DrawEdge(override val start: GeoState, val a: P, val b: P, val t0: Float) : G {
+        data class DrawEdge(
+            override val start: GeoState,
+            val a: P,
+            val b: P,
+            val t0: Float,
+            val fullSpan: Boolean = false,
+        ) : G {
             var t1: Float = t0
         }
         data object None : G {
@@ -555,6 +603,10 @@ class GeoController(
 internal class GeoRenderer(private val st: GeoStyle, private val str: GeoStrings) {
 
     fun draw(c: Canvas, s: GeoState) {
+        s.activeEdgeLine?.let { (a, b) ->
+            val p = stroke(tint(st.ink, 0.95f), 3.5f * s.uiScale)
+            c.drawLine(a.x, a.y, b.x, b.y, p)
+        }
         when (s.instrument) {
             GeoInstrument.Ruler -> ruler(c, s)
             GeoInstrument.Protractor -> protractor(c, s)
@@ -643,6 +695,9 @@ internal class GeoRenderer(private val st: GeoStyle, private val str: GeoStrings
             c.drawLine(x, -18f, x, 18f, stroke(tint(st.dark, 0.85f), 2f))
         }
         c.restore()
+
+        val closeBtn = P(s.ox, s.oy) + GeoKit.rotate(-26f * s.uiScale, 0f, s.angle)
+        button(c, closeBtn, 16f, st.closeRed, "close", 16f)
 
         val knob = P(s.ox, s.oy) + GeoKit.rotate((len + 30f) * s.uiScale, 0f, s.angle)
         button(c, knob, 17f, st.rotateBlue, "rotate", 17f)

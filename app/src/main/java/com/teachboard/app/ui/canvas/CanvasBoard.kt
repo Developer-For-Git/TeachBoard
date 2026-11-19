@@ -1027,8 +1027,8 @@ class TeachCanvasView(context: Context) : View(context) {
         MotionEvent.ACTION_CANCEL -> geo.onUp(bx, by, viewScale)
         else -> false
       }
+      invalidate()
       if (used) {
-        invalidate()
         return true
       }
       if (event.pointerCount >= 2) {

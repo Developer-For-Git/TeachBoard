@@ -152,6 +152,7 @@ import com.teachboard.app.domain.model.Serialization
 import com.teachboard.app.domain.model.StrokePoint
 import com.teachboard.app.domain.model.ToolType
 import com.teachboard.app.domain.model.ToolbarAction
+import com.teachboard.app.ui.canvas.geometry.GeoStampKind
 import com.teachboard.app.domain.ocr.OcrOutput
 import com.teachboard.app.domain.ocr.OcrScript
 import com.teachboard.app.domain.stickers.StickerGroup
@@ -199,7 +200,8 @@ fun CanvasScreen(
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
   val ui by viewModel.ui.collectAsState()
-  val prefs by viewModel.userPrefs.collectAsState()
+  val loadedPrefs by viewModel.loadedUserPrefs.collectAsState()
+  val prefs = loadedPrefs ?: com.teachboard.app.data.UserPrefs()
   val inkModelState by viewModel.inkModelState.collectAsState()
   val downloadedInkTags by viewModel.downloadedInkTags.collectAsState()
   val recentOcrScans by viewModel.recentOcrScans.collectAsState()
@@ -251,6 +253,19 @@ fun CanvasScreen(
     }
   }
 
+  // Re-enforce immersive full-screen bars whenever dialogs/tour dismiss so no gesture bar lingers
+  LaunchedEffect(activeDialog, prefs.tourVersionCompleted) {
+    if (activeDialog == ActiveDialog.NONE) {
+      val window = (context as? Activity)?.window
+      window?.let {
+        WindowCompat.getInsetsController(it, it.decorView).apply {
+          systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+          hide(WindowInsetsCompat.Type.systemBars())
+        }
+      }
+    }
+  }
+
   // Auto-collapse left-edge page pill after 2.2s on initial open (also collapses immediately on first touch!)
   LaunchedEffect(Unit) {
     delay(2200L)
@@ -258,8 +273,8 @@ fun CanvasScreen(
   }
 
   // Trigger one-time "Hold to move" animated guide the first time an object is selected
-  LaunchedEffect(ui.selectedUids) {
-    if (ui.selectedUids.isNotEmpty() && "hold_to_move" !in prefs.hintsDismissed && prefs.tourVersionCompleted >= AppConfig.CURRENT_TOUR_VERSION) {
+  LaunchedEffect(ui.selectedUids, loadedPrefs) {
+    if (loadedPrefs != null && ui.selectedUids.isNotEmpty() && "hold_to_move" !in prefs.hintsDismissed && prefs.tourVersionCompleted >= AppConfig.CURRENT_TOUR_VERSION) {
       showHoldGuide = true
     }
   }
@@ -480,6 +495,10 @@ fun CanvasScreen(
       override fun onViewportChanged(scale: Float, panX: Float, panY: Float) = viewModel.updateViewport(scale, panX, panY)
       override fun onSelectionScreenBoundsChanged(bounds: RectF?) { selectionScreenBounds = bounds }
       override fun onCanvasTouched() { pagePillExpanded = false }
+      override fun onStampLine(a: StrokePoint, b: StrokePoint) = viewModel.stampGeometryLine(a, b)
+      override fun onStampArc(needle: StrokePoint, start: StrokePoint, end: StrokePoint) = viewModel.stampGeometryArc(needle, start, end)
+      override fun onStampAngle(pivot: StrokePoint, armEnd: StrokePoint, baseEnd: StrokePoint, kind: GeoStampKind) = viewModel.stampGeometryAngle(pivot, armEnd, baseEnd, kind)
+      override fun onDismissGeometry() = viewModel.setGeometryTool(null)
     }
   }
 
@@ -515,6 +534,7 @@ fun CanvasScreen(
       selectedUids = ui.selectedUids,
       lockedObjectUids = ui.lockedObjectUids,
       smartInkPreviewStrokes = ui.smartInkStrokes,
+      activeGeometryTool = ui.activeGeometryTool,
       callbacks = callbacks,
       onViewReady = { canvasViewRef = it }
     )
@@ -523,8 +543,7 @@ fun CanvasScreen(
     Column(
       modifier = Modifier
         .align(Alignment.TopStart)
-        .statusBarsPadding()
-        .padding(start = 12.dp, top = 10.dp)
+        .padding(start = 12.dp, top = 12.dp)
         .animateContentSize(spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)),
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -601,8 +620,7 @@ fun CanvasScreen(
     Column(
       modifier = Modifier
         .align(Alignment.TopCenter)
-        .statusBarsPadding()
-        .padding(top = 10.dp),
+        .padding(top = 12.dp),
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -677,8 +695,7 @@ fun CanvasScreen(
     Column(
       modifier = Modifier
         .align(Alignment.TopEnd)
-        .statusBarsPadding()
-        .padding(end = 12.dp, top = 10.dp),
+        .padding(end = 12.dp, top = 12.dp),
       horizontalAlignment = Alignment.End,
       verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -711,11 +728,10 @@ fun CanvasScreen(
     Column(
       modifier = Modifier
         .align(if (sideDockOnLeft) Alignment.TopStart else Alignment.TopEnd)
-        .statusBarsPadding()
         .padding(
           start = if (sideDockOnLeft) 12.dp else 0.dp,
           end = if (sideDockOnLeft) 0.dp else 12.dp,
-          top = if (sideDockOnLeft) 128.dp else 66.dp
+          top = if (sideDockOnLeft) 130.dp else 68.dp
         ),
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -987,9 +1003,6 @@ fun CanvasScreen(
     }
 
     // 5. Draggable Overlays
-    ui.activeGeometryTool?.let { geo ->
-      GeometryBoxOverlay(geo, ui.zoom, ui.panX, ui.panY, { viewModel.commitGeometryContour(it) }, { viewModel.setGeometryTool(null) })
-    }
     if (ui.showCalculator) {
       CalculatorOverlay(
         onPutOnBoard = { txt ->
@@ -1007,8 +1020,7 @@ fun CanvasScreen(
     Column(
       modifier = Modifier
         .align(Alignment.BottomCenter)
-        .fillMaxWidth()
-        .navigationBarsPadding(),
+        .fillMaxWidth(),
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
       // Smart Shapes Visual Preview Capsule (Snapped Geometric Miniature vs Original Freehand Amber Stroke!)
@@ -1105,7 +1117,7 @@ fun CanvasScreen(
         }
       }
 
-      // Bottom Frosted Light Toolbar with Pinned "> Collapse" Button (Matching ref_04_canvas.png!)
+      // Bottom Frosted Light Toolbar with Pinned "> Collapse" Button (rock-solid flush to bottom — zero jump/gap!)
       if (toolbarVisible) {
         Surface(
           color = Color(0xFFF3F4F6),
@@ -1114,7 +1126,9 @@ fun CanvasScreen(
           modifier = Modifier.fillMaxWidth()
         ) {
           Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
           ) {
             Row(
@@ -1461,7 +1475,7 @@ fun CanvasScreen(
     ActiveDialog.NONE -> Unit
   }
 
-  if (prefs.tourVersionCompleted < AppConfig.CURRENT_TOUR_VERSION) {
+  if (loadedPrefs != null && prefs.tourVersionCompleted < AppConfig.CURRENT_TOUR_VERSION) {
     OnboardingTourDialog(onFinish = { viewModel.completeTour() })
   } else if (showSmartShapesGuide) {
     SmartShapesGuideDialog(onDismiss = {

@@ -23,8 +23,14 @@ import com.teachboard.app.domain.model.BackgroundStyle
 import com.teachboard.app.domain.model.BoardLayer
 import com.teachboard.app.domain.model.CanvasObject
 import com.teachboard.app.domain.model.EraserMode
+import com.teachboard.app.domain.model.GeometryToolType
 import com.teachboard.app.domain.model.StrokePoint
 import com.teachboard.app.domain.model.ToolType
+import com.teachboard.app.ui.canvas.geometry.GeoCallbacks
+import com.teachboard.app.ui.canvas.geometry.GeoController
+import com.teachboard.app.ui.canvas.geometry.GeoInstrument
+import com.teachboard.app.ui.canvas.geometry.GeoStampKind
+import com.teachboard.app.ui.canvas.geometry.P
 import com.teachboard.app.ui.theme.AppConfig
 import com.teachboard.app.ui.theme.TeachColors
 import java.io.File
@@ -49,6 +55,10 @@ interface CanvasCallbacks {
   fun onViewportChanged(scale: Float, panX: Float, panY: Float)
   fun onSelectionScreenBoundsChanged(bounds: RectF?)
   fun onCanvasTouched()
+  fun onStampLine(a: StrokePoint, b: StrokePoint) = Unit
+  fun onStampArc(needle: StrokePoint, start: StrokePoint, end: StrokePoint) = Unit
+  fun onStampAngle(pivot: StrokePoint, armEnd: StrokePoint, baseEnd: StrokePoint, kind: GeoStampKind) = Unit
+  fun onDismissGeometry() = Unit
 }
 
 @Composable
@@ -76,6 +86,7 @@ fun CanvasBoard(
   selectedUids: Set<String>,
   lockedObjectUids: Set<String>,
   smartInkPreviewStrokes: List<List<StrokePoint>>,
+  activeGeometryTool: GeometryToolType? = null,
   callbacks: CanvasCallbacks,
   onViewReady: (TeachCanvasView) -> Unit = {}
 ) {
@@ -106,7 +117,8 @@ fun CanvasBoard(
         panY = panY,
         selectedUids = selectedUids,
         lockedObjectUids = lockedObjectUids,
-        smartInkPreviewStrokes = smartInkPreviewStrokes
+        smartInkPreviewStrokes = smartInkPreviewStrokes,
+        activeGeometryTool = activeGeometryTool
       )
     }
   )
@@ -143,6 +155,32 @@ class TeachCanvasView(context: Context) : View(context) {
   private var selectedUids: Set<String> = emptySet()
   private var lockedObjectUids: Set<String> = emptySet()
   private var smartInkPreviewStrokes: List<List<StrokePoint>> = emptyList()
+  private var activeGeometryTool: GeometryToolType? = null
+
+  private val geoCallbacks = object : GeoCallbacks {
+    override fun onDismiss() {
+      callbacks?.onDismissGeometry()
+    }
+
+    override fun onStampLine(a: P, b: P) {
+      callbacks?.onStampLine(StrokePoint(a.x, a.y), StrokePoint(b.x, b.y))
+    }
+
+    override fun onStampArc(needle: P, start: P, end: P) {
+      callbacks?.onStampArc(StrokePoint(needle.x, needle.y), StrokePoint(start.x, start.y), StrokePoint(end.x, end.y))
+    }
+
+    override fun onStampAngle(pivot: P, armEnd: P, baseEnd: P, kind: GeoStampKind) {
+      callbacks?.onStampAngle(
+        StrokePoint(pivot.x, pivot.y),
+        StrokePoint(armEnd.x, armEnd.y),
+        StrokePoint(baseEnd.x, baseEnd.y),
+        kind
+      )
+    }
+  }
+
+  val geo = GeoController(geoCallbacks)
 
   private var viewScale: Float = 1f
   private var viewPanX: Float = 0f
@@ -327,7 +365,8 @@ class TeachCanvasView(context: Context) : View(context) {
     panY: Float,
     selectedUids: Set<String>,
     lockedObjectUids: Set<String>,
-    smartInkPreviewStrokes: List<List<StrokePoint>>
+    smartInkPreviewStrokes: List<List<StrokePoint>>,
+    activeGeometryTool: GeometryToolType? = null
   ) {
     val viewportChanged = viewScale != zoom || viewPanX != panX || viewPanY != panY
     this.bgColor = bgColor
@@ -392,6 +431,23 @@ class TeachCanvasView(context: Context) : View(context) {
         committedDirty = true
       }
     }
+    if (this.activeGeometryTool != activeGeometryTool) {
+      this.activeGeometryTool = activeGeometryTool
+      if (activeGeometryTool != null) {
+        val inst = when (activeGeometryTool) {
+          GeometryToolType.RULER -> GeoInstrument.Ruler
+          GeometryToolType.PROTRACTOR -> GeoInstrument.Protractor
+          GeometryToolType.COMPASS -> GeoInstrument.Compass
+          GeometryToolType.SET_SQUARE_30_60,
+          GeometryToolType.SET_SQUARE_45_45 -> GeoInstrument.SetSquare
+        }
+        val vw = if (width > 0) width.toFloat() else 1920f
+        val vh = if (height > 0) height.toFloat() else 1080f
+        geo.open(inst, vw, vh, viewScale, viewPanX, viewPanY)
+      } else {
+        geo.close()
+      }
+    }
     invalidate()
   }
 
@@ -413,7 +469,18 @@ class TeachCanvasView(context: Context) : View(context) {
     imageCache.get(path)?.let { if (!it.isRecycled) return it }
     val f = File(path)
     if (!f.exists()) return null
-    val bmp = BitmapFactory.decodeFile(f.absolutePath) ?: return null
+    val boundsOpts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(f.absolutePath, boundsOpts)
+    val maxDim = maxOf(boundsOpts.outWidth, boundsOpts.outHeight)
+    var sampleSize = 1
+    while (maxDim / sampleSize > 2048) {
+      sampleSize *= 2
+    }
+    val decodeOpts = BitmapFactory.Options().apply {
+      inSampleSize = sampleSize
+      inPreferredConfig = Bitmap.Config.ARGB_8888
+    }
+    val bmp = runCatching { BitmapFactory.decodeFile(f.absolutePath, decodeOpts) }.getOrNull() ?: return null
     imageCache.put(path, bmp)
     return bmp
   }
@@ -423,6 +490,16 @@ class TeachCanvasView(context: Context) : View(context) {
     committedBitmap?.recycle()
     committedBitmap = null
     committedDirty = true
+    if (activeGeometryTool != null && !geo.active && w > 0 && h > 0) {
+      val inst = when (activeGeometryTool!!) {
+        GeometryToolType.RULER -> GeoInstrument.Ruler
+        GeometryToolType.PROTRACTOR -> GeoInstrument.Protractor
+        GeometryToolType.COMPASS -> GeoInstrument.Compass
+        GeometryToolType.SET_SQUARE_30_60,
+        GeometryToolType.SET_SQUARE_45_45 -> GeoInstrument.SetSquare
+      }
+      geo.open(inst, w.toFloat(), h.toFloat(), viewScale, viewPanX, viewPanY)
+    }
   }
 
   override fun onDetachedFromWindow() {
@@ -689,6 +766,9 @@ class TeachCanvasView(context: Context) : View(context) {
     }
 
     drawLaserTrail(canvas)
+    if (geo.active) {
+      geo.draw(canvas)
+    }
     canvas.restore()
   }
 
@@ -936,6 +1016,27 @@ class TeachCanvasView(context: Context) : View(context) {
   @SuppressLint("ClickableViewAccessibility")
   override fun onTouchEvent(event: MotionEvent): Boolean {
     val action = event.actionMasked
+
+    if (geo.active) {
+      val bx = (event.x - viewPanX) / viewScale
+      val by = (event.y - viewPanY) / viewScale
+      val used = when (action) {
+        MotionEvent.ACTION_DOWN -> geo.onDown(bx, by, viewScale)
+        MotionEvent.ACTION_MOVE -> geo.onMove(bx, by, viewScale)
+        MotionEvent.ACTION_UP,
+        MotionEvent.ACTION_CANCEL -> geo.onUp(bx, by, viewScale)
+        else -> false
+      }
+      if (used) {
+        invalidate()
+        return true
+      }
+      if (event.pointerCount >= 2) {
+        // Fall through to 2-finger pan/zoom below
+      } else {
+        return true
+      }
+    }
 
     // Two-finger pan & pinch zoom
     if (event.pointerCount >= 2) {

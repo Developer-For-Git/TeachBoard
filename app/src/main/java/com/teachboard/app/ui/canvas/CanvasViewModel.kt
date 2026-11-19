@@ -33,8 +33,14 @@ import com.teachboard.app.domain.search.WikimediaImage
 import com.teachboard.app.domain.search.WikimediaSearch
 import com.teachboard.app.domain.smartshapes.ShapeClassifier
 import com.teachboard.app.domain.smartshapes.SmartShapeCandidate
+import com.teachboard.app.ui.canvas.geometry.GeoStampKind
+import com.teachboard.app.ui.canvas.geometry.GeoStampPath
 import com.teachboard.app.ui.theme.AppConfig
 import com.teachboard.app.ui.theme.TeachColors
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.hypot
+import kotlin.math.sin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -112,6 +118,12 @@ class CanvasViewModel(
 
   private val _ui = MutableStateFlow(CanvasUiState())
   val ui: StateFlow<CanvasUiState> = _ui.asStateFlow()
+
+  val loadedUserPrefs: StateFlow<UserPrefs?> = prefsRepo.prefs.stateIn(
+    viewModelScope,
+    SharingStarted.Eagerly,
+    null
+  )
 
   val userPrefs: StateFlow<UserPrefs> = prefsRepo.prefs.stateIn(
     viewModelScope,
@@ -438,6 +450,131 @@ class CanvasViewModel(
     addObjectWithUndo(obj)
   }
 
+  fun stampGeometryLine(a: StrokePoint, b: StrokePoint) {
+    if (isActiveLayerLocked()) return
+    val cur = _ui.value
+    val obj = CanvasObject(
+      sessionId = sessionId,
+      pageIndex = cur.pageIndex,
+      layerId = cur.activeLayerId,
+      type = ToolType.Line,
+      color = cur.brushColor,
+      strokeWidth = cur.strokeWidth.coerceAtLeast(2.5f),
+      alpha = cur.alpha,
+      zIndex = nextZIndex(),
+      points = listOf(a, b)
+    )
+    addObjectWithUndo(obj)
+  }
+
+  fun stampGeometryArc(needle: StrokePoint, start: StrokePoint, end: StrokePoint) {
+    if (isActiveLayerLocked()) return
+    val cur = _ui.value
+    val r = hypot(start.x - needle.x, start.y - needle.y)
+    val a0 = Math.toDegrees(atan2((start.y - needle.y).toDouble(), (start.x - needle.x).toDouble())).toFloat()
+    val a1 = Math.toDegrees(atan2((end.y - needle.y).toDouble(), (end.x - needle.x).toDouble())).toFloat()
+    val sweep = GeoStampPath.normSweep(a1 - a0)
+    val steps = 36
+    val pts = (0..steps).map { i ->
+      val rad = Math.toRadians((a0 + sweep * (i.toDouble() / steps)).toDouble())
+      StrokePoint(needle.x + (cos(rad) * r).toFloat(), needle.y + (sin(rad) * r).toFloat())
+    }
+    val contour = Contour(closed = false, points = pts)
+    val obj = CanvasObject(
+      sessionId = sessionId,
+      pageIndex = cur.pageIndex,
+      layerId = cur.activeLayerId,
+      type = ToolType.Circle,
+      color = cur.brushColor,
+      strokeWidth = cur.strokeWidth.coerceAtLeast(2.5f),
+      alpha = cur.alpha,
+      zIndex = nextZIndex(),
+      geometry = listOf(contour),
+      points = pts
+    )
+    addObjectWithUndo(obj)
+  }
+
+  fun stampGeometryAngle(pivot: StrokePoint, armEnd: StrokePoint, baseEnd: StrokePoint, kind: GeoStampKind) {
+    if (isActiveLayerLocked()) return
+    val cur = _ui.value
+    val r = hypot(armEnd.x - pivot.x, armEnd.y - pivot.y)
+    val a0 = Math.toDegrees(atan2((baseEnd.y - pivot.y).toDouble(), (baseEnd.x - pivot.x).toDouble())).toFloat()
+    val a1 = Math.toDegrees(atan2((armEnd.y - pivot.y).toDouble(), (armEnd.x - pivot.x).toDouble())).toFloat()
+    val sweep = GeoStampPath.normSweep(a1 - a0)
+
+    val obj = when (kind) {
+      GeoStampKind.Angle -> {
+        // 1. Two clean straight rays meeting at pivot (baseEnd -> pivot -> armEnd)
+        val raysContour = Contour(closed = false, points = listOf(baseEnd, pivot, armEnd))
+        // 2. Angle indicator arc near vertex (radius = r * 0.35)
+        val arcR = (r * 0.35f).coerceAtLeast(18f)
+        val arcSteps = 20
+        val arcPts = (0..arcSteps).map { i ->
+          val rad = Math.toRadians((a0 + sweep * (i.toDouble() / arcSteps)).toDouble())
+          StrokePoint(pivot.x + (cos(rad) * arcR).toFloat(), pivot.y + (sin(rad) * arcR).toFloat())
+        }
+        val indicatorContour = Contour(closed = false, points = arcPts)
+        CanvasObject(
+          sessionId = sessionId,
+          pageIndex = cur.pageIndex,
+          layerId = cur.activeLayerId,
+          type = ToolType.RightAngle,
+          color = cur.brushColor,
+          strokeWidth = cur.strokeWidth.coerceAtLeast(2.5f),
+          alpha = cur.alpha,
+          zIndex = nextZIndex(),
+          geometry = listOf(raysContour, indicatorContour),
+          points = listOf(baseEnd, pivot, armEnd) + arcPts
+        )
+      }
+      GeoStampKind.Arc -> {
+        val steps = 36
+        val pts = (0..steps).map { i ->
+          val rad = Math.toRadians((a0 + sweep * (i.toDouble() / steps)).toDouble())
+          StrokePoint(pivot.x + (cos(rad) * r).toFloat(), pivot.y + (sin(rad) * r).toFloat())
+        }
+        CanvasObject(
+          sessionId = sessionId,
+          pageIndex = cur.pageIndex,
+          layerId = cur.activeLayerId,
+          type = ToolType.Circle,
+          color = cur.brushColor,
+          strokeWidth = cur.strokeWidth.coerceAtLeast(2.5f),
+          alpha = cur.alpha,
+          zIndex = nextZIndex(),
+          geometry = listOf(Contour(closed = false, points = pts)),
+          points = pts
+        )
+      }
+      GeoStampKind.Sector -> {
+        val steps = 36
+        val pts = mutableListOf(pivot)
+        for (i in 0..steps) {
+          val rad = Math.toRadians((a0 + sweep * (i.toDouble() / steps)).toDouble())
+          pts.add(StrokePoint(pivot.x + (cos(rad) * r).toFloat(), pivot.y + (sin(rad) * r).toFloat()))
+        }
+        pts.add(pivot)
+        val fillCol = cur.fillColor ?: cur.brushColor
+        CanvasObject(
+          sessionId = sessionId,
+          pageIndex = cur.pageIndex,
+          layerId = cur.activeLayerId,
+          type = ToolType.Sector,
+          color = cur.brushColor,
+          fillColor = fillCol,
+          isFilled = true,
+          strokeWidth = cur.strokeWidth.coerceAtLeast(2.5f),
+          alpha = cur.alpha,
+          zIndex = nextZIndex(),
+          geometry = listOf(Contour(closed = true, points = pts)),
+          points = pts
+        )
+      }
+    }
+    addObjectWithUndo(obj)
+  }
+
   fun strokeEraseAt(x: Float, y: Float, radius: Float) {
     if (isActiveLayerLocked()) return
     val cur = _ui.value
@@ -672,13 +809,19 @@ class CanvasViewModel(
 
   fun addWikimediaImage(img: WikimediaImage) {
     viewModelScope.launch {
-      val file = WikimediaSearch.downloadToImagesDir(app, img.fullUrl)
+      val isSvg = img.fullUrl.lowercase().endsWith(".svg") || img.title.lowercase().endsWith(".svg")
+      val targetUrl = if (isSvg) img.thumbUrl else img.fullUrl
+      val file = WikimediaSearch.downloadToImagesDir(app, targetUrl)
         ?: WikimediaSearch.downloadToImagesDir(app, img.thumbUrl)
       if (file == null) {
         showMessage("Download failed — check internet connection")
         return@launch
       }
-      insertLocalImageFile(file, 480, 360, img.attribution)
+      val opts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+      android.graphics.BitmapFactory.decodeFile(file.absolutePath, opts)
+      val w = if (opts.outWidth > 0) opts.outWidth else 480
+      val h = if (opts.outHeight > 0) opts.outHeight else 360
+      insertLocalImageFile(file, w, h, img.attribution)
     }
   }
 
@@ -689,8 +832,8 @@ class CanvasViewModel(
     val scale = min(maxBox / max(w, 1), maxBox / max(h, 1))
     val dw = (w * scale).coerceAtLeast(120f)
     val dh = (h * scale).coerceAtLeast(120f)
-    val cx = (360f - cur.panX) / cur.zoom
-    val cy = (480f - cur.panY) / cur.zoom
+    val cx = (960f - cur.panX) / cur.zoom.coerceAtLeast(0.1f)
+    val cy = (540f - cur.panY) / cur.zoom.coerceAtLeast(0.1f)
     val obj = CanvasObject(
       sessionId = sessionId,
       pageIndex = cur.pageIndex,

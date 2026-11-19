@@ -203,14 +203,17 @@ object GeoKit {
      * world angle is armDeg + body rotation.
      */
     fun protractorStamp(s: GeoState): Triple<P, P, P> {
-        val rad = Math.toRadians(s.armDeg.toDouble()).toFloat() + s.angle
+        val armRad = Math.toRadians(s.armDeg.toDouble()).toFloat()
         val arm = s.radius * 1.02f
         val baseLen = s.radius * 0.92f
+        // Local coordinates: base is (baseLen, 0), arm is (cos(armRad)*arm, -sin(armRad)*arm) because -y is up into dome
+        val rArm = rotate(cos(armRad) * arm, -sin(armRad) * arm, s.angle)
+        val rBase = rotate(baseLen, 0f, s.angle)
         val pivot = P(s.ox, s.oy)
         return Triple(
             pivot,
-            P(s.ox + cos(rad) * arm, s.oy + sin(rad) * arm),
-            P(s.ox + cos(s.angle) * baseLen, s.oy + sin(s.angle) * baseLen),
+            P(s.ox + rArm.x, s.oy + rArm.y),
+            P(s.ox + rBase.x, s.oy + rBase.y),
         )
     }
 }
@@ -492,8 +495,12 @@ class GeoController(
 
     private fun bearing(s: GeoState, p: P) = bearing(P(s.ox, s.oy), p)
 
-    private fun armDeg(p: P, s: GeoState) =
-        Math.toDegrees(atan2(-(p.y - s.oy).toDouble(), (p.x - s.ox).toDouble())).toFloat()
+    private fun armDeg(p: P, s: GeoState): Float {
+        val local = GeoKit.rotate(p.x - s.ox, p.y - s.oy, -s.angle)
+        var deg = Math.toDegrees(atan2(-local.y.toDouble(), local.x.toDouble())).toFloat()
+        if (deg < 0f) deg += 360f
+        return deg.coerceIn(0f, 180f)
+    }
 
     private fun normalizeDeg(d: Float): Float {
         var v = d % 360f

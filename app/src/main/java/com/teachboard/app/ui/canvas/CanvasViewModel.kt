@@ -286,7 +286,8 @@ class CanvasViewModel(
         lastBrushTool = if (tool.isBrush) tool else cur.lastBrushTool,
         lastShapeTool = if (tool.isShape) tool else cur.lastShapeTool,
         selectedUids = if (tool == ToolType.Lasso) cur.selectedUids else emptySet(),
-        smartShapeOffer = null
+        smartShapeOffer = null,
+        activeGeometryTool = null
       )
     }
   }

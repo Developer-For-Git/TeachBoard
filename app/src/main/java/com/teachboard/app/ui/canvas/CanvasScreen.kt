@@ -724,23 +724,22 @@ fun CanvasScreen(
     }
 
     // 4a. Permanent Side Hand & Quick-Shortcut Dock (right edge by default, swappable to left edge!)
-    if (ui.activeGeometryTool == null) {
-      val handActive = ui.activeTool == ToolType.Hand
-      val extraShortcuts = remember(prefs.shortcutTools) {
-        prefs.shortcutTools.filter { it != ToolbarAction.HAND }
-      }
-      Column(
-        modifier = Modifier
-          .align(if (sideDockOnLeft) Alignment.TopStart else Alignment.TopEnd)
-          .statusBarsPadding()
-          .padding(
-            start = if (sideDockOnLeft) 12.dp else 0.dp,
-            end = if (sideDockOnLeft) 0.dp else 12.dp,
-            top = if (sideDockOnLeft) 130.dp else 60.dp
-          ),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-      ) {
+    val handActive = ui.activeTool == ToolType.Hand
+    val extraShortcuts = remember(prefs.shortcutTools) {
+      prefs.shortcutTools.filter { it != ToolbarAction.HAND }
+    }
+    Column(
+      modifier = Modifier
+        .align(if (sideDockOnLeft) Alignment.TopStart else Alignment.TopEnd)
+        .statusBarsPadding()
+        .padding(
+          start = if (sideDockOnLeft) 12.dp else 0.dp,
+          end = if (sideDockOnLeft) 0.dp else 12.dp,
+          top = if (sideDockOnLeft) 130.dp else 60.dp
+        ),
+      horizontalAlignment = Alignment.CenterHorizontally,
+      verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
       // Collapse/Expand chevron square button
       Surface(
         shape = RoundedCornerShape(13.dp),
@@ -879,7 +878,6 @@ fun CanvasScreen(
         }
       }
     }
-  }
 
     // 4b. Floating Object-Tracked Selection Action Buttons (Directly ABOVE Selected Object!)
     val firstSelectedObj = remember(ui.selectedUids, ui.objects) {
@@ -1124,141 +1122,112 @@ fun CanvasScreen(
       }
 
       // Bottom Frosted Light Toolbar with Pinned "> Collapse" Button (rock-solid flush to bottom — zero jump/gap!)
-      if (ui.activeGeometryTool == null) {
-        if (toolbarVisible) {
-          Surface(
-            color = Color(0xFFF3F4F6),
-            shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
-            shadowElevation = 10.dp,
-            modifier = Modifier.fillMaxWidth()
+      if (toolbarVisible) {
+        Surface(
+          color = Color(0xFFF3F4F6),
+          shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
+          shadowElevation = 10.dp,
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
           ) {
             Row(
               modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 6.dp),
+                .weight(1f)
+                .horizontalScroll(rememberScrollState())
+                .padding(start = 6.dp, end = 6.dp),
+              horizontalArrangement = Arrangement.spacedBy(2.dp),
               verticalAlignment = Alignment.CenterVertically
             ) {
-              Row(
-                modifier = Modifier
-                  .weight(1f)
-                  .horizontalScroll(rememberScrollState())
-                  .padding(start = 6.dp, end = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                val visibleActions = remember(prefs.toolbarOrder, prefs.hiddenToolbarTools) {
-                  prefs.toolbarOrder.filter { it !in prefs.hiddenToolbarTools }
-                }
-                visibleActions.forEach { action ->
-                  if (action == ToolbarAction.CUSTOMIZE) {
-                    Box(modifier = Modifier.padding(horizontal = 4.dp).width(1.dp).height(34.dp).background(Color(0xFFD1D5DB)))
-                  }
-                  val isSelected = when (action) {
-                    ToolbarAction.PEN -> ui.activeTool.isBrush
-                    ToolbarAction.SMART -> ui.activeTool == ToolType.SmartWriting || ui.smartShapesEnabled
-                    ToolbarAction.SHAPES -> ui.activeTool.isShape
-                    ToolbarAction.ERASER -> ui.activeTool == ToolType.Eraser
-                    ToolbarAction.LASER -> ui.activeTool == ToolType.Laser
-                    ToolbarAction.LASSO -> ui.activeTool == ToolType.Lasso
-                    ToolbarAction.HAND -> ui.activeTool == ToolType.Hand
-                    ToolbarAction.CALCULATOR -> ui.showCalculator
-                    ToolbarAction.TIMER -> ui.showTimer
-                    ToolbarAction.RECORD -> recordingState.isRecording
-                    ToolbarAction.GEOMETRY -> ui.activeGeometryTool != null
-                    else -> false
-                  }
-                  val enabled = when (action) {
-                    ToolbarAction.UNDO -> ui.canUndo
-                    ToolbarAction.REDO -> ui.canRedo
-                    else -> true
-                  }
-                  val dotColor: Color? = when (action) {
-                    ToolbarAction.PEN -> Color(ui.brushColor)
-                    ToolbarAction.LASER -> Color(ui.laserColor)
-                    ToolbarAction.BOARD -> Color(session?.backgroundColor ?: TeachColors.BoardWhite)
-                    else -> null
-                  }
-                  val penLabelOverride: String? = if (action == ToolbarAction.PEN) {
-                    if (!ui.activeTool.isBrush) "Brushes"
-                    else when (ui.activeTool) {
-                      ToolType.Marker -> "Marker"
-                      ToolType.Highlighter -> "Highlight"
-                      ToolType.Brush -> "Brush"
-                      ToolType.Calligraphy -> "Callig."
-                      else -> "Pen"
-                    }
-                  } else null
-                  ToolbarItemButton(
-                    action = action,
-                    selected = isSelected,
-                    enabled = enabled,
-                    colorDot = dotColor,
-                    smartShapesMode = ui.smartShapesEnabled,
-                    labelOverride = penLabelOverride,
-                    onClick = { handleToolbarAction(action) }
-                  )
-                }
+              val visibleActions = remember(prefs.toolbarOrder, prefs.hiddenToolbarTools) {
+                prefs.toolbarOrder.filter { it !in prefs.hiddenToolbarTools }
               }
-
-              // Pinned right-side "> Collapse" card button
-              Surface(
-                modifier = Modifier
-                  .padding(end = 6.dp)
-                  .clip(RoundedCornerShape(12.dp))
-                  .clickable { toolbarVisible = false },
-                color = Color(0xFFE0E3E8),
-                shadowElevation = 2.dp
-              ) {
-                Column(
-                  modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                  horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                  Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Collapse", tint = Color(0xFF1F2937), modifier = Modifier.size(22.dp))
-                  Text(stringResource(R.string.collapse), fontSize = 10.sp, color = Color(0xFF1F2937), fontWeight = FontWeight.Medium)
+              visibleActions.forEach { action ->
+                if (action == ToolbarAction.CUSTOMIZE) {
+                  Box(modifier = Modifier.padding(horizontal = 4.dp).width(1.dp).height(34.dp).background(Color(0xFFD1D5DB)))
                 }
+                val isSelected = when (action) {
+                  ToolbarAction.PEN -> ui.activeTool.isBrush
+                  ToolbarAction.SMART -> ui.activeTool == ToolType.SmartWriting || ui.smartShapesEnabled
+                  ToolbarAction.SHAPES -> ui.activeTool.isShape
+                  ToolbarAction.ERASER -> ui.activeTool == ToolType.Eraser
+                  ToolbarAction.LASER -> ui.activeTool == ToolType.Laser
+                  ToolbarAction.LASSO -> ui.activeTool == ToolType.Lasso
+                  ToolbarAction.HAND -> ui.activeTool == ToolType.Hand
+                  ToolbarAction.CALCULATOR -> ui.showCalculator
+                  ToolbarAction.TIMER -> ui.showTimer
+                  ToolbarAction.RECORD -> recordingState.isRecording
+                  ToolbarAction.GEOMETRY -> ui.activeGeometryTool != null
+                  else -> false
+                }
+                val enabled = when (action) {
+                  ToolbarAction.UNDO -> ui.canUndo
+                  ToolbarAction.REDO -> ui.canRedo
+                  else -> true
+                }
+                val dotColor: Color? = when (action) {
+                  ToolbarAction.PEN -> Color(ui.brushColor)
+                  ToolbarAction.LASER -> Color(ui.laserColor)
+                  ToolbarAction.BOARD -> Color(session?.backgroundColor ?: TeachColors.BoardWhite)
+                  else -> null
+                }
+                val penLabelOverride: String? = if (action == ToolbarAction.PEN) {
+                  if (!ui.activeTool.isBrush) "Brushes"
+                  else when (ui.activeTool) {
+                    ToolType.Marker -> "Marker"
+                    ToolType.Highlighter -> "Highlight"
+                    ToolType.Brush -> "Brush"
+                    ToolType.Calligraphy -> "Callig."
+                    else -> "Pen"
+                  }
+                } else null
+                ToolbarItemButton(
+                  action = action,
+                  selected = isSelected,
+                  enabled = enabled,
+                  colorDot = dotColor,
+                  smartShapesMode = ui.smartShapesEnabled,
+                  labelOverride = penLabelOverride,
+                  onClick = { handleToolbarAction(action) }
+                )
               }
             }
-          }
-        } else {
-          // Compact expand pill on bottom-right edge when toolbar is collapsed
-          Box(modifier = Modifier.fillMaxWidth().padding(end = 10.dp, bottom = 10.dp)) {
+
+            // Pinned right-side "> Collapse" card button
             Surface(
               modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .clip(RoundedCornerShape(14.dp))
-                .clickable { toolbarVisible = true },
-              color = Color(0xE6E0E3E8),
-              shadowElevation = 6.dp
+                .padding(end = 6.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .clickable { toolbarVisible = false },
+              color = Color(0xFFE0E3E8),
+              shadowElevation = 2.dp
             ) {
-              Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Expand toolbar", tint = Color(0xFF1F2937), modifier = Modifier.padding(10.dp).size(24.dp))
+              Column(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+              ) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Collapse", tint = Color(0xFF1F2937), modifier = Modifier.size(22.dp))
+                Text(stringResource(R.string.collapse), fontSize = 10.sp, color = Color(0xFF1F2937), fontWeight = FontWeight.Medium)
+              }
             }
           }
         }
       } else {
-        // Modal Geometry Mode: all other tools disabled until user dismisses instrument via ✕
-        Surface(
-          shape = RoundedCornerShape(22.dp),
-          color = Color(0xF01E293B),
-          shadowElevation = 8.dp,
-          modifier = Modifier.padding(bottom = 14.dp)
-        ) {
-          Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        // Compact expand pill on bottom-right edge when toolbar is collapsed
+        Box(modifier = Modifier.fillMaxWidth().padding(end = 10.dp, bottom = 10.dp)) {
+          Surface(
+            modifier = Modifier
+              .align(Alignment.BottomEnd)
+              .clip(RoundedCornerShape(14.dp))
+              .clickable { toolbarVisible = true },
+            color = Color(0xE6E0E3E8),
+            shadowElevation = 6.dp
           ) {
-            Icon(
-              Icons.Default.Straighten,
-              contentDescription = null,
-              tint = Color(0xFFFFCE54),
-              modifier = Modifier.size(18.dp)
-            )
-            Text(
-              text = "${ui.activeGeometryTool?.name?.replace('_', ' ')?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Ruler"} active • Tap ✕ on ruler to finish",
-              color = Color.White,
-              fontSize = 13.sp,
-              fontWeight = FontWeight.SemiBold
-            )
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Expand toolbar", tint = Color(0xFF1F2937), modifier = Modifier.padding(10.dp).size(24.dp))
           }
         }
       }

@@ -17,12 +17,15 @@ import com.teachboard.app.domain.model.Serialization
 import com.teachboard.app.domain.model.StrokePoint
 import com.teachboard.app.domain.model.ToolType
 import com.teachboard.app.domain.stickers.StickerCatalog
+import com.teachboard.app.ui.canvas.geometry.GeoStampPath
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
@@ -101,6 +104,9 @@ object ObjectPainter {
             fillColor = obj.fillColor,
             alpha = obj.alpha
           )
+          if (obj.type == ToolType.RightAngle || (!obj.textContent.isNullOrBlank() && obj.geometry.size >= 2)) {
+            drawAngleLabel(canvas, obj, isDarkBoard)
+          }
         }
         obj.type.isBrush -> {
           drawStrokePoints(
@@ -424,6 +430,64 @@ object ObjectPainter {
       height = bounds.height().coerceAtLeast(40f)
     )
     canvas.restore()
+  }
+
+  private fun drawAngleLabel(canvas: Canvas, obj: CanvasObject, isDarkBoard: Boolean) {
+    if (obj.geometry.isEmpty()) return
+    val rays = obj.geometry.getOrNull(0)?.points ?: return
+    if (rays.size < 3) return
+    val baseEnd = rays[0]
+    val pivot = rays[1]
+    val armEnd = rays[2]
+
+    val a0 = Math.toDegrees(atan2((baseEnd.y - pivot.y).toDouble(), (baseEnd.x - pivot.x).toDouble())).toFloat()
+    val a1 = Math.toDegrees(atan2((armEnd.y - pivot.y).toDouble(), (armEnd.x - pivot.x).toDouble())).toFloat()
+    val sweep = GeoStampPath.normSweep(a1 - a0)
+    val deg = abs(sweep).roundToInt()
+    val text = obj.textContent?.takeIf { it.isNotBlank() } ?: "$deg°"
+
+    // Angle bisector ray between the base ray and arm ray
+    val bisectorRad = Math.toRadians((a0 + sweep / 2.0))
+
+    // Determine arc radius
+    val indicatorPts = obj.geometry.getOrNull(1)?.points
+    val arcR = if (!indicatorPts.isNullOrEmpty()) {
+      hypot(indicatorPts[0].x - pivot.x, indicatorPts[0].y - pivot.y)
+    } else {
+      hypot(armEnd.x - pivot.x, armEnd.y - pivot.y) * 0.35f
+    }.coerceAtLeast(18f)
+
+    val fontSize = (if (obj.fontSize > 0) obj.fontSize else (arcR * 0.42f)).coerceIn(16f, 26f)
+
+    // For acute angles (< 35°), push label slightly further out along bisector so it doesn't touch the rays
+    val offsetFactor = if (deg < 35) 1.35f else 0.95f
+    val labelDist = arcR + fontSize * offsetFactor
+    val lx = pivot.x + (cos(bisectorRad) * labelDist).toFloat()
+    val ly = pivot.y + (sin(bisectorRad) * labelDist).toFloat()
+
+    val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      textSize = fontSize
+      typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+      textAlign = Paint.Align.CENTER
+      color = if (isDarkBoard && (obj.color == 0xFF000000.toInt() || obj.color == 0xFF1E2024.toInt())) {
+        0xFFEEEEEE.toInt()
+      } else {
+        obj.color
+      }
+    }
+
+    val fm = textPaint.fontMetrics
+    val textY = ly - (fm.ascent + fm.descent) / 2f
+
+    // Crisp high-contrast halo so text is always 100% readable over background/lines
+    val haloPaint = Paint(textPaint).apply {
+      style = Paint.Style.STROKE
+      strokeWidth = 3.5f
+      color = if (isDarkBoard) 0xDD1E2024.toInt() else 0xDDFFFFFF.toInt()
+    }
+
+    canvas.drawText(text, lx, textY, haloPaint)
+    canvas.drawText(text, lx, textY, textPaint)
   }
 
   private fun twoPointRect(points: List<StrokePoint>): Quad {

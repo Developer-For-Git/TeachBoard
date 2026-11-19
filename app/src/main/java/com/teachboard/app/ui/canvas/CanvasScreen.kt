@@ -280,20 +280,18 @@ fun CanvasScreen(
   }
 
   LaunchedEffect(ui.snackbarMessage) {
-    ui.snackbarMessage?.let { msg ->
-      toastMessage = msg
-      viewModel.clearMessage()
-      delay(2100L)
-      if (toastMessage == msg) toastMessage = null
-    }
+    val msg = ui.snackbarMessage ?: return@LaunchedEffect
+    toastMessage = msg
+    delay(2200L)
+    if (toastMessage == msg) toastMessage = null
+    viewModel.clearMessage()
   }
   LaunchedEffect(recordingState.errorMessage) {
-    recordingState.errorMessage?.let { err ->
-      toastMessage = err
-      RecorderController.clearError()
-      delay(2600L)
-      if (toastMessage == err) toastMessage = null
-    }
+    val err = recordingState.errorMessage ?: return@LaunchedEffect
+    toastMessage = err
+    delay(2600L)
+    if (toastMessage == err) toastMessage = null
+    RecorderController.clearError()
   }
   LaunchedEffect(recordingState.lastSavedUri) {
     if (recordingState.lastSavedUri != null && !recordingState.isRecording) {
@@ -620,7 +618,8 @@ fun CanvasScreen(
     Column(
       modifier = Modifier
         .align(Alignment.TopCenter)
-        .padding(top = 12.dp),
+        .statusBarsPadding()
+        .padding(top = 16.dp),
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -677,7 +676,8 @@ fun CanvasScreen(
           Surface(
             shape = RoundedCornerShape(22.dp),
             color = Color(0xEB1E2024),
-            shadowElevation = 6.dp
+            shadowElevation = 6.dp,
+            modifier = Modifier.clickable { toastMessage = null }
           ) {
             Text(
               text = msg,

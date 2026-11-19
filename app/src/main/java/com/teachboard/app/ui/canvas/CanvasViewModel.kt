@@ -37,9 +37,11 @@ import com.teachboard.app.ui.canvas.geometry.GeoStampKind
 import com.teachboard.app.ui.canvas.geometry.GeoStampPath
 import com.teachboard.app.ui.theme.AppConfig
 import com.teachboard.app.ui.theme.TeachColors
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -517,6 +519,7 @@ class CanvasViewModel(
           StrokePoint(pivot.x + (cos(rad) * arcR).toFloat(), pivot.y + (sin(rad) * arcR).toFloat())
         }
         val indicatorContour = Contour(closed = false, points = arcPts)
+        val deg = abs(sweep).roundToInt()
         CanvasObject(
           sessionId = sessionId,
           pageIndex = cur.pageIndex,
@@ -527,7 +530,9 @@ class CanvasViewModel(
           alpha = cur.alpha,
           zIndex = nextZIndex(),
           geometry = listOf(raysContour, indicatorContour),
-          points = listOf(baseEnd, pivot, armEnd) + arcPts
+          points = listOf(baseEnd, pivot, armEnd) + arcPts,
+          textContent = "$deg°",
+          fontSize = (arcR * 0.42f).coerceIn(16f, 26f)
         )
       }
       GeoStampKind.Arc -> {

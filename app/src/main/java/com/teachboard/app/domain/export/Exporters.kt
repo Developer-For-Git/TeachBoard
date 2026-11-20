@@ -168,7 +168,16 @@ object Exporters {
         ObjectPainter.drawObject(canvas, obj, isDark) { path ->
           loadedImages.getOrPut(path) {
             val f = File(path)
-            if (f.exists()) BitmapFactory.decodeFile(f.absolutePath) else return@drawObject null
+            if (!f.exists()) return@drawObject null
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(f.absolutePath, bounds)
+            val maxDim = maxOf(bounds.outWidth, bounds.outHeight)
+            var sampleSize = 1
+            while (maxDim / sampleSize > 2048) {
+              sampleSize *= 2
+            }
+            val decodeOpts = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+            runCatching { BitmapFactory.decodeFile(f.absolutePath, decodeOpts) }.getOrNull() ?: return@drawObject null
           }
         }
       }

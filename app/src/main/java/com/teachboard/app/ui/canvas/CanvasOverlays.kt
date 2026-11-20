@@ -89,7 +89,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import com.teachboard.app.domain.model.ToolType
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
@@ -2116,6 +2119,12 @@ fun PdfViewerOverlay(
   currentPage: Int,
   mode: PdfViewMode,
   activeBrushColor: Color = Color(0xFF38BDF8),
+  activeTool: ToolType = ToolType.Pen,
+  brushColor: Int = 0xFFFACC15.toInt(),
+  strokeWidth: Float = 12f,
+  pdfStrokes: Map<Int, List<PdfAnnotationStroke>> = emptyMap(),
+  onAddStroke: (pageIndex: Int, tool: ToolType, color: Int, strokeWidth: Float, alpha: Float, points: List<StrokePoint>) -> Unit = { _, _, _, _, _, _ -> },
+  onEraseStroke: (pageIndex: Int, normX: Float, normY: Float, normRadius: Float) -> Unit = { _, _, _, _ -> },
   onModeChange: (PdfViewMode) -> Unit,
   onPinPageToBoard: (Int) -> Unit,
   onPickNewPdf: () -> Unit,
@@ -2194,15 +2203,6 @@ fun PdfViewerOverlay(
       Modifier
         .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
         .size(widthDp.dp, heightDp.dp)
-        .pointerInput(Unit) {
-          detectDragGestures { change, drag ->
-            change.consume()
-            val maxW = with(density) { (config.screenWidthDp - 80).dp.toPx() }
-            val maxH = with(density) { (config.screenHeightDp - 80).dp.toPx() }
-            offsetX = (offsetX + drag.x).coerceIn(0f, maxW)
-            offsetY = (offsetY + drag.y).coerceIn(0f, maxH)
-          }
-        }
     }
     PdfViewMode.SPLIT_LEFT -> {
       Modifier
@@ -2234,10 +2234,24 @@ fun PdfViewerOverlay(
     border = if (mode == PdfViewMode.WINDOW) androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)) else null
   ) {
     Column(modifier = Modifier.fillMaxSize()) {
-      // ===== 1. Header Bar =====
+      // ===== 1. Header Bar (draggable handle to move floating window) =====
       Surface(
         color = Color(0xFF0F172A),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+          .fillMaxWidth()
+          .then(
+            if (mode == PdfViewMode.WINDOW) {
+              Modifier.pointerInput(Unit) {
+                detectDragGestures { change, drag ->
+                  change.consume()
+                  val maxW = with(density) { (config.screenWidthDp - 80).dp.toPx() }
+                  val maxH = with(density) { (config.screenHeightDp - 80).dp.toPx() }
+                  offsetX = (offsetX + drag.x).coerceIn(0f, maxW)
+                  offsetY = (offsetY + drag.y).coerceIn(0f, maxH)
+                }
+              }
+            } else Modifier
+          )
       ) {
         Row(
           modifier = Modifier
@@ -2428,7 +2442,13 @@ fun PdfViewerOverlay(
           items(pageCount) { pIdx ->
             PdfContinuousPageItem(
               pdfFile = pdfFile,
-              pageIndex = pIdx
+              pageIndex = pIdx,
+              activeTool = activeTool,
+              brushColor = brushColor,
+              strokeWidth = strokeWidth,
+              pageStrokes = pdfStrokes[pIdx] ?: emptyList(),
+              onAddStroke = onAddStroke,
+              onEraseStroke = onEraseStroke
             )
           }
         }
@@ -2471,10 +2491,17 @@ fun PdfViewerOverlay(
 @Composable
 private fun PdfContinuousPageItem(
   pdfFile: File,
-  pageIndex: Int
+  pageIndex: Int,
+  activeTool: ToolType,
+  brushColor: Int,
+  strokeWidth: Float,
+  pageStrokes: List<PdfAnnotationStroke>,
+  onAddStroke: (pageIndex: Int, tool: ToolType, color: Int, strokeWidth: Float, alpha: Float, points: List<StrokePoint>) -> Unit,
+  onEraseStroke: (pageIndex: Int, normX: Float, normY: Float, normRadius: Float) -> Unit
 ) {
   var bitmap by remember(pdfFile.absolutePath, pageIndex) { mutableStateOf<Bitmap?>(null) }
   var loading by remember(pdfFile.absolutePath, pageIndex) { mutableStateOf(true) }
+  var livePoints by remember { mutableStateOf<List<StrokePoint>>(emptyList()) }
 
   LaunchedEffect(pdfFile.absolutePath, pageIndex) {
     loading = true
@@ -2500,15 +2527,141 @@ private fun PdfContinuousPageItem(
       if (bitmap != null && !bitmap!!.isRecycled) {
         val bmp = bitmap!!
         val aspect = bmp.width.toFloat() / bmp.height.toFloat()
-        Image(
-          bitmap = bmp.asImageBitmap(),
-          contentDescription = "Page ${pageIndex + 1}",
+        Box(
           modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(aspect)
-            .clip(RoundedCornerShape(8.dp)),
-          contentScale = ContentScale.Fit
-        )
+            .clip(RoundedCornerShape(8.dp))
+        ) {
+          // 1. Rendered PDF Page Background
+          Image(
+            bitmap = bmp.asImageBitmap(),
+            contentDescription = "Page ${pageIndex + 1}",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Fit
+          )
+
+          // 2. Interactive Annotation Layer (Pen, Highlighter, Eraser)
+          val isDrawingTool = activeTool == ToolType.Pen || activeTool == ToolType.Highlighter || activeTool == ToolType.Eraser
+          Canvas(
+            modifier = Modifier
+              .fillMaxSize()
+              .then(
+                if (isDrawingTool) {
+                  Modifier.pointerInput(activeTool, brushColor, strokeWidth, pageIndex) {
+                    detectDragGestures(
+                      onDragStart = { offset ->
+                        if (size.width > 0 && size.height > 0) {
+                          val normX = (offset.x / size.width).coerceIn(0f, 1f)
+                          val normY = (offset.y / size.height).coerceIn(0f, 1f)
+                          if (activeTool == ToolType.Eraser) {
+                            onEraseStroke(pageIndex, normX, normY, 28.dp.toPx() / size.width)
+                          } else {
+                            livePoints = listOf(StrokePoint(normX, normY))
+                          }
+                        }
+                      },
+                      onDrag = { change, _ ->
+                        change.consume()
+                        if (size.width > 0 && size.height > 0) {
+                          val normX = (change.position.x / size.width).coerceIn(0f, 1f)
+                          val normY = (change.position.y / size.height).coerceIn(0f, 1f)
+                          if (activeTool == ToolType.Eraser) {
+                            onEraseStroke(pageIndex, normX, normY, 28.dp.toPx() / size.width)
+                          } else {
+                            livePoints = livePoints + StrokePoint(normX, normY)
+                          }
+                        }
+                      },
+                      onDragEnd = {
+                        if (activeTool != ToolType.Eraser && livePoints.isNotEmpty()) {
+                          onAddStroke(
+                            pageIndex,
+                            activeTool,
+                            brushColor,
+                            strokeWidth,
+                            if (activeTool == ToolType.Highlighter) 0.4f else 1f,
+                            livePoints
+                          )
+                        }
+                        livePoints = emptyList()
+                      },
+                      onDragCancel = {
+                        livePoints = emptyList()
+                      }
+                    )
+                  }
+                } else Modifier
+              )
+          ) {
+            val pageW = size.width
+            val pageH = size.height
+
+            // Render committed annotations on this page
+            pageStrokes.forEach { stroke ->
+              val isHighlighter = stroke.tool == ToolType.Highlighter
+              val sw = if (isHighlighter) (stroke.strokeWidth * 2.2f).coerceAtLeast(18f) else stroke.strokeWidth
+              val strokeCol = Color(stroke.color).copy(alpha = stroke.alpha)
+
+              if (stroke.points.size >= 2) {
+                val path = Path().apply {
+                  moveTo(stroke.points[0].x * pageW, stroke.points[0].y * pageH)
+                  for (i in 1 until stroke.points.size) {
+                    lineTo(stroke.points[i].x * pageW, stroke.points[i].y * pageH)
+                  }
+                }
+                drawPath(
+                  path = path,
+                  color = strokeCol,
+                  style = Stroke(
+                    width = sw,
+                    cap = StrokeCap.Round,
+                    join = StrokeJoin.Round
+                  )
+                )
+              } else if (stroke.points.size == 1) {
+                drawCircle(
+                  color = strokeCol,
+                  radius = (sw / 2f).coerceAtLeast(3f),
+                  center = Offset(stroke.points[0].x * pageW, stroke.points[0].y * pageH)
+                )
+              }
+            }
+
+            // Render live stroke in progress
+            if (livePoints.size >= 2) {
+              val isHighlighter = activeTool == ToolType.Highlighter
+              val sw = if (isHighlighter) (strokeWidth * 2.2f).coerceAtLeast(18f) else strokeWidth
+              val strokeCol = Color(brushColor).copy(alpha = if (isHighlighter) 0.4f else 1f)
+
+              val path = Path().apply {
+                moveTo(livePoints[0].x * pageW, livePoints[0].y * pageH)
+                for (i in 1 until livePoints.size) {
+                  lineTo(livePoints[i].x * pageW, livePoints[i].y * pageH)
+                }
+              }
+              drawPath(
+                path = path,
+                color = strokeCol,
+                style = Stroke(
+                  width = sw,
+                  cap = StrokeCap.Round,
+                  join = StrokeJoin.Round
+                )
+              )
+            } else if (livePoints.size == 1) {
+              val isHighlighter = activeTool == ToolType.Highlighter
+              val sw = if (isHighlighter) (strokeWidth * 2.2f).coerceAtLeast(18f) else strokeWidth
+              val strokeCol = Color(brushColor).copy(alpha = if (isHighlighter) 0.4f else 1f)
+
+              drawCircle(
+                color = strokeCol,
+                radius = (sw / 2f).coerceAtLeast(3f),
+                center = Offset(livePoints[0].x * pageW, livePoints[0].y * pageH)
+              )
+            }
+          }
+        }
       } else {
         Box(
           modifier = Modifier

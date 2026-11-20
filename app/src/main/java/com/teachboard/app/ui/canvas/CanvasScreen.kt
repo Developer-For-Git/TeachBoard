@@ -480,7 +480,10 @@ fun CanvasScreen(
         } else activeDialog = ActiveDialog.RECORD
       }
       ToolbarAction.LASSO -> viewModel.selectTool(ToolType.Lasso)
-      ToolbarAction.HAND -> viewModel.selectTool(ToolType.Hand)
+      ToolbarAction.HAND -> {
+        if (ui.activeTool == ToolType.Hand) viewModel.selectTool(ui.lastBrushTool)
+        else viewModel.selectTool(ToolType.Hand)
+      }
       ToolbarAction.CUSTOMIZE -> activeDialog = ActiveDialog.CUSTOMIZE_TOOLBAR
       ToolbarAction.HELP -> showGuideSheet = true
     }
@@ -613,18 +616,6 @@ fun CanvasScreen(
           .background(Color(0xB85F656D))
       ) {
         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(22.dp))
-      }
-
-      if (!session?.pdfPath.isNullOrBlank()) {
-        IconButton(
-          onClick = { viewModel.togglePdfViewer() },
-          modifier = Modifier
-            .size(42.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (ui.showPdfViewer) Color(0xFFEF4444) else Color(0xB85F656D))
-        ) {
-          Icon(Icons.Default.PictureAsPdf, contentDescription = "PDF Viewer", tint = Color.White, modifier = Modifier.size(22.dp))
-        }
       }
 
       if (!pagePillExpanded) {
@@ -808,10 +799,9 @@ fun CanvasScreen(
       }
     }
 
-    // 4a. Permanent Side Hand & Quick-Shortcut Dock (right edge by default, swappable to left edge!)
-    val handActive = ui.activeTool == ToolType.Hand
+    // 4a. Quick-Shortcut Dock (right edge by default, swappable to left edge!)
     val extraShortcuts = remember(prefs.shortcutTools) {
-      prefs.shortcutTools.filter { it != ToolbarAction.HAND }
+      prefs.shortcutTools
     }
     Column(
       modifier = Modifier
@@ -844,62 +834,48 @@ fun CanvasScreen(
         }
       }
 
-      // Vertical frosted pill with PERMANENT Hand button + extra shortcuts + utility buttons
-      Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = Color(0xF5F7F8FC),
-        shadowElevation = 4.dp,
-        modifier = Modifier.border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(18.dp))
-      ) {
-        Column(
-          modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
-          horizontalAlignment = Alignment.CenterHorizontally,
-          verticalArrangement = Arrangement.spacedBy(6.dp)
+      // Vertical frosted pill with shortcuts + utility buttons
+      AnimatedVisibility(visible = sideDockExpanded) {
+        Surface(
+          shape = RoundedCornerShape(18.dp),
+          color = Color(0xF5F7F8FC),
+          shadowElevation = 4.dp,
+          modifier = Modifier.border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(18.dp))
         ) {
-          // PERMANENT Hand / Pan button (1-tap toggle between Hand & previous Brush!)
-          Box(
-            modifier = Modifier
-              .size(38.dp)
-              .clip(RoundedCornerShape(11.dp))
-              .background(if (handActive) Color(0xFF2B6CF6) else Color(0xFFDCE3F2))
-              .clickable {
-                if (handActive) viewModel.selectTool(ui.lastBrushTool)
-                else viewModel.selectTool(ToolType.Hand)
-              },
-            contentAlignment = Alignment.Center
+          Column(
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
           ) {
-            Icon(
-              Icons.Default.PanTool,
-              contentDescription = "Hand",
-              tint = if (handActive) Color.White else Color(0xFF334E80),
-              modifier = Modifier.size(21.dp)
-            )
-          }
-
-          AnimatedVisibility(visible = sideDockExpanded) {
-            Column(
-              horizontalAlignment = Alignment.CenterHorizontally,
-              verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-              // User's pinned custom shortcuts (if any)
-              extraShortcuts.forEach { action ->
-                Box(
-                  modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFE8ECF6))
-                    .clickable { handleToolbarAction(action) },
-                  contentAlignment = Alignment.Center
-                ) {
-                  Icon(
-                    toolbarIconFor(action),
-                    contentDescription = action.name,
-                    tint = Color(0xFF334E80),
-                    modifier = Modifier.size(18.dp)
-                  )
-                }
+            // User's pinned custom shortcuts (if any)
+            extraShortcuts.forEach { action ->
+              val isActionSelected = when (action) {
+                ToolbarAction.HAND -> ui.activeTool == ToolType.Hand
+                ToolbarAction.PEN -> ui.activeTool.isBrush
+                ToolbarAction.ERASER -> ui.activeTool == ToolType.Eraser
+                ToolbarAction.LASER -> ui.activeTool == ToolType.Laser
+                ToolbarAction.LASSO -> ui.activeTool == ToolType.Lasso
+                ToolbarAction.SMART -> ui.smartShapesEnabled
+                else -> false
               }
+              Box(
+                modifier = Modifier
+                  .size(36.dp)
+                  .clip(CircleShape)
+                  .background(if (isActionSelected) Color(0xFF2B6CF6) else Color(0xFFE8ECF6))
+                  .clickable { handleToolbarAction(action) },
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  toolbarIconFor(action),
+                  contentDescription = action.name,
+                  tint = if (isActionSelected) Color.White else Color(0xFF334E80),
+                  modifier = Modifier.size(18.dp)
+                )
+              }
+            }
 
+            if (extraShortcuts.isNotEmpty()) {
               // Subtle divider
               Box(
                 modifier = Modifier
@@ -907,6 +883,7 @@ fun CanvasScreen(
                   .height(1.dp)
                   .background(Color(0xFFCBD5E1))
               )
+            }
 
               // Swap side (Right <-> Left)
               Box(
@@ -958,7 +935,6 @@ fun CanvasScreen(
                   modifier = Modifier.size(18.dp)
                 )
               }
-            }
           }
         }
       }
@@ -1121,6 +1097,16 @@ fun CanvasScreen(
             currentPage = ui.pageIndex,
             mode = ui.pdfViewerMode,
             activeBrushColor = Color(ui.brushColor),
+            activeTool = ui.activeTool,
+            brushColor = ui.brushColor,
+            strokeWidth = ui.strokeWidth,
+            pdfStrokes = ui.pdfStrokes,
+            onAddStroke = { page, tool, color, width, alpha, points ->
+              viewModel.addPdfStroke(page, tool, color, width, alpha, points)
+            },
+            onEraseStroke = { page, normX, normY, normRadius ->
+              viewModel.erasePdfStrokeAt(page, normX, normY, normRadius)
+            },
             onModeChange = { viewModel.setPdfViewerMode(it) },
             onPinPageToBoard = { page ->
               viewModel.goToPage(page)
@@ -1285,6 +1271,30 @@ fun CanvasScreen(
               )
             }
 
+            // 4. Hand / Scroll Tool Button (Single-finger drag scrolls the PDF!)
+            val isHandActive = ui.activeTool == ToolType.Hand
+            Box(
+              modifier = Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(if (isHandActive) TeachColors.PrimaryDark else Color.Transparent)
+                .clickable {
+                  if (isHandActive) {
+                    viewModel.selectTool(ui.lastBrushTool)
+                  } else {
+                    viewModel.selectTool(ToolType.Hand)
+                  }
+                },
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(
+                Icons.Default.PanTool,
+                contentDescription = "Scroll",
+                tint = if (isHandActive) Color.White else Color(0xFFCBD5E1),
+                modifier = Modifier.size(18.dp)
+              )
+            }
+
             // Subtle vertical separator
             Box(
               modifier = Modifier
@@ -1293,7 +1303,7 @@ fun CanvasScreen(
                 .background(Color(0x33FFFFFF))
             )
 
-            // 4. Color Chips (Yellow, Green, Blue, Pink, Orange)
+            // 5. Color Chips (Yellow, Green, Blue, Pink, Orange)
             TeachColors.PdfQuickColors.forEach { c ->
               val isSelected = ui.brushColor == c
               Box(
@@ -1308,7 +1318,7 @@ fun CanvasScreen(
                   )
                   .clickable {
                     viewModel.setBrushColor(c)
-                    if (ui.activeTool == ToolType.Eraser) {
+                    if (ui.activeTool == ToolType.Eraser || ui.activeTool == ToolType.Hand) {
                       viewModel.selectTool(ToolType.Pen)
                     }
                   }

@@ -451,5 +451,12 @@
     <string name="image_search_title">Image Search</string>
     <string name="laser_pointer_title">Laser Pointer</string>
     <string name="geometry_box_title">Geometry Box</string>
+    <string name="tb_geometry_box">Geometry Box</string>
+    <string name="tb_geo_ruler">Ruler</string>
+    <string name="tb_geo_protractor">Protractor</string>
+    <string name="tb_geo_compass">Compass</string>
+    <string name="tb_geo_setsquare">Set Square</string>
+    <string name="board_compass_readout">r %1$.1f cm  ·  d %2$.1f cm</string>
+    <string name="stk_help_geometry_desc">Open the geometry set: interactive ruler, protractor and compass</string>
     <string name="collapse">Collapse</string>
 </resources>

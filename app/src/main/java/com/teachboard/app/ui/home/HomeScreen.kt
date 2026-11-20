@@ -3,7 +3,13 @@ package com.teachboard.app.ui.home
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.appcompat.app.AppCompatDelegate
+import com.teachboard.app.ui.tour.PrefsTourStore
+import com.teachboard.app.ui.tour.TeachBoardTour
+import com.teachboard.app.ui.tour.TourOverlay
+import com.teachboard.app.ui.tour.rememberTourState
+import com.teachboard.app.ui.tour.tourAnchor
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -291,17 +297,32 @@ fun LandingHomeScreen(
   val isLandscape = config.screenWidthDp > config.screenHeightDp
   val isDarkBg = MaterialTheme.colorScheme.background == TeachColors.BackgroundDark
 
+  val tourStore = remember { PrefsTourStore(context, TeachBoardTour.PREFS_HOME, TeachBoardTour.TOUR_VERSION) }
+  val tourState = rememberTourState(TeachBoardTour.homeSteps(), tourStore)
+
+  LaunchedEffect(Unit) {
+    if (tourStore.shouldShow()) {
+      delay(350L)
+      tourState.start()
+    }
+  }
+
+  BackHandler(tourState.visible) {
+    if (tourState.isLast) tourState.finish() else tourState.next()
+  }
+
   Surface(
     modifier = Modifier.fillMaxSize(),
     color = MaterialTheme.colorScheme.background
   ) {
-    Box(
-      modifier = Modifier
-        .fillMaxSize()
-        .statusBarsPadding()
-        .navigationBarsPadding()
-        .padding(horizontal = 20.dp, vertical = 14.dp)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+      Box(
+        modifier = Modifier
+          .fillMaxSize()
+          .statusBarsPadding()
+          .navigationBarsPadding()
+          .padding(horizontal = 20.dp, vertical = 14.dp)
+      ) {
       // Top-left Language pill
       Surface(
         modifier = Modifier
@@ -324,7 +345,9 @@ fun LandingHomeScreen(
       // Top-right Settings gear
       IconButton(
         onClick = onOpenSettings,
-        modifier = Modifier.align(Alignment.TopEnd)
+        modifier = Modifier
+          .align(Alignment.TopEnd)
+          .tourAnchor("home_settings")
       ) {
         Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_title), modifier = Modifier.size(26.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
       }
@@ -391,6 +414,7 @@ fun LandingHomeScreen(
               .fillMaxWidth()
               .height(if (isLandscape) 68.dp else 78.dp)
               .clip(RoundedCornerShape(22.dp))
+              .tourAnchor("home_new")
               .clickable { viewModel.createNewBoard(onNewBoardCreated) },
             color = Color(0xFF2B7FFF),
             shadowElevation = 4.dp
@@ -493,6 +517,10 @@ fun LandingHomeScreen(
           rateAndShareRow()
         }
       }
+
+      }
+
+      TourOverlay(state = tourState)
     }
   }
 

@@ -4,6 +4,9 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -34,7 +37,14 @@ class MainActivity : AppCompatActivity() {
       val prefs by app.prefs.prefs.collectAsState(initial = UserPrefs())
       TeachBoardTheme(themeMode = prefs.themeMode) {
         val navController = rememberNavController()
-        NavHost(navController = navController, startDestination = "splash") {
+        NavHost(
+          navController = navController,
+          startDestination = "splash",
+          enterTransition = { fadeIn(animationSpec = tween(140)) },
+          exitTransition = { fadeOut(animationSpec = tween(120)) },
+          popEnterTransition = { fadeIn(animationSpec = tween(140)) },
+          popExitTransition = { fadeOut(animationSpec = tween(120)) }
+        ) {
           composable("splash") {
             SplashScreen(
               onFinished = {

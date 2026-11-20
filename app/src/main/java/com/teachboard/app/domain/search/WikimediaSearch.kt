@@ -89,15 +89,37 @@ object WikimediaSearch {
   suspend fun downloadToImagesDir(context: Context, imageUrl: String): File? =
     withContext(Dispatchers.IO) {
       runCatching {
-        val conn = (URL(imageUrl).openConnection() as HttpURLConnection).apply {
-          connectTimeout = 12_000
-          readTimeout = 15_000
-          setRequestProperty("User-Agent", AppConfig.USER_AGENT)
+        var currentUrl = imageUrl
+        var redirectCount = 0
+        var finalConn: HttpURLConnection? = null
+
+        while (redirectCount < 5) {
+          val conn = (URL(currentUrl).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 12_000
+            readTimeout = 15_000
+            instanceFollowRedirects = true
+            setRequestProperty("User-Agent", AppConfig.USER_AGENT)
+          }
+          val code = conn.responseCode
+          if (code in 300..399) {
+            val loc = conn.getHeaderField("Location")
+            conn.disconnect()
+            if (!loc.isNullOrBlank()) {
+              currentUrl = loc
+              redirectCount++
+              continue
+            }
+          }
+          finalConn = conn
+          break
         }
+
+        val conn = finalConn ?: return@withContext null
         try {
           if (conn.responseCode !in 200..299) return@withContext null
           val dir = File(context.filesDir, "images").apply { mkdirs() }
-          val out = File(dir, "web_${System.currentTimeMillis()}.jpg")
+          val ext = if (currentUrl.lowercase().contains(".png")) "png" else "jpg"
+          val out = File(dir, "web_${System.currentTimeMillis()}.$ext")
           conn.inputStream.use { input ->
             FileOutputStream(out).use { fos -> input.copyTo(fos) }
           }

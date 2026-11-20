@@ -27,6 +27,7 @@ data class UserPrefs(
   val defaultBrush: ToolType = ToolType.Pen,
   val defaultBrushColor: Int = TeachColors.BrushBlack,
   val defaultBrushSize: Float = 12f,
+  val defaultEraserSize: Float = 28f,
   val themeMode: ThemeMode = ThemeMode.SYSTEM,
   val languageTag: String = "",
   val autoSaveEnabled: Boolean = true,
@@ -53,6 +54,7 @@ class PrefsRepository(context: Context) {
     val DEFAULT_BRUSH = stringPreferencesKey("default_brush")
     val DEFAULT_BRUSH_COLOR = intPreferencesKey("default_brush_color")
     val DEFAULT_BRUSH_SIZE = floatPreferencesKey("default_brush_size")
+    val DEFAULT_ERASER_SIZE = floatPreferencesKey("default_eraser_size")
     val THEME_MODE = stringPreferencesKey("theme_mode")
     val LANGUAGE_TAG = stringPreferencesKey("language_tag")
     val AUTO_SAVE = booleanPreferencesKey("auto_save")
@@ -87,6 +89,7 @@ class PrefsRepository(context: Context) {
       defaultBrush = p[Keys.DEFAULT_BRUSH]?.let { ToolType.fromNameOrDefault(it) } ?: ToolType.Pen,
       defaultBrushColor = p[Keys.DEFAULT_BRUSH_COLOR] ?: TeachColors.BrushBlack,
       defaultBrushSize = p[Keys.DEFAULT_BRUSH_SIZE] ?: 12f,
+      defaultEraserSize = p[Keys.DEFAULT_ERASER_SIZE] ?: 28f,
       themeMode = p[Keys.THEME_MODE]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
         ?: ThemeMode.SYSTEM,
       languageTag = p[Keys.LANGUAGE_TAG] ?: "",
@@ -124,6 +127,12 @@ class PrefsRepository(context: Context) {
       it[Keys.DEFAULT_BRUSH] = brush.name
       it[Keys.DEFAULT_BRUSH_COLOR] = color
       it[Keys.DEFAULT_BRUSH_SIZE] = size
+    }
+  }
+
+  suspend fun setEraserSize(size: Float) {
+    dataStore.edit {
+      it[Keys.DEFAULT_ERASER_SIZE] = size
     }
   }
 

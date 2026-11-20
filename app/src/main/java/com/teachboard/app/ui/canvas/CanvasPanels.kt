@@ -157,6 +157,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.teachboard.app.R
 import com.teachboard.app.domain.formula.FormulaParser
 import com.teachboard.app.domain.ink.InkLanguage
@@ -2176,7 +2177,16 @@ fun WikimediaSearchDialog(
                     modifier = Modifier.clickable { onPickImage(img); onDismiss() }
                   ) {
                     Box(modifier = Modifier.aspectRatio(1f)) {
-                      AsyncImage(model = img.thumbUrl, contentDescription = img.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                      AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                          .data(img.thumbUrl)
+                          .setHeader("User-Agent", AppConfig.USER_AGENT)
+                          .crossfade(true)
+                          .build(),
+                        contentDescription = img.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                      )
                       Box(
                         modifier = Modifier.align(Alignment.TopEnd).padding(5.dp).size(26.dp).clip(CircleShape).background(TeachColors.AccentCyan),
                         contentAlignment = Alignment.Center

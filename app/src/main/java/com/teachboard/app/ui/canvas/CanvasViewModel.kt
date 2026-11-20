@@ -68,6 +68,16 @@ data class SmartShapeOffer(
   val candidates: List<SmartShapeCandidate>
 )
 
+data class PdfAnnotationStroke(
+  val id: String = java.util.UUID.randomUUID().toString(),
+  val pageIndex: Int,
+  val tool: ToolType,
+  val color: Int,
+  val strokeWidth: Float,
+  val alpha: Float,
+  val points: List<StrokePoint>
+)
+
 data class CanvasUiState(
   val session: BoardSession? = null,
   val pageIndex: Int = 0,
@@ -112,6 +122,7 @@ data class CanvasUiState(
   val showTimer: Boolean = false,
   val showPdfViewer: Boolean = false,
   val pdfViewerMode: PdfViewMode = PdfViewMode.WINDOW,
+  val pdfStrokes: Map<Int, List<PdfAnnotationStroke>> = emptyMap(),
   val floatingVideoUri: Uri? = null,
   val showFaceCam: Boolean = false,
   val faceCamShape: FaceCamShape = FaceCamShape.ROUND,
@@ -341,7 +352,7 @@ class CanvasViewModel(
       val current = loadedUserPrefs.value?.stylusOnly ?: prefsRepo.prefs.first().stylusOnly
       val next = !current
       prefsRepo.setStylusOnly(next)
-      showMessage(if (next) "Palm Rejection (Stylus-Only): ON" else "Palm Rejection (Stylus-Only): OFF")
+      showMessage(if (next) "Stylus Mode ON: Finger moves whiteboard & objects" else "Stylus Mode OFF: Finger writes ink")
     }
   }
 
@@ -1381,6 +1392,49 @@ class CanvasViewModel(
   fun setShowPdfViewer(show: Boolean) = _ui.update { it.copy(showPdfViewer = show) }
   fun setPdfViewerMode(mode: PdfViewMode) = _ui.update { it.copy(pdfViewerMode = mode) }
   fun togglePdfViewer() = _ui.update { it.copy(showPdfViewer = !it.showPdfViewer) }
+
+  fun addPdfStroke(
+    pageIndex: Int,
+    tool: ToolType,
+    color: Int,
+    strokeWidth: Float,
+    alpha: Float,
+    points: List<StrokePoint>
+  ) {
+    if (points.isEmpty()) return
+    val stroke = PdfAnnotationStroke(
+      pageIndex = pageIndex,
+      tool = tool,
+      color = color,
+      strokeWidth = strokeWidth,
+      alpha = alpha,
+      points = points
+    )
+    _ui.update { state ->
+      val currentList = state.pdfStrokes[pageIndex] ?: emptyList()
+      state.copy(pdfStrokes = state.pdfStrokes + (pageIndex to (currentList + stroke)))
+    }
+  }
+
+  fun erasePdfStrokeAt(pageIndex: Int, normX: Float, normY: Float, normRadius: Float) {
+    _ui.update { state ->
+      val currentList = state.pdfStrokes[pageIndex] ?: return@update state
+      val remaining = currentList.filterNot { stroke ->
+        stroke.points.any { p ->
+          val dx = p.x - normX
+          val dy = p.y - normY
+          (dx * dx + dy * dy) <= (normRadius * normRadius)
+        }
+      }
+      state.copy(pdfStrokes = state.pdfStrokes + (pageIndex to remaining))
+    }
+  }
+
+  fun clearPdfStrokes(pageIndex: Int) {
+    _ui.update { state ->
+      state.copy(pdfStrokes = state.pdfStrokes - pageIndex)
+    }
+  }
   fun setFloatingVideoUri(uri: Uri?) = _ui.update { it.copy(floatingVideoUri = uri) }
   fun setFaceCam(show: Boolean, shape: FaceCamShape = _ui.value.faceCamShape) =
     _ui.update { it.copy(showFaceCam = show, faceCamShape = shape) }

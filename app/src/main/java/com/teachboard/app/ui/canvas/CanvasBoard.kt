@@ -56,7 +56,13 @@ interface CanvasCallbacks {
   fun onSelectionScreenBoundsChanged(bounds: RectF?)
   fun onCanvasTouched()
   fun onStampLine(a: StrokePoint, b: StrokePoint) = Unit
-  fun onStampArc(needle: StrokePoint, start: StrokePoint, end: StrokePoint) = Unit
+  fun onStampArc(
+    needle: StrokePoint,
+    start: StrokePoint,
+    end: StrokePoint,
+    sweepDeg: Float = 0f,
+    strokeWidth: Float = 0f
+  ) = Unit
   fun onStampAngle(pivot: StrokePoint, armEnd: StrokePoint, baseEnd: StrokePoint, kind: GeoStampKind) = Unit
   fun onDismissGeometry() = Unit
 }
@@ -75,6 +81,7 @@ fun CanvasBoard(
   fillColor: Int?,
   isFilled: Boolean,
   strokeWidth: Float,
+  eraserSize: Float = 28f,
   alpha: Float,
   laserColor: Int,
   laserSize: Float,
@@ -107,6 +114,7 @@ fun CanvasBoard(
         fillColor = fillColor,
         isFilled = isFilled,
         strokeWidth = strokeWidth,
+        eraserSize = eraserSize,
         alpha = alpha,
         laserColor = laserColor,
         laserSize = laserSize,
@@ -147,6 +155,7 @@ class TeachCanvasView(context: Context) : View(context) {
   private var fillColor: Int? = null
   private var isFilled: Boolean = false
   private var strokeWidth: Float = 12f
+  private var eraserSize: Float = 28f
   private var alpha: Float = 1f
   private var laserColor: Int = TeachColors.LaserRed
   private var laserSize: Float = 16f
@@ -168,6 +177,16 @@ class TeachCanvasView(context: Context) : View(context) {
 
     override fun onStampArc(needle: P, start: P, end: P) {
       callbacks?.onStampArc(StrokePoint(needle.x, needle.y), StrokePoint(start.x, start.y), StrokePoint(end.x, end.y))
+    }
+
+    override fun onStampArc(needle: P, start: P, end: P, sweepDeg: Float, strokeWidth: Float) {
+      callbacks?.onStampArc(
+        StrokePoint(needle.x, needle.y),
+        StrokePoint(start.x, start.y),
+        StrokePoint(end.x, end.y),
+        sweepDeg,
+        strokeWidth
+      )
     }
 
     override fun onStampAngle(pivot: P, armEnd: P, baseEnd: P, kind: GeoStampKind) {
@@ -212,6 +231,7 @@ class TeachCanvasView(context: Context) : View(context) {
   private var prevMidY: Float = 0f
   private var handLastX: Float = 0f
   private var handLastY: Float = 0f
+  private var isStylusFingerPanning: Boolean = false
 
   // Direct selection manipulation state (works in ANY tool mode!)
   private val lassoPathPoints = mutableListOf<StrokePoint>()
@@ -355,6 +375,7 @@ class TeachCanvasView(context: Context) : View(context) {
     fillColor: Int?,
     isFilled: Boolean,
     strokeWidth: Float,
+    eraserSize: Float = 28f,
     alpha: Float,
     laserColor: Int,
     laserSize: Float,
@@ -380,6 +401,7 @@ class TeachCanvasView(context: Context) : View(context) {
     this.fillColor = fillColor
     this.isFilled = isFilled
     this.strokeWidth = strokeWidth
+    this.eraserSize = eraserSize
     this.alpha = alpha
     this.laserColor = laserColor
     this.laserSize = laserSize
@@ -610,7 +632,7 @@ class TeachCanvasView(context: Context) : View(context) {
 
     // Live stroke / eraser / shape
     if (liveIsPixelEraser) {
-      ObjectPainter.drawEraserStroke(canvas, livePoints, strokeWidth * 4f)
+      ObjectPainter.drawEraserStroke(canvas, livePoints, eraserSize * 4f)
     } else if (livePoints.isNotEmpty() && (activeTool.isBrush || activeTool == ToolType.SmartWriting)) {
       val drawTool = if (activeTool == ToolType.SmartWriting) ToolType.Pen else activeTool
       ObjectPainter.drawStrokePoints(canvas, drawTool, livePoints, brushColor, strokeWidth, alpha, isDark)
@@ -760,7 +782,7 @@ class TeachCanvasView(context: Context) : View(context) {
     }
 
     if ((activeTool == ToolType.Eraser || isTemporaryEraser) && cursorWorldX != null && cursorWorldY != null) {
-      val r = (if (eraserMode == EraserMode.PIXEL_INK) strokeWidth * 2f else strokeWidth * 1.4f).coerceAtLeast(10f)
+      val r = (if (eraserMode == EraserMode.PIXEL_INK) eraserSize * 2f else eraserSize * 1.4f).coerceAtLeast(10f)
       canvas.drawCircle(cursorWorldX!!, cursorWorldY!!, r, eraserCursorFill)
       canvas.drawCircle(cursorWorldX!!, cursorWorldY!!, r, eraserCursorStroke)
     }
@@ -902,7 +924,6 @@ class TeachCanvasView(context: Context) : View(context) {
       lastStylusSeenMs = SystemClock.uptimeMillis()
       return false
     }
-    if (stylusOnly && toolType == MotionEvent.TOOL_TYPE_FINGER) return true
     if (palmRejection && toolType == MotionEvent.TOOL_TYPE_FINGER) {
       // Reject accidental palm touches if a stylus was active within the last 2s, or if touch area is huge (>240px)
       if (lastStylusSeenMs > 0L && (SystemClock.uptimeMillis() - lastStylusSeenMs) < 2000L) return true
@@ -1020,6 +1041,7 @@ class TeachCanvasView(context: Context) : View(context) {
     if (geo.active) {
       val bx = (event.x - viewPanX) / viewScale
       val by = (event.y - viewPanY) / viewScale
+      val hitInstrument = geo.contains(bx, by, viewScale)
       val used = when (action) {
         MotionEvent.ACTION_DOWN -> geo.onDown(bx, by, viewScale)
         MotionEvent.ACTION_MOVE -> geo.onMove(bx, by, viewScale)
@@ -1028,13 +1050,11 @@ class TeachCanvasView(context: Context) : View(context) {
         else -> false
       }
       invalidate()
-      if (used) {
+      if (used || (action == MotionEvent.ACTION_DOWN && hitInstrument)) {
         return true
       }
       if (event.pointerCount >= 2) {
         // Fall through to 2-finger pan/zoom below
-      } else {
-        return true
       }
     }
 
@@ -1120,6 +1140,35 @@ class TeachCanvasView(context: Context) : View(context) {
           }
         }
 
+        val isFingerInStylusMode = stylusOnly && toolType == MotionEvent.TOOL_TYPE_FINGER
+        if (isFingerInStylusMode) {
+          // When Stylus Mode / Pen toggle is ON, finger does NOT draw ink/strokes.
+          // Finger moves placed objects or moves the whiteboard background!
+          val hit = objects.asReversed().firstOrNull { obj ->
+            ObjectPainter.hitTest(obj, world.x, world.y, 24f / viewScale)
+          }
+          if (hit != null) {
+            callbacks?.onSelectionChanged(setOf(hit.objectUid))
+            selectedUids = setOf(hit.objectUid)
+            if (hit.objectUid !in lockedObjectUids) {
+              draggingSelection = true
+              dragLastWorldX = world.x
+              dragLastWorldY = world.y
+              liveDragDx = 0f
+              liveDragDy = 0f
+            }
+            invalidate()
+            return true
+          } else {
+            // Tapped empty whiteboard background -> pan the whiteboard!
+            isStylusFingerPanning = true
+            handLastX = sx
+            handLastY = sy
+            invalidate()
+            return true
+          }
+        }
+
         // Schedule "Hold to move" (320ms) on ANY placed non-brush object in any drawing/editing tool mode!
         if (activeTool != ToolType.Hand && activeTool != ToolType.Laser && activeTool != ToolType.Lasso && !isTemporaryEraser) {
           val hit = objects.asReversed().firstOrNull { obj ->
@@ -1134,7 +1183,7 @@ class TeachCanvasView(context: Context) : View(context) {
         }
 
         when {
-          activeTool == ToolType.Hand -> { handLastX = sx; handLastY = sy }
+          isStylusFingerPanning || activeTool == ToolType.Hand -> { handLastX = sx; handLastY = sy }
           activeTool == ToolType.Laser -> {
             laserTrail.add(LaserDot(world.x, world.y, SystemClock.uptimeMillis()))
             postInvalidateOnAnimation()
@@ -1146,7 +1195,7 @@ class TeachCanvasView(context: Context) : View(context) {
           activeTool == ToolType.Eraser || isTemporaryEraser -> {
             cursorWorldX = world.x; cursorWorldY = world.y
             if (eraserMode == EraserMode.STROKE) {
-              callbacks?.onStrokeEraseAt(world.x, world.y, strokeWidth * 1.4f)
+              callbacks?.onStrokeEraseAt(world.x, world.y, eraserSize * 1.4f)
             } else {
               livePoints.clear(); livePoints.add(world)
             }
@@ -1211,7 +1260,7 @@ class TeachCanvasView(context: Context) : View(context) {
         }
 
         when {
-          activeTool == ToolType.Hand -> {
+          isStylusFingerPanning || activeTool == ToolType.Hand -> {
             viewPanX += sx - handLastX; viewPanY += sy - handLastY
             handLastX = sx; handLastY = sy
             callbacks?.onViewportChanged(viewScale, viewPanX, viewPanY)
@@ -1227,7 +1276,7 @@ class TeachCanvasView(context: Context) : View(context) {
           }
           activeTool == ToolType.Eraser || isTemporaryEraser -> {
             cursorWorldX = world.x; cursorWorldY = world.y
-            if (eraserMode == EraserMode.STROKE) callbacks?.onStrokeEraseAt(world.x, world.y, strokeWidth * 1.4f)
+            if (eraserMode == EraserMode.STROKE) callbacks?.onStrokeEraseAt(world.x, world.y, eraserSize * 1.4f)
             else appendWithHistory(event, idx, livePoints)
             invalidate()
           }
@@ -1268,7 +1317,10 @@ class TeachCanvasView(context: Context) : View(context) {
               if (kotlin.math.abs(liveRotateDeg) > 1.5f) callbacks?.onRotateSelection(transformAnchorX, transformAnchorY, liveRotateDeg)
               rotatingSelection = false; liveRotateDeg = 0f
             }
-            activeTool == ToolType.Hand -> committedDirty = true
+            isStylusFingerPanning || activeTool == ToolType.Hand -> {
+              isStylusFingerPanning = false
+              committedDirty = true
+            }
             activeTool == ToolType.Lasso -> handleLassoUp()
             activeTool == ToolType.Eraser || isTemporaryEraser -> {
               if (eraserMode == EraserMode.PIXEL_INK && livePoints.isNotEmpty()) {
@@ -1355,6 +1407,7 @@ class TeachCanvasView(context: Context) : View(context) {
     liveEndPoint = null
     activePointerId = MotionEvent.INVALID_POINTER_ID
     isTemporaryEraser = false
+    isStylusFingerPanning = false
     invalidate()
   }
 

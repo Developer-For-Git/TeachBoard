@@ -38,6 +38,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import com.teachboard.app.ui.tour.TeachBoardTour
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
@@ -265,9 +266,10 @@ fun SettingsScreen(
       SectionTitle(stringResource(R.string.about_section))
       OutlinedButton(
         onClick = {
+          TeachBoardTour.resetAll(context)
           scope.launch {
             app.prefs.resetHintsAndTour()
-            snackbar.showSnackbar("Onboarding tour & hints reset")
+            snackbar.showSnackbar("Walkthrough & tool hints reset")
           }
         },
         modifier = Modifier.fillMaxWidth()

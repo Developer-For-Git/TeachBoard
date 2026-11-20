@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -55,6 +56,7 @@ import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
@@ -83,6 +85,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.RadioButtonChecked
@@ -2511,6 +2514,128 @@ fun ScreenRecorderDialog(
         }
       }
     }
+  }
+}
+
+@Composable
+fun RecordingSavedDialog(
+  uri: android.net.Uri,
+  sizeBytes: Long,
+  onPlay: () -> Unit,
+  onShare: () -> Unit,
+  onDelete: () -> Unit,
+  onDismiss: () -> Unit
+) {
+  var showDeleteConfirm by remember { mutableStateOf(false) }
+
+  val formattedSize = remember(sizeBytes) {
+    when {
+      sizeBytes <= 0L -> "Saved"
+      sizeBytes < 1024L * 1024L -> String.format(java.util.Locale.US, "%.1f KB", sizeBytes / 1024.0)
+      sizeBytes < 1024L * 1024L * 1024L -> String.format(java.util.Locale.US, "%.1f MB", sizeBytes / (1024.0 * 1024.0))
+      else -> String.format(java.util.Locale.US, "%.2f GB", sizeBytes / (1024.0 * 1024.0 * 1024.0))
+    }
+  }
+
+  PastelModalDialog(
+    title = stringResource(R.string.recording_saved_title),
+    icon = Icons.Default.CheckCircle,
+    badgeColor = Color(0xFF16A34A),
+    headerTint = Color(0xFFDCFCE7),
+    onDismiss = onDismiss
+  ) {
+    Column(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalAlignment = Alignment.CenterHorizontally,
+      verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+      Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFFF8FAFC),
+        modifier = Modifier
+          .fillMaxWidth()
+          .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
+      ) {
+        Column(
+          modifier = Modifier.padding(16.dp),
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          Icon(Icons.Default.Videocam, contentDescription = null, tint = Color(0xFFE11D48), modifier = Modifier.size(36.dp))
+          Text(formattedSize, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color(0xFF0F172A))
+          Text("Saved in Movies/${AppConfig.ALBUM_NAME}", fontSize = 13.sp, color = Color(0xFF64748B))
+        }
+      }
+
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+      ) {
+        Button(
+          onClick = onPlay,
+          modifier = Modifier
+            .weight(1f)
+            .height(48.dp),
+          shape = RoundedCornerShape(14.dp),
+          colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48))
+        ) {
+          Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+          Spacer(Modifier.width(6.dp))
+          Text("Play", fontWeight = FontWeight.Bold)
+        }
+
+        Button(
+          onClick = onShare,
+          modifier = Modifier
+            .weight(1f)
+            .height(48.dp),
+          shape = RoundedCornerShape(14.dp),
+          colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
+        ) {
+          Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+          Spacer(Modifier.width(6.dp))
+          Text("Share", fontWeight = FontWeight.Bold)
+        }
+      }
+
+      OutlinedButton(
+        onClick = { showDeleteConfirm = true },
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(44.dp),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626))
+      ) {
+        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFFDC2626))
+        Spacer(Modifier.width(6.dp))
+        Text("Delete", fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626))
+      }
+    }
+  }
+
+  if (showDeleteConfirm) {
+    androidx.compose.material3.AlertDialog(
+      onDismissRequest = { showDeleteConfirm = false },
+      title = { Text("Delete this video?") },
+      text = { Text("It will be removed from your gallery. This cannot be undone.") },
+      confirmButton = {
+        TextButton(
+          onClick = {
+            showDeleteConfirm = false
+            onDelete()
+            onDismiss()
+          }
+        ) {
+          Text("Delete", color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { showDeleteConfirm = false }) {
+          Text("Cancel")
+        }
+      }
+    )
   }
 }
 

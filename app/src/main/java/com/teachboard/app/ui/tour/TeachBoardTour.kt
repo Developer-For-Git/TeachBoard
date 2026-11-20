@@ -33,13 +33,13 @@ object TeachBoardTour {
         TourStep(
             id = "controls",
             title = "Quick controls",
-            description = "Pages, undo/redo, and canvas settings live up here.",
+            description = "Pages, tool guide, and stylus mode live up here.",
             highlight = TourHighlight.TOP_CONTROLS,
-            targetKeys = listOf("pages", "undo", "export"),
+            targetKeys = listOf("pages", "guide", "stylus"),
             labels = mapOf(
                 "pages" to "Pages",
-                "undo" to "Undo",
-                "export" to "Export",
+                "guide" to "Guide",
+                "stylus" to "Stylus",
             ),
         ),
         TourStep(

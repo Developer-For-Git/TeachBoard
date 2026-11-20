@@ -166,6 +166,7 @@
     <string name="recorder_no_limit">No time limit.</string>
     <string name="recorder_notification_text">Recording whiteboard screen…</string>
     <string name="recorder_saved">Recording saved to Movies/TeachBoard</string>
+    <string name="recording_saved_title">Recording saved</string>
     <string name="recorder_mic_permission_needed">Microphone permission is needed to record voice</string>
 
     <!-- Phase 2: Customize Shortcuts -->

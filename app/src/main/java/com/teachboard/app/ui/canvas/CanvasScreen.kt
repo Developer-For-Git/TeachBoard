@@ -8,7 +8,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.RectF
-import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Build
 import androidx.core.view.WindowCompat
@@ -128,6 +127,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -173,6 +174,9 @@ import com.teachboard.app.domain.ocr.OcrScript
 import com.teachboard.app.domain.stickers.StickerGroup
 import com.teachboard.app.ui.theme.AppConfig
 import com.teachboard.app.ui.theme.TeachColors
+import android.graphics.Paint
+import androidx.compose.ui.graphics.toArgb
+import com.teachboard.app.util.BoardFrameSource
 import com.teachboard.app.util.RecorderController
 import com.teachboard.app.util.ScreenRecorderService
 import kotlinx.coroutines.launch
@@ -267,6 +271,9 @@ fun CanvasScreen(
   var pendingRecAudio by remember { mutableStateOf(true) }
   var pendingRecFaceCam by remember { mutableStateOf(false) }
   var pendingRecCamShape by remember { mutableStateOf(FaceCamShape.ROUND) }
+  var recordCountdown by remember { mutableIntStateOf(0) }
+  var savedVideoUri by remember { mutableStateOf<Uri?>(null) }
+  var savedVideoSize by remember { mutableLongStateOf(0L) }
 
   // True full-screen immersive canvas (hides system bars while drawing, restores cleanly on exit!)
   DisposableEffect(context) {
@@ -325,8 +332,80 @@ fun CanvasScreen(
     RecorderController.clearError()
   }
   LaunchedEffect(recordingState.lastSavedUri) {
-    if (recordingState.lastSavedUri != null && !recordingState.isRecording) {
-      viewModel.showMessage("Recording saved to Movies/${AppConfig.ALBUM_NAME}")
+    val uri = recordingState.lastSavedUri
+    if (uri != null && !recordingState.isRecording) {
+      savedVideoUri = uri
+      savedVideoSize = recordingState.lastSavedSizeBytes
+      RecorderController.clearLastSaved()
+    }
+  }
+
+  LaunchedEffect(recordCountdown) {
+    if (recordCountdown > 0) {
+      delay(1000L)
+      if (recordCountdown == 1) {
+        recordCountdown = 0
+        val intent = Intent(context, ScreenRecorderService::class.java).apply {
+          action = ScreenRecorderService.ACTION_START
+          putExtra(ScreenRecorderService.EXTRA_RECORD_AUDIO, pendingRecAudio)
+          putExtra(ScreenRecorderService.EXTRA_QUALITY, pendingRecQuality.name)
+          putExtra(ScreenRecorderService.EXTRA_SESSION_ID, ui.session?.id)
+        }
+        ContextCompat.startForegroundService(context, intent)
+        if (pendingRecFaceCam) viewModel.setFaceCam(true, pendingRecCamShape)
+      } else {
+        recordCountdown -= 1
+      }
+    }
+  }
+
+  DisposableEffect(canvasViewRef) {
+    RecorderController.frameSource = BoardFrameSource { canvas, frameW, frameH ->
+      val board = canvasViewRef ?: return@BoardFrameSource
+      val boardW = board.width.toFloat()
+      val boardH = board.height.toFloat()
+      if (boardW <= 0f || boardH <= 0f) return@BoardFrameSource
+
+      val scale = minOf(frameW.toFloat() / boardW, frameH.toFloat() / boardH)
+      val drawW = boardW * scale
+      val drawH = boardH * scale
+      val dx = (frameW - drawW) / 2f
+      val dy = (frameH - drawH) / 2f
+
+      canvas.save()
+      canvas.clipRect(dx, dy, dx + drawW, dy + drawH)
+      canvas.translate(dx, dy)
+      canvas.scale(scale, scale)
+      board.drawCleanBoard(canvas)
+      canvas.restore()
+
+      RecorderController.faceCamBitmapSupplier?.invoke()?.let { camBmp ->
+        if (!camBmp.isRecycled) {
+          val camSize = 160f * (frameW / 1080f).coerceIn(0.6f, 1.8f)
+          val camX = dx + 40f * scale
+          val camY = dy + 100f * scale
+          val camRect = RectF(camX, camY, camX + camSize, camY + camSize)
+          val clipPath = android.graphics.Path().apply {
+            if (ui.faceCamShape == FaceCamShape.ROUND) addOval(camRect, android.graphics.Path.Direction.CW)
+            else addRoundRect(camRect, 20f, 20f, android.graphics.Path.Direction.CW)
+          }
+          canvas.save()
+          canvas.clipPath(clipPath)
+          canvas.drawBitmap(camBmp, null, camRect, null)
+          canvas.restore()
+          val borderPaint = Paint().apply {
+            color = Color.White.toArgb()
+            style = Paint.Style.STROKE
+            strokeWidth = 3f
+            isAntiAlias = true
+          }
+          if (ui.faceCamShape == FaceCamShape.ROUND) canvas.drawOval(camRect, borderPaint)
+          else canvas.drawRoundRect(camRect, 20f, 20f, borderPaint)
+        }
+      }
+    }
+    onDispose {
+      RecorderController.frameSource = null
     }
   }
 
@@ -376,23 +455,19 @@ fun CanvasScreen(
       ocrCropLauncher.launch(CropImageContractOptions(null, opts))
     } else viewModel.showMessage("Camera permission denied")
   }
-  val projectionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
-    val data = res.data
-    if (res.resultCode == Activity.RESULT_OK && data != null) {
-      val intent = Intent(context, ScreenRecorderService::class.java).apply {
-        action = ScreenRecorderService.ACTION_START
-        putExtra(ScreenRecorderService.EXTRA_RESULT_CODE, res.resultCode)
-        putExtra(ScreenRecorderService.EXTRA_RESULT_DATA, data)
-        putExtra(ScreenRecorderService.EXTRA_RECORD_AUDIO, pendingRecAudio)
-        putExtra(ScreenRecorderService.EXTRA_QUALITY, pendingRecQuality.name)
-      }
-      ContextCompat.startForegroundService(context, intent)
-      if (pendingRecFaceCam) viewModel.setFaceCam(true, pendingRecCamShape)
-    }
+  fun startRecordingWithCountdown() {
+    recordCountdown = 3
   }
-  val recordPermissionsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-    val mpm = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-    projectionLauncher.launch(mpm.createScreenCaptureIntent())
+  val recordPermissionsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { perms ->
+    val audioOk = !pendingRecAudio || perms[Manifest.permission.RECORD_AUDIO] == true ||
+      ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+    val camOk = !pendingRecFaceCam || perms[Manifest.permission.CAMERA] == true ||
+      ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+    if (audioOk && camOk) {
+      startRecordingWithCountdown()
+    } else {
+      viewModel.showMessage("Permissions needed to record")
+    }
   }
 
   fun launchCameraToBoard() {
@@ -1401,11 +1476,7 @@ fun CanvasScreen(
                   colorDot = dotColor,
                   smartShapesMode = ui.smartShapesEnabled,
                   labelOverride = penLabelOverride,
-                  modifier = when (action) {
-                    ToolbarAction.UNDO -> Modifier.tourAnchor("undo")
-                    ToolbarAction.SAVE, ToolbarAction.SHARE -> Modifier.tourAnchor("export")
-                    else -> Modifier
-                  },
+                  modifier = Modifier,
                   onClick = { handleToolbarAction(action) }
                 )
               }
@@ -1639,16 +1710,20 @@ fun CanvasScreen(
     )
     ActiveDialog.RECORD -> ScreenRecorderDialog(
       onStartRecording = { q, audio, faceCam, shape ->
-        pendingRecQuality = q; pendingRecAudio = audio; pendingRecFaceCam = faceCam; pendingRecCamShape = shape
+        pendingRecQuality = q
+        pendingRecAudio = audio
+        pendingRecFaceCam = faceCam
+        pendingRecCamShape = shape
+        activeDialog = ActiveDialog.NONE
         val needed = mutableListOf<String>()
         if (audio) needed.add(Manifest.permission.RECORD_AUDIO)
         if (faceCam) needed.add(Manifest.permission.CAMERA)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) needed.add(Manifest.permission.POST_NOTIFICATIONS)
         val missing = needed.filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
-        if (missing.isNotEmpty()) recordPermissionsLauncher.launch(missing.toTypedArray())
-        else {
-          val mpm = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-          projectionLauncher.launch(mpm.createScreenCaptureIntent())
+        if (missing.isNotEmpty()) {
+          recordPermissionsLauncher.launch(missing.toTypedArray())
+        } else {
+          startRecordingWithCountdown()
         }
       },
       onDismiss = { activeDialog = ActiveDialog.NONE }
@@ -1715,6 +1790,57 @@ fun CanvasScreen(
         showHoldGuide = false
         viewModel.dismissHint("hold_to_move")
       })
+    }
+
+    savedVideoUri?.let { uri ->
+      RecordingSavedDialog(
+        uri = uri,
+        sizeBytes = savedVideoSize,
+        onPlay = {
+          try {
+            val playIntent = Intent(Intent.ACTION_VIEW).apply {
+              setDataAndType(uri, "video/mp4")
+              addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(playIntent)
+          } catch (e: Exception) {
+            viewModel.showMessage("No video player found. Open it from your gallery.")
+          }
+        },
+        onShare = {
+          try {
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+              type = "video/mp4"
+              putExtra(Intent.EXTRA_STREAM, uri)
+              addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(shareIntent, "Share recording"))
+          } catch (e: Exception) {
+            viewModel.showMessage("Could not share video")
+          }
+        },
+        onDelete = {
+          try {
+            val deleted = context.contentResolver.delete(uri, null, null)
+            if (deleted > 0) {
+              viewModel.showMessage("Video deleted")
+            } else {
+              viewModel.showMessage("Could not delete the video")
+            }
+          } catch (e: Exception) {
+            viewModel.showMessage("Could not delete the video")
+          }
+          savedVideoUri = null
+        },
+        onDismiss = { savedVideoUri = null }
+      )
+    }
+
+    if (recordCountdown > 0) {
+      CountdownOverlay(
+        count = recordCountdown,
+        onCancel = { recordCountdown = 0 }
+      )
     }
   }
 }

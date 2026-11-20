@@ -572,8 +572,7 @@ class TeachCanvasView(context: Context) : View(context) {
     paintedBgDark = isDark
   }
 
-  override fun onDraw(canvas: Canvas) {
-    super.onDraw(canvas)
+  fun drawCleanBoard(canvas: Canvas) {
     val w = width.toFloat(); val h = height.toFloat()
     if (w <= 0f || h <= 0f) return
 
@@ -608,22 +607,23 @@ class TeachCanvasView(context: Context) : View(context) {
     val isDark = TeachColors.isDarkColor(bgColor)
 
     // Smart Writing buffered strokes
-    if (smartInkPreviewStrokes.isNotEmpty()) {
-      for (s in smartInkPreviewStrokes) {
-        ObjectPainter.drawStrokePoints(canvas, ToolType.Pen, s, brushColor, strokeWidth, 0.85f, isDark)
-      }
+    val currentSmartInk = smartInkPreviewStrokes.toList()
+    for (s in currentSmartInk) {
+      ObjectPainter.drawStrokePoints(canvas, ToolType.Pen, s, brushColor, strokeWidth, 0.85f, isDark)
     }
 
     // Live selected objects render here (zero double-ghost during drag/resize/stretch/rotate!)
-    if (selectedUids.isNotEmpty()) {
+    val currentSelUids = selectedUids.toSet()
+    if (currentSelUids.isNotEmpty()) {
       val visibleLayerIds = layers.filter { it.visible }.map { it.id }.toSet()
       canvas.save()
       if (draggingSelection) canvas.translate(liveDragDx, liveDragDy)
       if (scalingSelection) canvas.scale(liveScaleFactor, liveScaleFactor, transformAnchorX, transformAnchorY)
       if (scalingWidthOnly || scalingHeightOnly) canvas.scale(liveScaleX, liveScaleY, transformAnchorX, transformAnchorY)
       if (rotatingSelection) canvas.rotate(liveRotateDeg, transformAnchorX, transformAnchorY)
-      for (obj in objects) {
-        if (obj.objectUid in selectedUids && (visibleLayerIds.isEmpty() || obj.layerId in visibleLayerIds)) {
+      val currentObjects = objects.toList()
+      for (obj in currentObjects) {
+        if (obj.objectUid in currentSelUids && (visibleLayerIds.isEmpty() || obj.layerId in visibleLayerIds)) {
           ObjectPainter.drawObject(canvas, obj, isDark, ::resolveImage)
         }
       }
@@ -631,19 +631,22 @@ class TeachCanvasView(context: Context) : View(context) {
     }
 
     // Live stroke / eraser / shape
+    val pts = livePoints.toList()
+    val sp = liveStartPoint
+    val ep = liveEndPoint
     if (liveIsPixelEraser) {
-      ObjectPainter.drawEraserStroke(canvas, livePoints, eraserSize * 4f)
-    } else if (livePoints.isNotEmpty() && (activeTool.isBrush || activeTool == ToolType.SmartWriting)) {
+      ObjectPainter.drawEraserStroke(canvas, pts, eraserSize * 4f)
+    } else if (pts.isNotEmpty() && (activeTool.isBrush || activeTool == ToolType.SmartWriting)) {
       val drawTool = if (activeTool == ToolType.SmartWriting) ToolType.Pen else activeTool
-      ObjectPainter.drawStrokePoints(canvas, drawTool, livePoints, brushColor, strokeWidth, alpha, isDark)
-    } else if (activeTool.isShape && liveStartPoint != null && liveEndPoint != null) {
+      ObjectPainter.drawStrokePoints(canvas, drawTool, pts, brushColor, strokeWidth, alpha, isDark)
+    } else if (activeTool.isShape && sp != null && ep != null) {
       ShapeRenderer.drawShape(
         canvas = canvas,
         type = activeTool,
-        left = liveStartPoint!!.x,
-        top = liveStartPoint!!.y,
-        right = liveEndPoint!!.x,
-        bottom = liveEndPoint!!.y,
+        left = sp.x,
+        top = sp.y,
+        right = ep.x,
+        bottom = ep.y,
         color = brushColor,
         strokeWidth = strokeWidth,
         isFilled = isFilled,
@@ -654,6 +657,14 @@ class TeachCanvasView(context: Context) : View(context) {
 
     canvas.restore()
     if (saveLayerCount >= 0) canvas.restoreToCount(saveLayerCount)
+  }
+
+  override fun onDraw(canvas: Canvas) {
+    super.onDraw(canvas)
+    drawCleanBoard(canvas)
+
+    val w = width.toFloat(); val h = height.toFloat()
+    if (w <= 0f || h <= 0f) return
 
     // 3. UI Overlays: Lasso marquee, Selection Box + 4 Corner Handles + Rotate Handle, Eraser Cursor, Laser Trail
     canvas.save()

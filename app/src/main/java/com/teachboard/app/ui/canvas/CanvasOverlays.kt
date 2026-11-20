@@ -121,6 +121,7 @@ import com.teachboard.app.domain.model.PdfViewMode
 import com.teachboard.app.domain.model.StrokePoint
 import com.teachboard.app.ui.theme.TeachColors
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -2017,6 +2018,25 @@ fun FaceCamBubble(shape: FaceCamShape, onClose: () -> Unit) {
   var offsetY by remember { mutableFloatStateOf(440f) }
   val clipShape = if (shape == FaceCamShape.ROUND) CircleShape else RoundedCornerShape(16.dp)
 
+  var previewRef by remember { mutableStateOf<androidx.camera.view.PreviewView?>(null) }
+  var cachedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+
+  androidx.compose.runtime.DisposableEffect(Unit) {
+    com.teachboard.app.util.RecorderController.faceCamBitmapSupplier = { cachedBitmap }
+    onDispose {
+      com.teachboard.app.util.RecorderController.faceCamBitmapSupplier = null
+    }
+  }
+
+  androidx.compose.runtime.LaunchedEffect(previewRef) {
+    val pv = previewRef ?: return@LaunchedEffect
+    while (isActive) {
+      delay(66L)
+      val bmp = runCatching { pv.bitmap }.getOrNull()
+      if (bmp != null) cachedBitmap = bmp
+    }
+  }
+
   Box(
     modifier = Modifier
       .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
@@ -2032,6 +2052,7 @@ fun FaceCamBubble(shape: FaceCamShape, onClose: () -> Unit) {
       factory = { ctx ->
         PreviewView(ctx).apply {
           scaleType = PreviewView.ScaleType.FILL_CENTER
+          previewRef = this
           val future = ProcessCameraProvider.getInstance(ctx)
           future.addListener({
             runCatching {
@@ -2062,15 +2083,43 @@ fun RecordingFloatingPill(
   onTogglePause: () -> Unit,
   onStop: () -> Unit
 ) {
-  Surface(shape = RoundedCornerShape(24.dp), color = TeachColors.DarkPillBg, shadowElevation = 6.dp) {
-    Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-      Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(if (isPaused) TeachColors.AccentOrange else TeachColors.RecordRed))
-      Text(String.format("%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+  Surface(
+    shape = RoundedCornerShape(24.dp),
+    color = Color(0xCC0B1220),
+    shadowElevation = 6.dp
+  ) {
+    Row(
+      modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+      Box(
+        modifier = Modifier
+          .size(10.dp)
+          .clip(CircleShape)
+          .background(if (isPaused) Color(0xFFF59E0B) else Color(0xFFE11D48))
+      )
+      Text(
+        String.format(java.util.Locale.US, "%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60),
+        color = Color(0xFFFBBF24),
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp
+      )
       IconButton(onClick = onTogglePause, modifier = Modifier.size(28.dp)) {
-        Icon(if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause, contentDescription = "Pause/Resume", tint = Color.White, modifier = Modifier.size(18.dp))
+        Icon(
+          if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+          contentDescription = "Pause/Resume",
+          tint = Color.White,
+          modifier = Modifier.size(18.dp)
+        )
       }
       IconButton(onClick = onStop, modifier = Modifier.size(28.dp)) {
-        Icon(Icons.Default.Stop, contentDescription = "Stop", tint = TeachColors.RecordRed, modifier = Modifier.size(18.dp))
+        Icon(
+          Icons.Default.Stop,
+          contentDescription = "Stop",
+          tint = Color(0xFFE11D48),
+          modifier = Modifier.size(20.dp)
+        )
       }
     }
   }
@@ -2686,6 +2735,36 @@ private fun PdfContinuousPageItem(
             Text("Page ${pageIndex + 1}", fontSize = 12.sp, color = Color(0xFF94A3B8))
           }
         }
+      }
+    }
+  }
+}
+
+@Composable
+fun CountdownOverlay(
+  count: Int,
+  onCancel: () -> Unit
+) {
+  Box(
+    modifier = Modifier
+      .fillMaxSize()
+      .background(Color(0x66000000))
+      .clickable { onCancel() },
+    contentAlignment = Alignment.Center
+  ) {
+    Surface(
+      shape = CircleShape,
+      color = Color(0xE6E11D48),
+      shadowElevation = 12.dp,
+      modifier = Modifier.size(130.dp)
+    ) {
+      Box(contentAlignment = Alignment.Center) {
+        Text(
+          text = count.toString(),
+          fontSize = 68.sp,
+          fontWeight = FontWeight.Black,
+          color = Color.White
+        )
       }
     }
   }

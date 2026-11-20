@@ -29,9 +29,6 @@ android {
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      ndk {
-        abiFilters += listOf("arm64-v8a", "armeabi-v7a")
-      }
     }
   }
 
@@ -62,17 +59,7 @@ android {
 
   packaging {
     resources {
-      excludes += listOf(
-        "/META-INF/{AL2.0,LGPL2.1}",
-        "/META-INF/*.version",
-        "/META-INF/*.kotlin_module",
-        "/META-INF/DEPENDENCIES",
-        "/META-INF/LICENSE*",
-        "/META-INF/NOTICE*",
-        "/META-INF/INDEX.LIST",
-        "/META-INF/DebugProbesKt.bin",
-        "/META-INF/androidx/**/LICENSE.txt"
-      )
+      excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
   }
 }

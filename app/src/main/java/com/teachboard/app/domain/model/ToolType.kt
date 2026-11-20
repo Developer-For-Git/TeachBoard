@@ -166,9 +166,9 @@ enum class RecordingQuality(
   val fps: Int,
   val mbPerMinEstimate: String
 ) {
-  P480("480p", 480, 2_000_000, 30, "1.9 MB/min"),
-  P720("720p", 720, 4_500_000, 30, "3.6 MB/min"),
-  P1080("1080p", 1080, 8_000_000, 30, "5.6 MB/min")
+  P480("480p", 480, 1_980_000, 24, "1.2 MB/min"),
+  P720("720p", 720, 4_420_000, 24, "2.7 MB/min"),
+  P1080("1080p", 1080, 7_460_000, 30, "4.5 MB/min")
 }
 
 enum class FaceCamShape {

@@ -105,26 +105,40 @@ object StickerCatalog {
     add(StickerSpec("sci_cylinder", "Cylinder", "Lab", StickerGroup.SCIENCE))
     add(StickerSpec("sci_dropper", "Pipette", "Lab", StickerGroup.SCIENCE))
 
-    // Biology (6)
+    // Biology & Anatomy (11)
     add(StickerSpec("sci_dna", "DNA", "Biology", StickerGroup.SCIENCE))
-    add(StickerSpec("sci_cell", "Cell", "Biology", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_cell", "Animal Cell", "Biology", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_plant_cell", "Plant Cell", "Biology", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_mitochondria", "Mitochondria", "Biology", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_chromosome", "Chromosome", "Biology", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_bacteria", "Bacteria", "Biology", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_lungs", "Lungs", "Biology", StickerGroup.SCIENCE))
     add(StickerSpec("sci_leaf", "Leaf", "Biology", StickerGroup.SCIENCE))
     add(StickerSpec("sci_heart", "Heart", "Biology", StickerGroup.SCIENCE))
     add(StickerSpec("sci_brain", "Brain", "Biology", StickerGroup.SCIENCE))
     add(StickerSpec("sci_neuron", "Neuron", "Biology", StickerGroup.SCIENCE))
 
-    // Chemistry Molecules (4)
+    // Chemistry & Molecules (8)
     add(StickerSpec("sci_benzene", "Benzene", "Chemistry", StickerGroup.SCIENCE))
-    add(StickerSpec("sci_h2o", "H₂O", "Chemistry", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_glucose", "Glucose Ring", "Chemistry", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_h2o", "H₂O Water", "Chemistry", StickerGroup.SCIENCE))
     add(StickerSpec("sci_co2", "CO₂", "Chemistry", StickerGroup.SCIENCE))
-    add(StickerSpec("sci_ch4", "CH₄", "Chemistry", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_ch4", "CH₄ Methane", "Chemistry", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_nacl", "NaCl Crystal", "Chemistry", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_ph_scale", "pH Scale", "Chemistry", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_condenser", "Condenser", "Chemistry", StickerGroup.SCIENCE))
 
-    // Physics (6)
-    add(StickerSpec("sci_magnet", "Magnet", "Physics", StickerGroup.SCIENCE))
+    // Physics & Optics (11)
+    add(StickerSpec("sci_magnet", "Bar Magnet", "Physics", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_magnetic_field", "Magnetic Field", "Physics", StickerGroup.SCIENCE))
     add(StickerSpec("sci_lens", "Convex Lens", "Physics", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_concave_mirror", "Curved Mirror", "Physics", StickerGroup.SCIENCE))
     add(StickerSpec("sci_circuit", "Circuit", "Physics", StickerGroup.SCIENCE))
-    add(StickerSpec("sci_prism", "Prism", "Physics", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_battery", "Battery Cell", "Physics", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_prism", "Prism Spectrum", "Physics", StickerGroup.SCIENCE))
     add(StickerSpec("sci_spring", "Spring", "Physics", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_pendulum", "Pendulum", "Physics", StickerGroup.SCIENCE))
+    add(StickerSpec("sci_pulley", "Pulley", "Physics", StickerGroup.SCIENCE))
     add(StickerSpec("sci_wave", "Sine Wave", "Physics", StickerGroup.SCIENCE))
 
     // Bohr Atoms (30)
@@ -557,6 +571,157 @@ object StickerCatalog {
           lineTo(s * 0.78f, s * 0.50f); lineTo(s * 0.88f, s * 0.50f)
         }
         canvas.drawPath(p, strokePaint)
+      }
+      "sci_plant_cell" -> {
+        val r = RectF(s * 0.16f, s * 0.18f, s * 0.84f, s * 0.82f)
+        canvas.drawRoundRect(r, s * 0.08f, s * 0.08f, fillPaint)
+        canvas.drawRoundRect(r, s * 0.08f, s * 0.08f, strokePaint)
+        val inner = RectF(s * 0.22f, s * 0.24f, s * 0.78f, s * 0.76f)
+        canvas.drawRoundRect(inner, s * 0.05f, s * 0.05f, strokePaint)
+        canvas.drawOval(RectF(s * 0.32f, s * 0.34f, s * 0.68f, s * 0.66f), fillPaint)
+        canvas.drawOval(RectF(s * 0.32f, s * 0.34f, s * 0.68f, s * 0.66f), strokePaint)
+        dotPaint.color = strokePaint.color; dotPaint.alpha = 255
+        canvas.drawCircle(s * 0.68f, s * 0.38f, s * 0.06f, dotPaint)
+      }
+      "sci_mitochondria" -> {
+        val r = RectF(s * 0.14f, s * 0.26f, s * 0.86f, s * 0.74f)
+        canvas.drawOval(r, fillPaint); canvas.drawOval(r, strokePaint)
+        val wave = Path().apply {
+          moveTo(s * 0.26f, s * 0.50f)
+          lineTo(s * 0.32f, s * 0.34f); lineTo(s * 0.38f, s * 0.66f)
+          lineTo(s * 0.44f, s * 0.34f); lineTo(s * 0.50f, s * 0.66f)
+          lineTo(s * 0.56f, s * 0.34f); lineTo(s * 0.62f, s * 0.66f)
+          lineTo(s * 0.68f, s * 0.34f); lineTo(s * 0.74f, s * 0.50f)
+        }
+        canvas.drawPath(wave, strokePaint)
+      }
+      "sci_chromosome" -> {
+        val p = Path().apply {
+          moveTo(s * 0.24f, s * 0.16f); lineTo(s * 0.44f, s * 0.46f); lineTo(s * 0.24f, s * 0.84f)
+          moveTo(s * 0.76f, s * 0.16f); lineTo(s * 0.56f, s * 0.46f); lineTo(s * 0.76f, s * 0.84f)
+          moveTo(s * 0.34f, s * 0.16f); lineTo(s * 0.48f, s * 0.46f); lineTo(s * 0.34f, s * 0.84f)
+          moveTo(s * 0.66f, s * 0.16f); lineTo(s * 0.52f, s * 0.46f); lineTo(s * 0.66f, s * 0.84f)
+        }
+        canvas.drawPath(p, strokePaint)
+        canvas.drawCircle(s * 0.50f, s * 0.50f, s * 0.08f, fillPaint)
+        canvas.drawCircle(s * 0.50f, s * 0.50f, s * 0.08f, strokePaint)
+      }
+      "sci_bacteria" -> {
+        val r = RectF(s * 0.22f, s * 0.34f, s * 0.68f, s * 0.66f)
+        canvas.drawRoundRect(r, s * 0.16f, s * 0.16f, fillPaint)
+        canvas.drawRoundRect(r, s * 0.16f, s * 0.16f, strokePaint)
+        val tail = Path().apply {
+          moveTo(s * 0.22f, s * 0.50f)
+          quadTo(s * 0.14f, s * 0.40f, s * 0.10f, s * 0.55f)
+          quadTo(s * 0.06f, s * 0.70f, s * 0.02f, s * 0.60f)
+        }
+        canvas.drawPath(tail, strokePaint)
+      }
+      "sci_lungs" -> {
+        canvas.drawLine(s * 0.50f, s * 0.14f, s * 0.50f, s * 0.38f, strokePaint)
+        canvas.drawLine(s * 0.50f, s * 0.38f, s * 0.34f, s * 0.50f, strokePaint)
+        canvas.drawLine(s * 0.50f, s * 0.38f, s * 0.66f, s * 0.50f, strokePaint)
+        val left = Path().apply {
+          moveTo(s * 0.46f, s * 0.42f)
+          cubicTo(s * 0.18f, s * 0.44f, s * 0.14f, s * 0.84f, s * 0.44f, s * 0.86f); close()
+        }
+        val right = Path().apply {
+          moveTo(s * 0.54f, s * 0.42f)
+          cubicTo(s * 0.82f, s * 0.44f, s * 0.86f, s * 0.84f, s * 0.56f, s * 0.86f); close()
+        }
+        canvas.drawPath(left, fillPaint); canvas.drawPath(left, strokePaint)
+        canvas.drawPath(right, fillPaint); canvas.drawPath(right, strokePaint)
+      }
+      "sci_glucose" -> {
+        val p = Path()
+        for (i in 0 until 6) {
+          val a = PI * i / 3.0
+          val x = s * 0.50f + (s * 0.28f * cos(a)).toFloat()
+          val y = s * 0.50f + (s * 0.28f * sin(a)).toFloat()
+          if (i == 0) p.moveTo(x, y) else p.lineTo(x, y)
+          canvas.drawLine(x, y, x + (s * 0.08f * cos(a)).toFloat(), y + (s * 0.08f * sin(a)).toFloat(), strokePaint)
+        }
+        p.close(); canvas.drawPath(p, strokePaint)
+        textPaint.textSize = s * 0.12f
+        canvas.drawText("OH", s * 0.50f, s * 0.54f, textPaint)
+      }
+      "sci_nacl" -> {
+        val r1 = RectF(s * 0.20f, s * 0.32f, s * 0.64f, s * 0.76f)
+        canvas.drawRect(r1, strokePaint)
+        val r2 = RectF(s * 0.36f, s * 0.18f, s * 0.80f, s * 0.62f)
+        canvas.drawRect(r2, strokePaint)
+        canvas.drawLine(s * 0.20f, s * 0.32f, s * 0.36f, s * 0.18f, strokePaint)
+        canvas.drawLine(s * 0.64f, s * 0.32f, s * 0.80f, s * 0.18f, strokePaint)
+        canvas.drawLine(s * 0.20f, s * 0.76f, s * 0.36f, s * 0.62f, strokePaint)
+        canvas.drawLine(s * 0.64f, s * 0.76f, s * 0.80f, s * 0.62f, strokePaint)
+        dotPaint.color = 0xFF3B82F6.toInt()
+        canvas.drawCircle(s * 0.20f, s * 0.32f, s * 0.04f, dotPaint)
+        canvas.drawCircle(s * 0.80f, s * 0.62f, s * 0.04f, dotPaint)
+        dotPaint.color = 0xFFEF4444.toInt()
+        canvas.drawCircle(s * 0.64f, s * 0.32f, s * 0.04f, dotPaint)
+        canvas.drawCircle(s * 0.36f, s * 0.18f, s * 0.04f, dotPaint)
+      }
+      "sci_ph_scale" -> {
+        val r = RectF(s * 0.14f, s * 0.36f, s * 0.86f, s * 0.64f)
+        canvas.drawRoundRect(r, s * 0.08f, s * 0.08f, fillPaint)
+        canvas.drawRoundRect(r, s * 0.08f, s * 0.08f, strokePaint)
+        for (i in 1..4) canvas.drawLine(s * (0.14f + i * 0.14f), s * 0.36f, s * (0.14f + i * 0.14f), s * 0.64f, strokePaint)
+        textPaint.textSize = s * 0.11f
+        canvas.drawText("pH 0", s * 0.24f, s * 0.54f, textPaint)
+        canvas.drawText("7", s * 0.50f, s * 0.54f, textPaint)
+        canvas.drawText("14", s * 0.76f, s * 0.54f, textPaint)
+      }
+      "sci_condenser" -> {
+        canvas.drawLine(s * 0.12f, s * 0.50f, s * 0.88f, s * 0.50f, strokePaint)
+        val jacket = RectF(s * 0.26f, s * 0.36f, s * 0.74f, s * 0.64f)
+        canvas.drawRoundRect(jacket, s * 0.04f, s * 0.04f, fillPaint)
+        canvas.drawRoundRect(jacket, s * 0.04f, s * 0.04f, strokePaint)
+        canvas.drawLine(s * 0.34f, s * 0.36f, s * 0.34f, s * 0.24f, strokePaint)
+        canvas.drawLine(s * 0.66f, s * 0.64f, s * 0.66f, s * 0.76f, strokePaint)
+      }
+      "sci_pendulum" -> {
+        canvas.drawLine(s * 0.30f, s * 0.16f, s * 0.70f, s * 0.16f, strokePaint)
+        canvas.drawLine(s * 0.50f, s * 0.16f, s * 0.66f, s * 0.66f, strokePaint)
+        canvas.drawCircle(s * 0.66f, s * 0.70f, s * 0.09f, fillPaint)
+        canvas.drawCircle(s * 0.66f, s * 0.70f, s * 0.09f, strokePaint)
+        canvas.drawArc(RectF(s * 0.24f, s * 0.44f, s * 0.76f, s * 0.84f), 50f, 80f, false, strokePaint)
+      }
+      "sci_pulley" -> {
+        canvas.drawLine(s * 0.30f, s * 0.14f, s * 0.70f, s * 0.14f, strokePaint)
+        canvas.drawLine(s * 0.50f, s * 0.14f, s * 0.50f, s * 0.32f, strokePaint)
+        canvas.drawCircle(s * 0.50f, s * 0.32f, s * 0.14f, fillPaint)
+        canvas.drawCircle(s * 0.50f, s * 0.32f, s * 0.14f, strokePaint)
+        canvas.drawLine(s * 0.36f, s * 0.32f, s * 0.36f, s * 0.74f, strokePaint)
+        canvas.drawLine(s * 0.64f, s * 0.32f, s * 0.64f, s * 0.56f, strokePaint)
+        canvas.drawRect(RectF(s * 0.28f, s * 0.74f, s * 0.44f, s * 0.88f), fillPaint)
+        canvas.drawRect(RectF(s * 0.28f, s * 0.74f, s * 0.44f, s * 0.88f), strokePaint)
+      }
+      "sci_battery" -> {
+        val r = RectF(s * 0.26f, s * 0.26f, s * 0.74f, s * 0.78f)
+        canvas.drawRoundRect(r, s * 0.06f, s * 0.06f, fillPaint)
+        canvas.drawRoundRect(r, s * 0.06f, s * 0.06f, strokePaint)
+        canvas.drawRect(RectF(s * 0.42f, s * 0.18f, s * 0.58f, s * 0.26f), strokePaint)
+        textPaint.textSize = s * 0.18f
+        canvas.drawText("+", s * 0.50f, s * 0.44f, textPaint)
+        canvas.drawText("-", s * 0.50f, s * 0.70f, textPaint)
+      }
+      "sci_magnetic_field" -> {
+        val r = RectF(s * 0.34f, s * 0.32f, s * 0.66f, s * 0.68f)
+        canvas.drawRect(r, fillPaint); canvas.drawRect(r, strokePaint)
+        canvas.drawLine(s * 0.50f, s * 0.32f, s * 0.50f, s * 0.68f, strokePaint)
+        textPaint.textSize = s * 0.14f
+        canvas.drawText("N", s * 0.42f, s * 0.55f, textPaint)
+        canvas.drawText("S", s * 0.58f, s * 0.55f, textPaint)
+        canvas.drawArc(RectF(s * 0.18f, s * 0.16f, s * 0.82f, s * 0.84f), 180f, 180f, false, strokePaint)
+        canvas.drawArc(RectF(s * 0.18f, s * 0.16f, s * 0.82f, s * 0.84f), 0f, 180f, false, strokePaint)
+      }
+      "sci_concave_mirror" -> {
+        canvas.drawLine(s * 0.10f, s * 0.50f, s * 0.90f, s * 0.50f, strokePaint)
+        canvas.drawArc(RectF(s * 0.60f, s * 0.20f, s * 0.90f, s * 0.80f), 100f, 160f, false, strokePaint)
+        dotPaint.color = strokePaint.color; dotPaint.alpha = 255
+        canvas.drawCircle(s * 0.48f, s * 0.50f, s * 0.035f, dotPaint)
+        textPaint.textSize = s * 0.11f
+        canvas.drawText("F", s * 0.48f, s * 0.62f, textPaint)
       }
       else -> {
         val p = Path()

@@ -17,6 +17,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -34,6 +36,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
@@ -75,6 +78,7 @@ import androidx.compose.material.icons.filled.FormatAlignCenter
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatColorFill
 import androidx.compose.material.icons.filled.FormatItalic
+import androidx.compose.material.icons.filled.Gesture
 import androidx.compose.material.icons.filled.Functions
 import androidx.compose.material.icons.filled.Highlight
 import androidx.compose.material.icons.filled.History
@@ -181,6 +185,8 @@ import com.teachboard.app.domain.search.WikimediaImage
 import com.teachboard.app.domain.search.WikimediaSearch
 import com.teachboard.app.domain.stickers.StickerCatalog
 import com.teachboard.app.domain.stickers.StickerGroup
+import com.teachboard.app.domain.stickers.StickerSpec
+import com.teachboard.app.ui.home.WavyAccentDivider
 import com.teachboard.app.ui.theme.AppConfig
 import com.teachboard.app.ui.theme.TeachColors
 import kotlinx.coroutines.launch
@@ -189,15 +195,15 @@ import kotlin.math.sin
 // ===== Unified Soft-Pastel Modal Chrome (Dark-Mode Safe & Landscape Responsive!) =====
 
 private val LightModalColorScheme = lightColorScheme(
-  primary = Color(0xFF2563EB),
+  primary = TeachColors.Primary,
   onPrimary = Color.White,
   surface = Color.White,
-  onSurface = Color(0xFF111827),
+  onSurface = TeachColors.OnSurface,
   surfaceVariant = Color(0xFFF1F5F9),
-  onSurfaceVariant = Color(0xFF475569),
+  onSurfaceVariant = TeachColors.OnSurfaceMuted,
   background = Color.White,
-  onBackground = Color(0xFF111827),
-  outline = Color(0xFFCBD5E1)
+  onBackground = TeachColors.OnSurface,
+  outline = Color(0xFFECEFF8)
 )
 
 @Composable
@@ -212,8 +218,8 @@ fun PastelModalDialog(
 ) {
   val config = LocalConfiguration.current
   val isLandscape = config.screenWidthDp > config.screenHeightDp
-  val widthFrac = if (isLandscape) 0.62f else 0.92f
-  val maxH = if (isLandscape) (config.screenHeightDp - 24).coerceAtLeast(280).dp else 690.dp
+  val widthFrac = if (isLandscape) 0.88f else 0.94f
+  val maxH = if (isLandscape) (config.screenHeightDp - 14).coerceAtLeast(280).dp else 710.dp
 
   Dialog(
     onDismissRequest = onDismiss,
@@ -224,47 +230,74 @@ fun PastelModalDialog(
         modifier = Modifier
           .fillMaxWidth(widthFrac)
           .heightIn(max = maxH),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(26.dp),
         color = Color.White,
-        contentColor = Color(0xFF111827),
-        shadowElevation = 12.dp
+        border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+        contentColor = TeachColors.OnSurface,
+        shadowElevation = 8.dp
       ) {
         Column {
+          // Expressive Pastel Header Bar
           Row(
             modifier = Modifier
               .fillMaxWidth()
-              .background(Brush.verticalGradient(listOf(headerTint, headerTint.copy(alpha = 0.45f))))
-              .padding(horizontal = 16.dp, vertical = if (isLandscape) 10.dp else 13.dp),
+              .background(TeachColors.Background)
+              .padding(horizontal = 18.dp, vertical = if (isLandscape) 8.dp else 14.dp),
             verticalAlignment = Alignment.CenterVertically
           ) {
             Box(
               modifier = Modifier
-                .size(30.dp)
-                .clip(RoundedCornerShape(9.dp))
-                .background(badgeColor),
+                .size(if (isLandscape) 34.dp else 40.dp)
+                .clip(RoundedCornerShape(13.dp))
+                .background(badgeColor.copy(alpha = 0.15f)),
               contentAlignment = Alignment.Center
             ) {
-              Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+              Icon(icon, contentDescription = null, tint = badgeColor, modifier = Modifier.size(if (isLandscape) 18.dp else 22.dp))
             }
-            Spacer(Modifier.width(10.dp))
-            Text(
-              text = title,
-              fontSize = 17.sp,
-              fontWeight = FontWeight.Bold,
-              color = Color(0xFF111827),
-              modifier = Modifier.weight(1f)
-            )
-            IconButton(onClick = onDismiss, modifier = Modifier.size(30.dp)) {
-              Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = Color(0xFF64748B), modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = title,
+                fontSize = if (isLandscape) 15.sp else 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = TeachColors.OnSurface
+              )
+              Spacer(Modifier.height(2.dp))
+              WavyAccentDivider(
+                modifier = Modifier
+                  .width(if (isLandscape) 40.dp else 52.dp)
+                  .height(if (isLandscape) 4.dp else 6.dp),
+                color = badgeColor,
+                waveCount = 3
+              )
+            }
+            IconButton(
+              onClick = onDismiss,
+              modifier = Modifier
+                .size(if (isLandscape) 32.dp else 36.dp)
+                .clip(CircleShape)
+                .background(Color.White)
+                .border(1.dp, Color(0xFFECEFF8), CircleShape)
+            ) {
+              Icon(
+                Icons.Default.Close,
+                contentDescription = stringResource(R.string.close),
+                tint = TeachColors.OnSurfaceMuted,
+                modifier = Modifier.size(18.dp)
+              )
             }
           }
-          HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 0.8.dp)
+          HorizontalDivider(color = Color(0xFFF1F3F9), thickness = 1.dp)
           Box(modifier = Modifier.weight(1f, fill = false).padding(if (isLandscape) 12.dp else 16.dp)) {
             content()
           }
           if (footer != null) {
-            HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 0.8.dp)
-            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = if (isLandscape) 8.dp else 12.dp)) {
+            HorizontalDivider(color = Color(0xFFF1F3F9), thickness = 1.dp)
+            Box(
+              modifier = Modifier
+                .background(TeachColors.Background.copy(alpha = 0.6f))
+                .padding(horizontal = 16.dp, vertical = if (isLandscape) 8.dp else 12.dp)
+            ) {
               footer()
             }
           }
@@ -315,30 +348,52 @@ fun BottomDockCard(
         modifier = Modifier
           .fillMaxWidth()
           .clickable(enabled = false) {},
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(26.dp),
         color = Color.White,
-        shadowElevation = 12.dp
+        border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+        shadowElevation = 10.dp
       ) {
         Column {
           Row(
             modifier = Modifier
               .fillMaxWidth()
-              .background(Brush.verticalGradient(listOf(headerTint, headerTint.copy(alpha = 0.35f))))
-              .padding(horizontal = 16.dp, vertical = 12.dp),
+              .background(TeachColors.Background)
+              .padding(horizontal = 18.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
           ) {
             Box(
               modifier = Modifier
-                .size(28.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(badgeColor),
+                .size(36.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(badgeColor.copy(alpha = 0.15f)),
               contentAlignment = Alignment.Center
             ) {
-              Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+              Icon(icon, contentDescription = null, tint = badgeColor, modifier = Modifier.size(20.dp))
             }
             Spacer(Modifier.width(10.dp))
-            Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF111827))
+            Column(modifier = Modifier.weight(1f)) {
+              Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TeachColors.OnSurface)
+              Spacer(Modifier.height(2.dp))
+              WavyAccentDivider(
+                modifier = Modifier
+                  .width(44.dp)
+                  .height(5.dp),
+                color = badgeColor,
+                waveCount = 3
+              )
+            }
+            IconButton(
+              onClick = onDismiss,
+              modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(Color.White)
+                .border(1.dp, Color(0xFFECEFF8), CircleShape)
+            ) {
+              Icon(Icons.Default.Close, contentDescription = "Close", tint = TeachColors.OnSurfaceMuted, modifier = Modifier.size(16.dp))
+            }
           }
+          HorizontalDivider(color = Color(0xFFF1F3F9), thickness = 1.dp)
           Box(modifier = Modifier.padding(16.dp)) {
             content()
           }
@@ -350,25 +405,46 @@ fun BottomDockCard(
 
 @Composable
 private fun SectionLabel(text: String) {
-  Text(
-    text = text.uppercase(),
-    fontSize = 11.sp,
-    fontWeight = FontWeight.Bold,
-    color = Color(0xFF64748B),
-    letterSpacing = 0.8.sp
-  )
+  Row(
+    verticalAlignment = Alignment.CenterVertically,
+    horizontalArrangement = Arrangement.spacedBy(6.dp),
+    modifier = Modifier.padding(vertical = 2.dp)
+  ) {
+    Box(
+      modifier = Modifier
+        .size(6.dp)
+        .clip(CircleShape)
+        .background(TeachColors.Primary)
+    )
+    Text(
+      text = text,
+      fontSize = 12.sp,
+      fontWeight = FontWeight.Bold,
+      color = TeachColors.OnSurface,
+      letterSpacing = 0.3.sp
+    )
+  }
 }
 
 @Composable
 private fun CheckBadge(color: Color, modifier: Modifier = Modifier) {
   Box(
     modifier = modifier
-      .size(18.dp)
+      .size(20.dp)
       .clip(CircleShape)
-      .background(color),
+      .background(Color.White)
+      .border(1.dp, Color(0xFFECEFF8), CircleShape),
     contentAlignment = Alignment.Center
   ) {
-    Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+    Box(
+      modifier = Modifier
+        .size(14.dp)
+        .clip(CircleShape)
+        .background(color),
+      contentAlignment = Alignment.Center
+    ) {
+      Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(10.dp))
+    }
   }
 }
 
@@ -468,7 +544,63 @@ private fun CustomRgbSliders(color: Int, onColorChange: (Int) -> Unit) {
   }
 }
 
-// ===== 1. Board Color & Texture Dialog (Matching ref_10_board.png!) =====
+// ===== 1. Board Surface, Color & Texture Studio (TeachBoard Pastel Expressive) =====
+
+@Composable
+private fun ColorSwatchRow(
+  colors: List<Pair<String, Int>>,
+  selectedColor: Int,
+  onSelect: (Int) -> Unit
+) {
+  Row(
+    modifier = Modifier
+      .fillMaxWidth()
+      .horizontalScroll(rememberScrollState()),
+    horizontalArrangement = Arrangement.spacedBy(8.dp)
+  ) {
+    colors.forEach { (name, col) ->
+      val isSel = col == selectedColor
+      Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White,
+        border = BorderStroke(if (isSel) 2.dp else 1.dp, if (isSel) TeachColors.Primary else Color(0xFFECEFF8)),
+        shadowElevation = if (isSel) 2.dp else 0.dp,
+        modifier = Modifier
+          .clip(RoundedCornerShape(12.dp))
+          .clickable { onSelect(col) }
+      ) {
+        Column(
+          modifier = Modifier.padding(horizontal = 7.dp, vertical = 6.dp),
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+          Box(
+            modifier = Modifier
+              .size(36.dp)
+              .clip(RoundedCornerShape(9.dp))
+              .background(Color(col))
+              .border(1.dp, Color(0x22000000), RoundedCornerShape(9.dp)),
+            contentAlignment = Alignment.Center
+          ) {
+            if (isSel) {
+              CheckBadge(
+                color = if (TeachColors.isDarkColor(col)) Color.White else TeachColors.Primary,
+                modifier = Modifier.size(16.dp)
+              )
+            }
+          }
+          Text(
+            name,
+            fontSize = 9.5.sp,
+            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
+            color = if (isSel) TeachColors.Primary else TeachColors.OnSurface,
+            maxLines = 1
+          )
+        }
+      }
+    }
+  }
+}
 
 @Composable
 fun BoardColorDialog(
@@ -480,12 +612,57 @@ fun BoardColorDialog(
   var selectedColor by remember { mutableIntStateOf(currentColor) }
   var selectedStyle by remember { mutableStateOf(currentStyle) }
   var showCustom by remember { mutableStateOf(false) }
+  var sampleFormulaIdx by remember { mutableIntStateOf(0) }
+
+  val sampleFormulas = listOf(
+    "y = ax² + bx + c",
+    "F = ma  ·  E = mc²",
+    "2H₂ + O₂ → 2H₂O",
+    "Welcome to Class! ✨"
+  )
+
+  val classroomPalette = listOf(
+    "Studio White" to 0xFFFFFFFF.toInt(),
+    "Warm Ivory" to 0xFFFAF6EE.toInt(),
+    "Chalkboard" to 0xFF1B4332.toInt(),
+    "Blackboard" to 0xFF121212.toInt(),
+    "Dark Slate" to 0xFF2D3748.toInt(),
+    "Midnight Navy" to 0xFF0F172A.toInt(),
+    "Corkboard" to 0xFFD7CCC8.toInt()
+  )
+
+  val pastelPalette = listOf(
+    "Pastel Mint" to 0xFFB6F0E4.toInt(),
+    "Lavender Mist" to 0xFFE8DEFC.toInt(),
+    "Sky Periwinkle" to 0xFFDCE7FE.toInt(),
+    "Soft Blush" to 0xFFFDE0E8.toInt(),
+    "Peach Glow" to 0xFFFCE4D6.toInt(),
+    "Matcha Cream" to 0xFFD8F3DC.toInt(),
+    "Lemon Chiffon" to 0xFFFEF9C3.toInt(),
+    "Powder Rose" to 0xFFFFE4E6.toInt()
+  )
+
+  val darkModernPalette = listOf(
+    "Galaxy Violet" to 0xFF2E1065.toInt(),
+    "Deep Abyss" to 0xFF1E1B4B.toInt(),
+    "Emerald Dark" to 0xFF064E3B.toInt(),
+    "Espresso" to 0xFF3B1E08.toInt(),
+    "Royal Wine" to 0xFF4A0E17.toInt(),
+    "Cyber Charcoal" to 0xFF18181B.toInt()
+  )
+
+  val vibrantPalette = listOf(
+    "Royal Azure" to 0xFF1D4ED8.toInt(),
+    "Teal Ocean" to 0xFF0D9488.toInt(),
+    "Amber Gold" to 0xFFD97706.toInt(),
+    "Coral Sunset" to 0xFFEA580C.toInt(),
+    "Purple Orchid" to 0xFF7C3AED.toInt(),
+    "Forest Pine" to 0xFF047857.toInt()
+  )
 
   val colorLabel = remember(selectedColor) {
-    (TeachColors.ClassicBoardPalette + TeachColors.LightTintBoardPalette + TeachColors.DeepToneBoardPalette)
-      .firstOrNull { it.second == selectedColor }?.first
-      ?.replace("pastel_", "")?.replace("deep_", "")
-      ?.replaceFirstChar { it.uppercase() } ?: "Custom"
+    (classroomPalette + pastelPalette + darkModernPalette + vibrantPalette)
+      .firstOrNull { it.second == selectedColor }?.first ?: String.format("#%06X", 0xFFFFFF and selectedColor)
   }
   val styleLabel = selectedStyle.name.lowercase().replaceFirstChar { it.uppercase() }
 
@@ -498,68 +675,235 @@ fun BoardColorDialog(
   ) {
     Column(
       modifier = Modifier.verticalScroll(rememberScrollState()),
-      verticalArrangement = Arrangement.spacedBy(12.dp)
+      verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-      // Live preview card with y = 2x + 1 + "White · Plain" label
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .height(94.dp)
-          .clip(RoundedCornerShape(16.dp))
-          .border(1.dp, TeachColors.TrayBorder, RoundedCornerShape(16.dp))
+      // 1. Live Interactive Board Showcase with Teacher Subject Switcher
+      Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+        shadowElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth()
       ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-          val rect = android.graphics.RectF(0f, 0f, size.width, size.height)
-          Background.draw(drawContext.canvas.nativeCanvas, rect, selectedColor, selectedStyle)
-          val fg = if (TeachColors.isDarkColor(selectedColor)) 0xFFFFFFFF.toInt() else 0xFF111827.toInt()
-          FormulaParser.drawFormula(drawContext.canvas.nativeCanvas, "y = 2x + 1", fg, 34f, size.width * 0.65f, size.height)
+        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(104.dp)
+              .clip(RoundedCornerShape(14.dp))
+              .border(1.dp, Color(0xFFECEFF8), RoundedCornerShape(14.dp))
+          ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+              val rect = android.graphics.RectF(0f, 0f, size.width, size.height)
+              Background.draw(drawContext.canvas.nativeCanvas, rect, selectedColor, selectedStyle)
+              val fg = if (TeachColors.isDarkColor(selectedColor)) 0xFFFFFFFF.toInt() else 0xFF111827.toInt()
+              FormulaParser.drawFormula(
+                drawContext.canvas.nativeCanvas,
+                sampleFormulas[sampleFormulaIdx],
+                fg,
+                30f,
+                size.width * 0.58f,
+                size.height * 0.85f
+              )
+            }
+            // Active Tag Pill
+            Surface(
+              shape = RoundedCornerShape(10.dp),
+              color = if (TeachColors.isDarkColor(selectedColor)) Color.Black.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.90f),
+              border = BorderStroke(0.8.dp, if (TeachColors.isDarkColor(selectedColor)) Color.White.copy(alpha = 0.2f) else Color(0xFFECEFF8)),
+              modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp)
+            ) {
+              Text(
+                text = "$colorLabel · $styleLabel",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (TeachColors.isDarkColor(selectedColor)) Color.White else TeachColors.OnSurface,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+              )
+            }
+          }
+
+          // Sample formula switcher chips
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            listOf("Math", "Physics", "Chemistry", "Notes").forEachIndexed { idx, title ->
+              val isSel = sampleFormulaIdx == idx
+              Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = if (isSel) TeachColors.PastelMint else TeachColors.Background,
+                border = BorderStroke(1.dp, if (isSel) TeachColors.Secondary else Color(0xFFECEFF8)),
+                modifier = Modifier.weight(1f).clickable { sampleFormulaIdx = idx }
+              ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 5.dp)) {
+                  Text(
+                    title,
+                    fontSize = 10.5.sp,
+                    fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isSel) TeachColors.Secondary else TeachColors.OnSurfaceMuted
+                  )
+                }
+              }
+            }
+          }
         }
-        Text(
-          text = "$colorLabel · $styleLabel",
-          fontSize = 12.sp,
-          fontWeight = FontWeight.SemiBold,
-          color = if (TeachColors.isDarkColor(selectedColor)) Color.White.copy(alpha = 0.85f) else Color(0xFF1E293B),
-          modifier = Modifier.align(Alignment.BottomEnd).padding(horizontal = 12.dp, vertical = 8.dp)
-        )
       }
 
-      // CLASSIC BOARDS
-      SectionLabel(stringResource(R.string.classic_boards))
-      Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = TeachColors.TrayBg,
-        modifier = Modifier.fillMaxWidth().border(1.dp, TeachColors.TrayBorder, RoundedCornerShape(16.dp))
+      // 2. 1-Tap Classroom Theme Presets
+      SectionLabel("Quick Classroom Presets")
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(7.dp)
       ) {
-        Row(
-          modifier = Modifier.fillMaxWidth().padding(10.dp),
-          horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-          TeachColors.ClassicBoardPalette.forEach { (name, col) ->
-            val sel = col == selectedColor
+        listOf(
+          Triple("Chalkboard", 0xFF1B4332.toInt(), BackgroundStyle.PLAIN),
+          Triple("Math Grid", 0xFF2D3748.toInt(), BackgroundStyle.GRID),
+          Triple("Ruled Note", 0xFFFAF6EE.toInt(), BackgroundStyle.LINES),
+          Triple("Clean Studio", 0xFFFFFFFF.toInt(), BackgroundStyle.PLAIN)
+        ).forEach { (presetName, col, st) ->
+          val isSel = selectedColor == col && selectedStyle == st
+          Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = if (isSel) TeachColors.PastelMint else Color.White,
+            border = BorderStroke(if (isSel) 2.dp else 1.dp, if (isSel) TeachColors.Secondary else Color(0xFFECEFF8)),
+            modifier = Modifier.weight(1f).clickable {
+              selectedColor = col
+              selectedStyle = st
+              onApply(col, st)
+            }
+          ) {
             Column(
-              horizontalAlignment = Alignment.CenterHorizontally,
-              modifier = Modifier.weight(1f).clickable { selectedColor = col; onApply(selectedColor, selectedStyle) }
+              modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+              horizontalAlignment = Alignment.CenterHorizontally
             ) {
               Box(
                 modifier = Modifier
-                  .size(44.dp)
-                  .clip(RoundedCornerShape(12.dp))
-                  .then(if (sel) Modifier.border(2.5.dp, TeachColors.AccentTeal, RoundedCornerShape(12.dp)).padding(3.dp) else Modifier)
-                  .clip(RoundedCornerShape(10.dp))
+                  .size(24.dp)
+                  .clip(CircleShape)
                   .background(Color(col))
-                  .border(1.dp, Color(0x22000000), RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center
-              ) {
-                if (sel) {
-                  Icon(Icons.Default.Check, contentDescription = null, tint = if (TeachColors.isDarkColor(col)) Color.White else Color(0xFF111827), modifier = Modifier.size(18.dp))
-                }
-              }
+                  .border(1.dp, Color(0x33000000), CircleShape)
+              )
               Spacer(Modifier.height(4.dp))
               Text(
-                name.replaceFirstChar { it.uppercase() },
+                presetName,
                 fontSize = 10.sp,
-                fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
-                color = if (sel) TeachColors.AccentTeal else Color(0xFF475569),
+                fontWeight = if (isSel) FontWeight.Bold else FontWeight.SemiBold,
+                color = if (isSel) TeachColors.Secondary else TeachColors.OnSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+              )
+            }
+          }
+        }
+      }
+
+      // 3. Classic Boards
+      SectionLabel("Classic Boards")
+      ColorSwatchRow(
+        colors = classroomPalette,
+        selectedColor = selectedColor,
+        onSelect = {
+          selectedColor = it
+          onApply(selectedColor, selectedStyle)
+        }
+      )
+
+      // 4. Light & Pastel Tones
+      SectionLabel("Light & Pastel Tones")
+      ColorSwatchRow(
+        colors = pastelPalette,
+        selectedColor = selectedColor,
+        onSelect = {
+          selectedColor = it
+          onApply(selectedColor, selectedStyle)
+        }
+      )
+
+      // 5. Deep & Dark Tones
+      SectionLabel("Deep & Dark Tones")
+      ColorSwatchRow(
+        colors = darkModernPalette,
+        selectedColor = selectedColor,
+        onSelect = {
+          selectedColor = it
+          onApply(selectedColor, selectedStyle)
+        }
+      )
+
+      // 6. Vibrant Classroom Colors
+      SectionLabel("Vibrant Classroom Colors")
+      ColorSwatchRow(
+        colors = vibrantPalette,
+        selectedColor = selectedColor,
+        onSelect = {
+          selectedColor = it
+          onApply(selectedColor, selectedStyle)
+        }
+      )
+
+      // 7. Paper & Teaching Grid Styles
+      SectionLabel("Paper & Teaching Grid Styles")
+      val textureNames = listOf(
+        BackgroundStyle.PLAIN to "Plain",
+        BackgroundStyle.GRID to "Grid",
+        BackgroundStyle.LINES to "Lines",
+        BackgroundStyle.DOTS to "Dots",
+        BackgroundStyle.CHALK to "Chalk",
+        BackgroundStyle.ISOMETRIC to "Isometric"
+      )
+
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        textureNames.forEach { (style, name) ->
+          val isSel = style == selectedStyle
+          Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = if (isSel) TeachColors.PastelMint else Color.White,
+            border = BorderStroke(if (isSel) 2.dp else 1.dp, if (isSel) TeachColors.Secondary else Color(0xFFECEFF8)),
+            modifier = Modifier
+              .clip(RoundedCornerShape(12.dp))
+              .clickable {
+                selectedStyle = style
+                onApply(selectedColor, selectedStyle)
+              }
+          ) {
+            Column(
+              modifier = Modifier.padding(horizontal = 9.dp, vertical = 7.dp),
+              horizontalAlignment = Alignment.CenterHorizontally,
+              verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+              Box(
+                modifier = Modifier
+                  .size(36.dp)
+                  .clip(RoundedCornerShape(8.dp))
+                  .background(Color(selectedColor))
+                  .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+              ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                  Background.draw(
+                    drawContext.canvas.nativeCanvas,
+                    android.graphics.RectF(0f, 0f, size.width, size.height),
+                    selectedColor,
+                    style
+                  )
+                }
+                if (isSel) {
+                  CheckBadge(
+                    color = TeachColors.Secondary,
+                    modifier = Modifier.size(14.dp).align(Alignment.TopEnd).padding(2.dp)
+                  )
+                }
+              }
+              Text(
+                name,
+                fontSize = 10.sp,
+                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSel) TeachColors.Secondary else TeachColors.OnSurface,
                 maxLines = 1
               )
             }
@@ -567,94 +911,47 @@ fun BoardColorDialog(
         }
       }
 
-      // LIGHT TINTS
-      SectionLabel(stringResource(R.string.light_tints))
-      BoardTileRow(TeachColors.LightTintBoardPalette.map { it.second }, selectedColor) {
-        selectedColor = it; onApply(selectedColor, selectedStyle)
-      }
-
-      // DEEP TONES
-      SectionLabel(stringResource(R.string.deep_tones))
-      BoardTileRow(TeachColors.DeepToneBoardPalette.map { it.second }, selectedColor) {
-        selectedColor = it; onApply(selectedColor, selectedStyle)
-      }
-
-      // TEXTURE — 6-column visual miniature thumbnail grid!
-      SectionLabel(stringResource(R.string.textures))
-      Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = TeachColors.TrayBg,
-        modifier = Modifier.fillMaxWidth().border(1.dp, TeachColors.TrayBorder, RoundedCornerShape(16.dp))
-      ) {
-        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-          BackgroundStyle.entries.chunked(6).forEach { rowItems ->
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-              rowItems.forEach { style ->
-                val sel = style == selectedStyle
-                Box(
-                  modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(if (sel) TeachColors.HeaderTealTint else Color.White)
-                    .border(if (sel) 2.dp else 1.dp, if (sel) TeachColors.AccentTeal else TeachColors.TrayBorder, RoundedCornerShape(12.dp))
-                    .clickable { selectedStyle = style; onApply(selectedColor, selectedStyle) }
-                    .padding(vertical = 6.dp, horizontal = 3.dp)
-                ) {
-                  Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    Canvas(
-                      modifier = Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .border(0.8.dp, Color(0x22000000), RoundedCornerShape(6.dp))
-                    ) {
-                      Background.draw(
-                        drawContext.canvas.nativeCanvas,
-                        android.graphics.RectF(0f, 0f, size.width, size.height),
-                        0xFFFFFFFF.toInt(),
-                        style
-                      )
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                      style.name.lowercase().replaceFirstChar { it.uppercase() },
-                      fontSize = 9.sp,
-                      fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
-                      color = if (sel) TeachColors.AccentTeal else Color(0xFF334155),
-                      maxLines = 1,
-                      overflow = TextOverflow.Ellipsis
-                    )
-                  }
-                  if (sel) {
-                    CheckBadge(TeachColors.AccentTeal, Modifier.align(Alignment.TopEnd).padding(2.dp))
-                  }
-                }
-              }
-              repeat(6 - rowItems.size) { Spacer(Modifier.weight(1f)) }
-            }
-          }
-        }
-      }
-
-      // Custom Color full-width pill button
+      // 5. Custom Color Studio
       Surface(
         modifier = Modifier
           .fillMaxWidth()
           .clip(RoundedCornerShape(14.dp))
-          .border(1.dp, TeachColors.TrayBorder, RoundedCornerShape(14.dp))
+          .border(1.dp, Color(0xFFECEFF8), RoundedCornerShape(14.dp))
           .clickable { showCustom = !showCustom },
-        color = Color(0xFFFAFAFA)
+        color = Color.White
       ) {
         Row(
-          modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
+          modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
           verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(12.dp)
+          horizontalArrangement = Arrangement.SpaceBetween
         ) {
-          RainbowWheelButton(28) { showCustom = !showCustom }
-          Text(stringResource(R.string.custom_color), fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color(0xFF111827))
+          Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            RainbowWheelButton(28) { showCustom = !showCustom }
+            Column {
+              Text(stringResource(R.string.custom_color), fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = TeachColors.OnSurface)
+              Text("Fine-tune RGB channels & Hex value", fontSize = 11.sp, color = TeachColors.OnSurfaceMuted)
+            }
+          }
+          Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = TeachColors.Background,
+            border = BorderStroke(1.dp, Color(0xFFECEFF8))
+          ) {
+            Text(
+              String.format("#%06X", 0xFFFFFF and selectedColor),
+              fontSize = 11.5.sp,
+              fontWeight = FontWeight.Bold,
+              color = TeachColors.Primary,
+              modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+          }
         }
       }
       if (showCustom) {
-        CustomRgbSliders(selectedColor) { c -> selectedColor = c; onApply(selectedColor, selectedStyle) }
+        CustomRgbSliders(selectedColor) { c ->
+          selectedColor = c
+          onApply(selectedColor, selectedStyle)
+        }
       }
     }
   }
@@ -693,7 +990,7 @@ private fun BoardTileRow(colors: List<Int>, selectedColor: Int, onSelect: (Int) 
   }
 }
 
-// ===== 2. Brushes Dialog (Matching ref_05_brushes.png!) =====
+// ===== 2. Brushes Dialog =====
 
 @Composable
 fun BrushDialog(
@@ -712,16 +1009,17 @@ fun BrushDialog(
   var showCustom by remember { mutableStateOf(false) }
   val brushes = listOf(
     Triple(ToolType.Pen, stringResource(R.string.brush_pen), Icons.Default.Edit),
+    Triple(ToolType.Pencil, "Pencil", Icons.Default.Draw),
     Triple(ToolType.Brush, stringResource(R.string.brush_brush), Icons.Default.Brush),
     Triple(ToolType.Marker, stringResource(R.string.brush_marker), Icons.Default.Create),
     Triple(ToolType.Highlighter, stringResource(R.string.brush_highlight), Icons.Default.Highlight),
-    Triple(ToolType.Calligraphy, "Callig.", Icons.Default.Draw)
+    Triple(ToolType.Calligraphy, "Callig.", Icons.Default.Gesture)
   )
 
   PastelModalDialog(
     title = stringResource(R.string.brushes_title),
     icon = Icons.Default.Brush,
-    badgeColor = TeachColors.AccentSky,
+    badgeColor = TeachColors.Primary,
     headerTint = TeachColors.HeaderSkyTint,
     onDismiss = onDismiss
   ) {
@@ -730,57 +1028,70 @@ fun BrushDialog(
       verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
       // Live smooth sine-wave stroke preview card
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .height(74.dp)
-          .clip(RoundedCornerShape(16.dp))
-          .background(TeachColors.TrayBg)
-          .border(1.dp, TeachColors.TrayBorder, RoundedCornerShape(16.dp)),
-        contentAlignment = Alignment.Center
+      Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = TeachColors.Background,
+        border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+        modifier = Modifier.fillMaxWidth().height(78.dp)
       ) {
-        Canvas(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
-          val path = Path()
-          val steps = 48
-          for (i in 0..steps) {
-            val t = i.toFloat() / steps
-            val x = t * size.width
-            val y = size.height / 2f - sin(t * Math.PI * 2.4).toFloat() * (size.height * 0.30f)
-            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        Box(contentAlignment = Alignment.Center) {
+          Canvas(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
+            val path = Path()
+            val steps = 48
+            for (i in 0..steps) {
+              val t = i.toFloat() / steps
+              val x = t * size.width
+              val y = size.height / 2f - sin(t * Math.PI * 2.4).toFloat() * (size.height * 0.30f)
+              if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            val effAlpha = if (currentTool == ToolType.Highlighter) currentAlpha * 0.42f else currentAlpha
+            drawPath(
+              path = path,
+              color = Color(currentColor).copy(alpha = effAlpha.coerceIn(0.18f, 1f)),
+              style = Stroke(width = currentSize.coerceIn(2f, 40f), cap = StrokeCap.Round)
+            )
           }
-          val effAlpha = if (currentTool == ToolType.Highlighter) currentAlpha * 0.42f else currentAlpha
-          drawPath(
-            path = path,
-            color = Color(currentColor).copy(alpha = effAlpha.coerceIn(0.18f, 1f)),
-            style = Stroke(width = currentSize.coerceIn(2f, 40f), cap = StrokeCap.Round)
-          )
         }
       }
 
-      // 5 equal-width Brush cards with blue selection outline + top-right checkmark!
+      // 5 equal-width Brush cards with squircle styling
       Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         brushes.forEach { (tool, label, icon) ->
           val sel = currentTool == tool
-          Box(
+          Surface(
             modifier = Modifier
               .weight(1f)
-              .height(76.dp)
-              .clip(RoundedCornerShape(14.dp))
-              .background(if (sel) TeachColors.HeaderSkyTint else Color.White)
-              .border(if (sel) 2.dp else 1.dp, if (sel) TeachColors.AccentSky else TeachColors.TrayBorder, RoundedCornerShape(14.dp))
-              .clickable { onSelectBrush(tool) }
+              .height(78.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = if (sel) TeachColors.PastelPeriwinkle else Color.White,
+            border = BorderStroke(if (sel) 2.dp else 1.dp, if (sel) TeachColors.Primary else Color(0xFFECEFF8)),
+            shadowElevation = if (sel) 2.dp else 0.dp,
+            onClick = { onSelectBrush(tool) }
           ) {
-            Column(
-              modifier = Modifier.fillMaxSize().padding(4.dp),
-              horizontalAlignment = Alignment.CenterHorizontally,
-              verticalArrangement = Arrangement.Center
-            ) {
-              Icon(icon, contentDescription = label, tint = if (sel) TeachColors.AccentSky else Color(0xFF1E293B), modifier = Modifier.size(22.dp))
-              Spacer(Modifier.height(6.dp))
-              Text(label, fontSize = 11.sp, fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium, color = if (sel) TeachColors.AccentSky else Color(0xFF1E293B), maxLines = 1)
-            }
-            if (sel) {
-              CheckBadge(TeachColors.AccentSky, Modifier.align(Alignment.TopEnd).padding(4.dp))
+            Box {
+              Column(
+                modifier = Modifier.fillMaxSize().padding(4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+              ) {
+                Icon(
+                  icon,
+                  contentDescription = label,
+                  tint = if (sel) TeachColors.Primary else Color(0xFF475569),
+                  modifier = Modifier.size(24.dp)
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                  label,
+                  fontSize = 11.sp,
+                  fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
+                  color = if (sel) TeachColors.Primary else TeachColors.OnSurface,
+                  maxLines = 1
+                )
+              }
+              if (sel) {
+                CheckBadge(TeachColors.Primary, Modifier.align(Alignment.TopEnd).padding(4.dp))
+              }
             }
           }
         }
@@ -790,41 +1101,43 @@ fun BrushDialog(
       ColorSwatchTray(
         colors = TeachColors.BrushSwatches,
         selectedColor = currentColor,
-        accentColor = TeachColors.AccentSky,
+        accentColor = TeachColors.Primary,
         onSelect = onColorChange,
         onToggleCustom = { showCustom = !showCustom }
       )
       if (showCustom) CustomRgbSliders(currentColor, onColorChange)
 
-      // SIZE · N grouped tray with 5 cards (4, 8, 12, 24, 48) + blue slider
-      SectionLabel("${stringResource(R.string.size_label)}  ·  ${currentSize.toInt()}")
+      // SIZE presets + smooth slider
+      SectionLabel("${stringResource(R.string.size_label)}  ·  ${currentSize.toInt()} px")
       Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = TeachColors.TrayBg,
-        modifier = Modifier.fillMaxWidth().border(1.dp, TeachColors.TrayBorder, RoundedCornerShape(16.dp))
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+        modifier = Modifier.fillMaxWidth()
       ) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
           Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(4f, 8f, 12f, 24f, 48f).forEach { preset ->
               val sel = kotlin.math.abs(currentSize - preset) < 1.5f
-              Box(
+              Surface(
                 modifier = Modifier
                   .weight(1f)
-                  .height(48.dp)
-                  .clip(RoundedCornerShape(12.dp))
-                  .background(if (sel) TeachColors.HeaderSkyTint else Color.White)
-                  .border(if (sel) 2.dp else 1.dp, if (sel) TeachColors.AccentSky else TeachColors.TrayBorder, RoundedCornerShape(12.dp))
-                  .clickable { onSizeChange(preset) }
+                  .height(48.dp),
+                shape = RoundedCornerShape(14.dp),
+                color = if (sel) TeachColors.PastelPeriwinkle else TeachColors.Background,
+                border = BorderStroke(if (sel) 2.dp else 1.dp, if (sel) TeachColors.Primary else Color(0xFFECEFF8)),
+                onClick = { onSizeChange(preset) }
               ) {
-                Text(
-                  text = "${preset.toInt()}",
-                  fontWeight = FontWeight.Bold,
-                  fontSize = 15.sp,
-                  color = if (sel) TeachColors.AccentSky else Color(0xFF1E293B),
-                  modifier = Modifier.align(Alignment.Center)
-                )
-                if (sel) {
-                  CheckBadge(TeachColors.AccentSky, Modifier.align(Alignment.TopEnd).padding(3.dp))
+                Box(contentAlignment = Alignment.Center) {
+                  Text(
+                    text = "${preset.toInt()}",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = if (sel) TeachColors.Primary else TeachColors.OnSurface
+                  )
+                  if (sel) {
+                    CheckBadge(TeachColors.Primary, Modifier.align(Alignment.TopEnd).padding(3.dp))
+                  }
                 }
               }
             }
@@ -834,9 +1147,9 @@ fun BrushDialog(
             onValueChange = onSizeChange,
             valueRange = 2f..64f,
             colors = SliderDefaults.colors(
-              thumbColor = TeachColors.AccentSky,
-              activeTrackColor = TeachColors.AccentSky,
-              inactiveTrackColor = Color(0xFFDCE3EC)
+              thumbColor = TeachColors.Primary,
+              activeTrackColor = TeachColors.Primary,
+              inactiveTrackColor = Color(0xFFE2E8F0)
             )
           )
         }
@@ -845,7 +1158,7 @@ fun BrushDialog(
   }
 }
 
-// ===== 2b. Smart Quick 2-Card Floating Popup (Matching ref_06_smart.png!) =====
+// ===== 2b. Smart Quick 2-Card Floating Popup =====
 
 @Composable
 fun SmartQuickPopup(
@@ -870,126 +1183,125 @@ fun SmartQuickPopup(
         modifier = Modifier
           .fillMaxSize()
           .clickable(onClick = onDismiss)
-          .padding(bottom = if (isLandscape) 68.dp else 86.dp, start = 28.dp, end = 28.dp),
+          .padding(bottom = if (isLandscape) 68.dp else 86.dp, start = 24.dp, end = 24.dp),
         contentAlignment = Alignment.BottomCenter
       ) {
         Surface(
-          modifier = Modifier.fillMaxWidth(if (isLandscape) 0.56f else 1f).clickable(enabled = false) {},
-          shape = RoundedCornerShape(22.dp),
+          modifier = Modifier.fillMaxWidth(if (isLandscape) 0.58f else 1f).clickable(enabled = false) {},
+          shape = RoundedCornerShape(26.dp),
           color = Color.White,
-          contentColor = Color(0xFF111827),
+          border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+          contentColor = TeachColors.OnSurface,
           shadowElevation = 12.dp
         ) {
-        Row(
-          modifier = Modifier.padding(12.dp),
-          horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-          // Left card: Writing (Aa -> Aa + language pill!)
-          Box(
-            modifier = Modifier
-              .weight(1f)
-              .height(148.dp)
-              .clip(RoundedCornerShape(16.dp))
-              .background(if (isWritingActive) TeachColors.HeaderSkyTint else Color(0xFFFAFAFC))
-              .border(if (isWritingActive) 2.dp else 1.dp, if (isWritingActive) TeachColors.Primary else TeachColors.TrayBorder, RoundedCornerShape(16.dp))
-              .clickable { onSelectWriting(); onDismiss() }
-              .padding(10.dp)
+          Row(
+            modifier = Modifier.padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
           ) {
-            // Top-left clickable language pill (🌐 EN >)
+            // Left card: Writing (Aa -> Aa + language pill!)
             Surface(
-              shape = RoundedCornerShape(14.dp),
-              color = Color.White,
               modifier = Modifier
-                .align(Alignment.TopStart)
-                .border(1.dp, TeachColors.TrayBorder, RoundedCornerShape(14.dp))
-                .clickable { onOpenLanguagePicker() }
+                .weight(1f)
+                .height(152.dp),
+              shape = RoundedCornerShape(18.dp),
+              color = if (isWritingActive) TeachColors.PastelPeriwinkle else TeachColors.Background,
+              border = BorderStroke(if (isWritingActive) 2.dp else 1.dp, if (isWritingActive) TeachColors.Primary else Color(0xFFECEFF8)),
+              onClick = { onSelectWriting(); onDismiss() }
             ) {
-              Row(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-              ) {
-                Icon(Icons.Default.Language, contentDescription = null, tint = TeachColors.Primary, modifier = Modifier.size(13.dp))
-                Text("$shortCode ›", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TeachColors.Primary)
+              Box(modifier = Modifier.padding(10.dp)) {
+                // Top-left clickable language pill
+                Surface(
+                  shape = RoundedCornerShape(12.dp),
+                  color = Color.White,
+                  border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+                  modifier = Modifier.align(Alignment.TopStart),
+                  onClick = { onOpenLanguagePicker() }
+                ) {
+                  Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                  ) {
+                    Icon(Icons.Default.Language, contentDescription = null, tint = TeachColors.Primary, modifier = Modifier.size(13.dp))
+                    Text("$shortCode ›", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TeachColors.Primary)
+                  }
+                }
+                Column(
+                  modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 6.dp),
+                  horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                  Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Aa", fontSize = 28.sp, color = Color(0xFF64748B), fontWeight = FontWeight.Light)
+                    Text(" → ", fontSize = 18.sp, color = Color(0xFF94A3B8))
+                    Text("Aa", fontSize = 26.sp, color = TeachColors.Primary, fontWeight = FontWeight.ExtraBold)
+                  }
+                  Spacer(Modifier.height(6.dp))
+                  Text(stringResource(R.string.smart_writing_short), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TeachColors.OnSurface)
+                }
               }
             }
-            Column(
-              modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp),
-              horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-              Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Aa", fontSize = 30.sp, color = Color(0xFF475569), fontWeight = FontWeight.Light)
-                Text(" → ", fontSize = 18.sp, color = Color(0xFF94A3B8))
-                Text("Aa", fontSize = 26.sp, color = TeachColors.Primary, fontWeight = FontWeight.ExtraBold)
-              }
-              Spacer(Modifier.height(6.dp))
-              Text(stringResource(R.string.smart_writing_short), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF111827))
-            }
-          }
 
-          // Right card: Smart Shapes (rough triangle -> clean blue triangle!)
-          Box(
-            modifier = Modifier
-              .weight(1f)
-              .height(148.dp)
-              .clip(RoundedCornerShape(16.dp))
-              .background(if (isSmartShapesActive) TeachColors.HeaderSkyTint else Color(0xFFFAFAFC))
-              .border(if (isSmartShapesActive) 2.dp else 1.dp, if (isSmartShapesActive) TeachColors.Primary else TeachColors.TrayBorder, RoundedCornerShape(16.dp))
-              .clickable { onToggleSmartShapes(); onDismiss() }
-              .padding(10.dp)
-          ) {
-            if (isSmartShapesActive) {
-              CheckBadge(TeachColors.Primary, Modifier.align(Alignment.TopEnd))
-            }
-            Column(
-              modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp),
-              horizontalAlignment = Alignment.CenterHorizontally
+            // Right card: Smart Shapes
+            Surface(
+              modifier = Modifier
+                .weight(1f)
+                .height(152.dp),
+              shape = RoundedCornerShape(18.dp),
+              color = if (isSmartShapesActive) TeachColors.PastelMint else TeachColors.Background,
+              border = BorderStroke(if (isSmartShapesActive) 2.dp else 1.dp, if (isSmartShapesActive) TeachColors.Secondary else Color(0xFFECEFF8)),
+              onClick = { onToggleSmartShapes(); onDismiss() }
             ) {
-              Canvas(modifier = Modifier.width(126.dp).height(46.dp)) {
-                val w = size.width
-                val h = size.height
-                // Hand-drawn rough triangle on the left
-                val rough = Path().apply {
-                  moveTo(w * 0.21f, h * 0.12f)
-                  lineTo(w * 0.37f, h * 0.86f)
-                  lineTo(w * 0.05f, h * 0.88f)
-                  close()
+              Box(modifier = Modifier.padding(10.dp)) {
+                if (isSmartShapesActive) {
+                  CheckBadge(TeachColors.Secondary, Modifier.align(Alignment.TopEnd))
                 }
-                drawPath(
-                  rough,
-                  Color(0xFF475569),
-                  style = Stroke(width = h * 0.065f, cap = StrokeCap.Round, join = StrokeJoin.Round)
-                )
-                // Arrow in the center
-                val midY = h * 0.54f
-                drawLine(Color(0xFF94A3B8), Offset(w * 0.43f, midY), Offset(w * 0.57f, midY), strokeWidth = h * 0.055f, cap = StrokeCap.Round)
-                drawLine(Color(0xFF94A3B8), Offset(w * 0.52f, midY - h * 0.12f), Offset(w * 0.57f, midY), strokeWidth = h * 0.055f, cap = StrokeCap.Round)
-                drawLine(Color(0xFF94A3B8), Offset(w * 0.52f, midY + h * 0.12f), Offset(w * 0.57f, midY), strokeWidth = h * 0.055f, cap = StrokeCap.Round)
-                // Clean blue geometric triangle on the right
-                val clean = Path().apply {
-                  moveTo(w * 0.79f, h * 0.10f)
-                  lineTo(w * 0.96f, h * 0.88f)
-                  lineTo(w * 0.62f, h * 0.88f)
-                  close()
+                Column(
+                  modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 6.dp),
+                  horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                  Canvas(modifier = Modifier.width(120.dp).height(44.dp)) {
+                    val w = size.width
+                    val h = size.height
+                    val rough = Path().apply {
+                      moveTo(w * 0.21f, h * 0.12f)
+                      lineTo(w * 0.37f, h * 0.86f)
+                      lineTo(w * 0.05f, h * 0.88f)
+                      close()
+                    }
+                    drawPath(
+                      rough,
+                      Color(0xFF64748B),
+                      style = Stroke(width = h * 0.065f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                    )
+                    val midY = h * 0.54f
+                    drawLine(Color(0xFF94A3B8), Offset(w * 0.43f, midY), Offset(w * 0.57f, midY), strokeWidth = h * 0.055f, cap = StrokeCap.Round)
+                    drawLine(Color(0xFF94A3B8), Offset(w * 0.52f, midY - h * 0.12f), Offset(w * 0.57f, midY), strokeWidth = h * 0.055f, cap = StrokeCap.Round)
+                    drawLine(Color(0xFF94A3B8), Offset(w * 0.52f, midY + h * 0.12f), Offset(w * 0.57f, midY), strokeWidth = h * 0.055f, cap = StrokeCap.Round)
+                    val clean = Path().apply {
+                      moveTo(w * 0.79f, h * 0.10f)
+                      lineTo(w * 0.96f, h * 0.88f)
+                      lineTo(w * 0.62f, h * 0.88f)
+                      close()
+                    }
+                    drawPath(
+                      clean,
+                      TeachColors.Secondary,
+                      style = Stroke(width = h * 0.075f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                    )
+                  }
+                  Spacer(Modifier.height(8.dp))
+                  Text(stringResource(R.string.tool_shapes), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TeachColors.OnSurface)
                 }
-                drawPath(
-                  clean,
-                  TeachColors.Primary,
-                  style = Stroke(width = h * 0.075f, cap = StrokeCap.Round, join = StrokeJoin.Round)
-                )
               }
-              Spacer(Modifier.height(8.dp))
-              Text(stringResource(R.string.tool_shapes), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF111827))
             }
           }
         }
       }
     }
-    }
   }
 }
 
-// ===== 3. Shapes Dialog (Matching ref_08_shapes.png: 5-col continuous scroll across all 45 shapes!) =====
+// ===== 3. Shapes Dialog =====
 
 @Composable
 fun ShapesDialog(
@@ -1010,6 +1322,7 @@ fun ShapesDialog(
     stringResource(R.string.shapes_math) to ToolType.shapesSheetMath,
     stringResource(R.string.shapes_diagram) to ToolType.shapesSheetDiagram
   )
+  var selectedTab by remember { mutableIntStateOf(-1) }
 
   PastelModalDialog(
     title = stringResource(R.string.shapes_title),
@@ -1020,51 +1333,103 @@ fun ShapesDialog(
   ) {
     Column(
       modifier = Modifier.verticalScroll(rememberScrollState()),
-      verticalArrangement = Arrangement.spacedBy(12.dp)
+      verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-      // Fill Shape bordered card row
-      Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = Color(0xFFFAFAFC),
-        modifier = Modifier.fillMaxWidth().border(1.dp, TeachColors.TrayBorder, RoundedCornerShape(14.dp))
+      // Category filter pills row
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
       ) {
-        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
-          Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.FormatColorFill, contentDescription = null, tint = Color(0xFF475569), modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(10.dp))
-            Text(stringResource(R.string.fill_shape), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF111827), modifier = Modifier.weight(1f))
-            Switch(
-              checked = isFilled,
-              onCheckedChange = onFillToggle,
-              colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = TeachColors.AccentPurple)
-            )
-          }
-          if (isFilled) {
-            Spacer(Modifier.height(6.dp))
-            ColorSwatchTray(TeachColors.BrushSwatches, fillColor ?: strokeColor, TeachColors.AccentPurple, { onFillColorChange(it) })
-            Slider(
-              value = alpha,
-              onValueChange = onAlphaChange,
-              valueRange = 0.2f..1f,
-              colors = SliderDefaults.colors(thumbColor = TeachColors.AccentPurple, activeTrackColor = TeachColors.AccentPurple, inactiveTrackColor = Color(0xFFDCE3EC))
+        val tabs = listOf("All (45)", "2D (20)", "3D (10)", "Math (7)", "Diagram (8)")
+        tabs.forEachIndexed { index, tabName ->
+          val targetIdx = index - 1
+          val sel = selectedTab == targetIdx
+          Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = if (sel) TeachColors.AccentPurple else TeachColors.Background,
+            border = BorderStroke(1.dp, if (sel) TeachColors.AccentPurple else Color(0xFFECEFF8)),
+            onClick = { selectedTab = targetIdx }
+          ) {
+            Text(
+              text = tabName,
+              fontSize = 12.sp,
+              fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
+              color = if (sel) Color.White else TeachColors.OnSurface,
+              modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
             )
           }
         }
       }
 
-      // All 4 sections stacked cleanly in 5-column grids
-      sections.forEach { (secName, shapes) ->
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-          HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFE5E7EB))
-          Text(
-            text = secName.uppercase(),
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF64748B),
-            letterSpacing = 0.8.sp,
-            modifier = Modifier.padding(horizontal = 10.dp)
-          )
-          HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFE5E7EB))
+      // Fill Shape card row
+      Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = TeachColors.PastelMint.copy(alpha = 0.35f),
+        border = BorderStroke(1.dp, Color(0xFFB6F0E4)),
+        modifier = Modifier.fillMaxWidth()
+      ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+          Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+              modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color.White),
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(Icons.Default.FormatColorFill, contentDescription = null, tint = TeachColors.Secondary, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+              Text(stringResource(R.string.fill_shape), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TeachColors.OnSurface)
+              Text("Solid color fill & opacity", fontSize = 12.sp, color = TeachColors.OnSurfaceMuted)
+            }
+            Switch(
+              checked = isFilled,
+              onCheckedChange = onFillToggle,
+              colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = TeachColors.Secondary
+              )
+            )
+          }
+          if (isFilled) {
+            Spacer(Modifier.height(10.dp))
+            ColorSwatchTray(TeachColors.BrushSwatches, fillColor ?: strokeColor, TeachColors.Secondary, { onFillColorChange(it) })
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Text("Opacity ${(alpha * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TeachColors.OnSurfaceMuted, modifier = Modifier.width(76.dp))
+              Slider(
+                value = alpha,
+                onValueChange = onAlphaChange,
+                valueRange = 0.2f..1f,
+                colors = SliderDefaults.colors(thumbColor = TeachColors.Secondary, activeTrackColor = TeachColors.Secondary, inactiveTrackColor = Color(0xFFDCE3EC)),
+                modifier = Modifier.weight(1f)
+              )
+            }
+          }
+        }
+      }
+
+      // Filtered sections stacked in 5-column grids
+      val displayedSections = if (selectedTab == -1) sections else listOf(sections[selectedTab])
+      displayedSections.forEach { (secName, shapes) ->
+        Row(
+          modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+          Text(secName, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TeachColors.OnSurface)
+          Box(
+            modifier = Modifier
+              .clip(RoundedCornerShape(8.dp))
+              .background(TeachColors.PastelPeriwinkle)
+              .padding(horizontal = 8.dp, vertical = 2.dp)
+          ) {
+            Text("${shapes.size} shapes", color = TeachColors.Primary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+          }
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1072,49 +1437,51 @@ fun ShapesDialog(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
               rowShapes.forEach { shape ->
                 val sel = shape == selectedShape
-                Box(
+                Surface(
                   modifier = Modifier
                     .weight(1f)
-                    .height(68.dp)
-                    .clip(RoundedCornerShape(13.dp))
-                    .background(if (sel) TeachColors.HeaderPurpleTint else Color.White)
-                    .border(if (sel) 2.dp else 1.dp, if (sel) TeachColors.AccentPurple else TeachColors.TrayBorder, RoundedCornerShape(13.dp))
-                    .clickable { onSelectShape(shape); onDismiss() }
-                    .padding(4.dp)
+                    .height(72.dp),
+                  shape = RoundedCornerShape(16.dp),
+                  color = if (sel) TeachColors.PastelViolet else Color.White,
+                  border = BorderStroke(if (sel) 2.dp else 1.dp, if (sel) TeachColors.AccentPurple else Color(0xFFECEFF8)),
+                  shadowElevation = if (sel) 2.dp else 0.dp,
+                  onClick = { onSelectShape(shape); onDismiss() }
                 ) {
-                  Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                  ) {
-                    Canvas(modifier = Modifier.size(28.dp)) {
-                      val pad = 2f
-                      ShapeRenderer.drawShape(
-                        canvas = drawContext.canvas.nativeCanvas,
-                        type = shape,
-                        left = pad,
-                        top = pad,
-                        right = size.width - pad,
-                        bottom = size.height - pad,
-                        color = if (sel) TeachColors.AccentPurple.toArgb() else 0xFF1E293B.toInt(),
-                        strokeWidth = 2.6f,
-                        isFilled = isFilled,
-                        fillColor = fillColor ?: TeachColors.AccentPurple.toArgb(),
-                        alpha = 1f
+                  Box(modifier = Modifier.fillMaxSize().padding(4.dp)) {
+                    Column(
+                      modifier = Modifier.fillMaxSize(),
+                      horizontalAlignment = Alignment.CenterHorizontally,
+                      verticalArrangement = Arrangement.Center
+                    ) {
+                      Canvas(modifier = Modifier.size(30.dp)) {
+                        val pad = 2f
+                        ShapeRenderer.drawShape(
+                          canvas = drawContext.canvas.nativeCanvas,
+                          type = shape,
+                          left = pad,
+                          top = pad,
+                          right = size.width - pad,
+                          bottom = size.height - pad,
+                          color = if (sel) TeachColors.AccentPurple.toArgb() else 0xFF334155.toInt(),
+                          strokeWidth = 2.4f,
+                          isFilled = isFilled,
+                          fillColor = fillColor ?: TeachColors.AccentPurple.toArgb(),
+                          alpha = 1f
+                        )
+                      }
+                      Spacer(Modifier.height(4.dp))
+                      Text(
+                        text = shape.name.replace("Triangle", "△").replace("Angle", "∠").replace("Parallelogram", "Parallel").replace(Regex("([a-z])([A-Z])"), "$1 $2"),
+                        fontSize = 9.sp,
+                        fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
+                        color = if (sel) TeachColors.AccentPurple else TeachColors.OnSurfaceMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                       )
                     }
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                      text = shape.name.replace("Triangle", "△").replace("Angle", "∠").replace("Parallelogram", "Parallel").replace(Regex("([a-z])([A-Z])"), "$1 $2"),
-                      fontSize = 9.sp,
-                      fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
-                      color = if (sel) TeachColors.AccentPurple else Color(0xFF334155),
-                      maxLines = 1,
-                      overflow = TextOverflow.Ellipsis
-                    )
-                  }
-                  if (sel) {
-                    CheckBadge(TeachColors.AccentPurple, Modifier.align(Alignment.TopEnd))
+                    if (sel) {
+                      CheckBadge(TeachColors.AccentPurple, Modifier.align(Alignment.TopEnd))
+                    }
                   }
                 }
               }
@@ -1127,7 +1494,7 @@ fun ShapesDialog(
   }
 }
 
-// ===== 4. Eraser Size Dialog (Matching ref_09_eraser.png!) =====
+// ===== 4. Eraser Studio Dialog =====
 
 @Composable
 fun EraserDialog(
@@ -1137,6 +1504,13 @@ fun EraserDialog(
   onSizeChange: (Float) -> Unit,
   onDismiss: () -> Unit
 ) {
+  val presets = listOf(
+    Triple("Fine Tip", 12f, "Detail & edges"),
+    Triple("Writing", 24f, "Pencil & text"),
+    Triple("Medium", 48f, "Duster swipe"),
+    Triple("Broad", 76f, "Full board")
+  )
+
   PastelModalDialog(
     title = stringResource(R.string.eraser_size_title),
     icon = Icons.Default.CleaningServices,
@@ -1144,51 +1518,303 @@ fun EraserDialog(
     headerTint = TeachColors.HeaderRoseTint,
     onDismiss = onDismiss
   ) {
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-      SectionLabel("QUICK SIZE")
-      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(10f, 20f, 40f, 60f, 80f).forEach { preset ->
-          val sel = kotlin.math.abs(size - preset) < 3f
-          Box(
-            modifier = Modifier
-              .weight(1f)
-              .height(50.dp)
-              .clip(RoundedCornerShape(13.dp))
-              .background(if (sel) TeachColors.HeaderRoseTint else Color.White)
-              .border(if (sel) 2.dp else 1.dp, if (sel) TeachColors.AccentRose else TeachColors.TrayBorder, RoundedCornerShape(13.dp))
-              .clickable { onSizeChange(preset) }
+    Column(
+      modifier = Modifier.verticalScroll(rememberScrollState()),
+      verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+      // 1. Dual Mode Selection Cards (Object/Stroke vs. Pixel Duster)
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+      ) {
+        val pixelSel = mode == EraserMode.PIXEL_INK
+        Surface(
+          modifier = Modifier
+            .weight(1f)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onModeChange(EraserMode.PIXEL_INK) },
+          shape = RoundedCornerShape(16.dp),
+          color = if (pixelSel) TeachColors.PastelBlush else TeachColors.Background,
+          border = BorderStroke(if (pixelSel) 2.dp else 1.dp, if (pixelSel) TeachColors.AccentRose else Color(0xFFECEFF8))
+        ) {
+          Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
           ) {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Box(
+                modifier = Modifier
+                  .size(30.dp)
+                  .clip(RoundedCornerShape(8.dp))
+                  .background(if (pixelSel) TeachColors.AccentRose else Color(0xFFE2E8F0)),
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  Icons.Default.CleaningServices,
+                  contentDescription = null,
+                  tint = if (pixelSel) Color.White else TeachColors.OnSurfaceMuted,
+                  modifier = Modifier.size(16.dp)
+                )
+              }
+              if (pixelSel) {
+                CheckBadge(TeachColors.AccentRose)
+              }
+            }
+            Spacer(Modifier.height(2.dp))
             Text(
-              "${preset.toInt()}",
+              "Pixel Duster",
               fontWeight = FontWeight.Bold,
-              fontSize = 15.sp,
-              color = if (sel) TeachColors.AccentRose else Color(0xFF1E293B),
-              modifier = Modifier.align(Alignment.Center)
+              fontSize = 13.5.sp,
+              color = if (pixelSel) TeachColors.AccentRose else TeachColors.OnSurface
             )
-            if (sel) CheckBadge(TeachColors.AccentRose, Modifier.align(Alignment.TopEnd).padding(3.dp))
+            Text(
+              "Cleans touch area like real duster",
+              fontSize = 11.sp,
+              color = TeachColors.OnSurfaceMuted,
+              lineHeight = 13.sp
+            )
+          }
+        }
+
+        val strokeSel = mode == EraserMode.STROKE
+        Surface(
+          modifier = Modifier
+            .weight(1f)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onModeChange(EraserMode.STROKE) },
+          shape = RoundedCornerShape(16.dp),
+          color = if (strokeSel) TeachColors.PastelBlush else TeachColors.Background,
+          border = BorderStroke(if (strokeSel) 2.dp else 1.dp, if (strokeSel) TeachColors.AccentRose else Color(0xFFECEFF8))
+        ) {
+          Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+          ) {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Box(
+                modifier = Modifier
+                  .size(30.dp)
+                  .clip(RoundedCornerShape(8.dp))
+                  .background(if (strokeSel) TeachColors.AccentRose else Color(0xFFE2E8F0)),
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  Icons.Default.AutoFixHigh,
+                  contentDescription = null,
+                  tint = if (strokeSel) Color.White else TeachColors.OnSurfaceMuted,
+                  modifier = Modifier.size(16.dp)
+                )
+              }
+              if (strokeSel) {
+                CheckBadge(TeachColors.AccentRose)
+              }
+            }
+            Spacer(Modifier.height(2.dp))
+            Text(
+              "Stroke Eraser",
+              fontWeight = FontWeight.Bold,
+              fontSize = 13.5.sp,
+              color = if (strokeSel) TeachColors.AccentRose else TeachColors.OnSurface
+            )
+            Text(
+              "Deletes whole stroke with 1 tap",
+              fontSize = 11.sp,
+              color = TeachColors.OnSurfaceMuted,
+              lineHeight = 13.sp
+            )
           }
         }
       }
 
-      SectionLabel("CUSTOM  ·  ${size.toInt()}")
-      Slider(
-        value = size.coerceIn(6f, 80f),
-        onValueChange = onSizeChange,
-        valueRange = 6f..80f,
-        colors = SliderDefaults.colors(thumbColor = TeachColors.AccentRose, activeTrackColor = TeachColors.AccentRose, inactiveTrackColor = Color(0xFFDCE3EC))
-      )
+      // 2. Interactive Real-Scale Eraser Duster Preview Box
+      Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = TeachColors.Background,
+        border = BorderStroke(1.dp, Color(0xFFECEFF8))
+      ) {
+        Column(
+          modifier = Modifier.padding(12.dp),
+          verticalArrangement = Arrangement.spacedBy(8.dp),
+          horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Text(
+              "Live Duster Preview",
+              fontSize = 12.sp,
+              fontWeight = FontWeight.SemiBold,
+              color = TeachColors.OnSurfaceMuted
+            )
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = TeachColors.PastelBlush
+            ) {
+              Text(
+                "${size.toInt()} px radius",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = TeachColors.AccentRose,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+              )
+            }
+          }
 
-      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(
-          selected = mode == EraserMode.PIXEL_INK,
-          onClick = { onModeChange(EraserMode.PIXEL_INK) },
-          label = { Text(stringResource(R.string.eraser_pixel)) }
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(96.dp)
+              .clip(RoundedCornerShape(12.dp))
+              .background(Color.White)
+              .border(1.dp, Color(0xFFF1F5F9), RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+          ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+              val cy = this.size.height / 2f
+              drawLine(
+                color = Color(0xFFCBD5E1),
+                start = Offset(24.dp.toPx(), cy),
+                end = Offset(this.size.width - 24.dp.toPx(), cy),
+                strokeWidth = 6.dp.toPx(),
+                cap = StrokeCap.Round
+              )
+            }
+
+            val clampedPreview = size.coerceIn(12f, 82f).dp
+            Box(
+              modifier = Modifier
+                .size(clampedPreview)
+                .clip(CircleShape)
+                .background(TeachColors.AccentRose.copy(alpha = 0.18f))
+                .border(2.dp, TeachColors.AccentRose, CircleShape),
+              contentAlignment = Alignment.Center
+            ) {
+              Box(
+                modifier = Modifier
+                  .size(4.dp)
+                  .clip(CircleShape)
+                  .background(TeachColors.AccentRose)
+              )
+            }
+          }
+        }
+      }
+
+      // 3. Teacher Size Presets
+      SectionLabel("Expressive Duster Sizes")
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        presets.forEach { (name, presetVal, _) ->
+          val isSel = kotlin.math.abs(size - presetVal) < 3f
+          Surface(
+            modifier = Modifier
+              .weight(1f)
+              .clip(RoundedCornerShape(14.dp))
+              .clickable { onSizeChange(presetVal) },
+            shape = RoundedCornerShape(14.dp),
+            color = if (isSel) TeachColors.PastelBlush else Color.White,
+            border = BorderStroke(if (isSel) 2.dp else 1.dp, if (isSel) TeachColors.AccentRose else Color(0xFFECEFF8))
+          ) {
+            Column(
+              modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
+              horizontalAlignment = Alignment.CenterHorizontally,
+              verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+              Box(
+                modifier = Modifier
+                  .size((presetVal / 5f).coerceIn(6f, 18f).dp)
+                  .clip(CircleShape)
+                  .background(if (isSel) TeachColors.AccentRose else Color(0xFF94A3B8))
+              )
+              Spacer(Modifier.height(1.dp))
+              Text(
+                name,
+                fontSize = 11.5.sp,
+                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSel) TeachColors.AccentRose else TeachColors.OnSurface,
+                maxLines = 1
+              )
+              Text(
+                "${presetVal.toInt()} px",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isSel) TeachColors.AccentRose else TeachColors.OnSurfaceMuted
+              )
+            }
+          }
+        }
+      }
+
+      // 4. Custom Fine-Tuning Slider with Stepper Buttons
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        SectionLabel("Fine-Tune Duster Size")
+        Text(
+          "${size.toInt()} px",
+          fontSize = 13.sp,
+          fontWeight = FontWeight.Bold,
+          color = TeachColors.AccentRose
         )
-        FilterChip(
-          selected = mode == EraserMode.STROKE,
-          onClick = { onModeChange(EraserMode.STROKE) },
-          label = { Text(stringResource(R.string.eraser_stroke)) }
+      }
+
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        Surface(
+          shape = CircleShape,
+          color = TeachColors.Background,
+          border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+          modifier = Modifier
+            .size(36.dp)
+            .clickable { onSizeChange((size - 4f).coerceAtLeast(6f)) }
+        ) {
+          Box(contentAlignment = Alignment.Center) {
+            Icon(Icons.Default.Remove, contentDescription = "Decrease", tint = TeachColors.OnSurface, modifier = Modifier.size(16.dp))
+          }
+        }
+
+        Slider(
+          value = size.coerceIn(6f, 90f),
+          onValueChange = onSizeChange,
+          valueRange = 6f..90f,
+          modifier = Modifier.weight(1f),
+          colors = SliderDefaults.colors(
+            thumbColor = TeachColors.AccentRose,
+            activeTrackColor = TeachColors.AccentRose,
+            inactiveTrackColor = Color(0xFFE2E8F0)
+          )
         )
+
+        Surface(
+          shape = CircleShape,
+          color = TeachColors.Background,
+          border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+          modifier = Modifier
+            .size(36.dp)
+            .clickable { onSizeChange((size + 4f).coerceAtMost(90f)) }
+        ) {
+          Box(contentAlignment = Alignment.Center) {
+            Icon(Icons.Default.Add, contentDescription = "Increase", tint = TeachColors.OnSurface, modifier = Modifier.size(16.dp))
+          }
+        }
       }
     }
   }
@@ -2051,7 +2677,7 @@ private fun OcrActionRow(icon: ImageVector, label: String, onClick: () -> Unit) 
   }
 }
 
-// ===== 12. Wikimedia Image Search Right-Side Slide-Out Drawer (Matching ref_26_web_image.png!) =====
+// ===== 12. Wikimedia Image Search (Responsive Landscape & Portrait) =====
 
 @Composable
 fun WikimediaSearchDialog(
@@ -2059,12 +2685,27 @@ fun WikimediaSearchDialog(
   onDismiss: () -> Unit
 ) {
   val context = LocalContext.current
+  val config = LocalConfiguration.current
+  val isLandscape = config.screenWidthDp > config.screenHeightDp
+  val dialogWidth = if (isLandscape) 0.88f else 0.94f
+  val dialogMaxHeight = if (isLandscape) (config.screenHeightDp - 16).coerceAtLeast(300).dp else 660.dp
+
   val scope = rememberCoroutineScope()
   var query by remember { mutableStateOf("") }
   var results by remember { mutableStateOf<List<WikimediaImage>>(emptyList()) }
   var loading by remember { mutableStateOf(false) }
   var errorMsg by remember { mutableStateOf<String?>(null) }
   var offset by remember { mutableIntStateOf(0) }
+  var selectedCategory by remember { mutableIntStateOf(0) }
+
+  val educationalTopics = listOf(
+    "All Topics" to listOf("Solar System", "Human Heart", "Plant Cell", "World Map", "Periodic Table", "Pythagoras"),
+    "🔬 Science" to listOf("Human Heart", "Plant Cell", "DNA Double Helix", "Human Brain", "Photosynthesis", "Microscope"),
+    "🪐 Astronomy" to listOf("Solar System", "Moon Phases", "Milky Way Galaxy", "Mars Planet", "Saturn Rings", "Black Hole"),
+    "📐 Mathematics" to listOf("Pythagoras Theorem", "Right Triangle", "Parabola Graph", "Geometric Shapes", "Circle Angles"),
+    "🗺️ Geography" to listOf("World Map", "Map of India", "Earth Layers", "Compass Rose", "Volcano Diagram", "Water Cycle"),
+    "🧪 Physics & Chem" to listOf("Periodic Table", "Electric Circuit", "Water Molecule", "Atom Structure", "Light Spectrum")
+  )
 
   fun runSearch(qOverride: String = query, reset: Boolean = true) {
     val q = qOverride.trim()
@@ -2086,145 +2727,335 @@ fun WikimediaSearchDialog(
     }
   }
 
-  val config = LocalConfiguration.current
-  val drawerWidth = if (config.screenWidthDp > config.screenHeightDp) 0.48f else 0.76f
   Dialog(
     onDismissRequest = onDismiss,
     properties = DialogProperties(usePlatformDefaultWidth = false)
   ) {
-    MaterialTheme(colorScheme = LightModalColorScheme) {
-      Box(modifier = Modifier.fillMaxSize().clickable(onClick = onDismiss)) {
-        Surface(
-          modifier = Modifier
-            .align(Alignment.CenterEnd)
-            .fillMaxWidth(drawerWidth)
-            .fillMaxHeight()
-            .clickable(enabled = false) {},
-          shape = RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp),
-          color = Color.White,
-          contentColor = Color(0xFF111827),
-          shadowElevation = 14.dp
+    Surface(
+      modifier = Modifier
+        .fillMaxWidth(dialogWidth)
+        .heightIn(max = dialogMaxHeight),
+      shape = RoundedCornerShape(24.dp),
+      color = Color.White,
+      border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+      shadowElevation = 14.dp
+    ) {
+      Column(
+        modifier = Modifier.padding(
+          horizontal = if (isLandscape) 14.dp else 18.dp,
+          vertical = if (isLandscape) 10.dp else 16.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(if (isLandscape) 8.dp else 12.dp)
+      ) {
+        // Modern Header
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          verticalAlignment = Alignment.CenterVertically
         ) {
-        Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
-          Row(
+          Box(
             modifier = Modifier
-              .fillMaxWidth()
-              .background(TeachColors.HeaderCyanTint)
-              .padding(horizontal = 14.dp, vertical = 12.dp),
+              .size(if (isLandscape) 28.dp else 34.dp)
+              .clip(RoundedCornerShape(9.dp))
+              .background(TeachColors.PastelPeriwinkle),
+            contentAlignment = Alignment.Center
+          ) {
+            Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = TeachColors.Primary, modifier = Modifier.size(if (isLandscape) 16.dp else 19.dp))
+          }
+          Spacer(Modifier.width(8.dp))
+          Column(modifier = Modifier.weight(1f)) {
+            Text(stringResource(R.string.image_search_title), fontWeight = FontWeight.Bold, fontSize = if (isLandscape) 15.sp else 17.sp, color = TeachColors.OnSurface)
+            WavyAccentDivider(color = TeachColors.Primary, modifier = Modifier.width(44.dp).padding(top = 1.dp))
+          }
+          Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = TeachColors.PastelPeriwinkle,
+            modifier = Modifier.padding(end = 6.dp)
+          ) {
+            Text(
+              "Free CC Visuals",
+              color = TeachColors.Primary,
+              fontWeight = FontWeight.Bold,
+              fontSize = 10.sp,
+              modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
+            )
+          }
+          IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+            Icon(Icons.Default.Close, contentDescription = "Close", tint = TeachColors.OnSurfaceMuted, modifier = Modifier.size(17.dp))
+          }
+        }
+
+        // Modern Capsule Search Bar
+        Surface(
+          shape = RoundedCornerShape(14.dp),
+          color = TeachColors.Background,
+          border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = if (isLandscape) 2.dp else 4.dp),
             verticalAlignment = Alignment.CenterVertically
           ) {
-            Box(
-              modifier = Modifier.size(30.dp).clip(RoundedCornerShape(9.dp)).background(TeachColors.AccentCyan),
-              contentAlignment = Alignment.Center
-            ) {
-              Icon(Icons.Default.Search, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-            }
-            Spacer(Modifier.width(10.dp))
-            Text(stringResource(R.string.image_search_title), fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color(0xFF111827), modifier = Modifier.weight(1f))
-            IconButton(onClick = onDismiss, modifier = Modifier.size(30.dp)) {
-              Icon(Icons.Default.Close, contentDescription = "Close", tint = Color(0xFF64748B))
-            }
-          }
-          HorizontalDivider(color = Color(0xFFE5E7EB))
-
-          Column(modifier = Modifier.weight(1f).padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedTextField(
+            Icon(Icons.Default.Search, contentDescription = null, tint = TeachColors.Primary, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            BasicTextField(
               value = query,
               onValueChange = { query = it },
-              modifier = Modifier.fillMaxWidth(),
+              modifier = Modifier.weight(1f),
               singleLine = true,
-              shape = RoundedCornerShape(14.dp),
-              placeholder = { Text(stringResource(R.string.search_wikimedia_hint), fontSize = 13.sp) },
-              leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TeachColors.AccentCyan) },
-              trailingIcon = {
-                if (query.isNotBlank()) {
-                  IconButton(onClick = { runSearch(query, reset = true) }) {
-                    Icon(Icons.Default.Check, contentDescription = "Go", tint = TeachColors.AccentCyan)
-                  }
+              textStyle = TextStyle(fontSize = 13.5.sp, color = TeachColors.OnSurface, fontWeight = FontWeight.Medium),
+              decorationBox = { innerTextField ->
+                if (query.isEmpty()) {
+                  Text("Search diagrams, anatomy, maps, formulas...", fontSize = 12.5.sp, color = TeachColors.OnSurfaceMuted)
                 }
+                innerTextField()
               }
             )
-
-            errorMsg?.let { Text(it, color = TeachColors.Danger, fontSize = 12.sp) }
-
-            if (loading && results.isEmpty()) {
-              Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = TeachColors.AccentCyan)
+            if (query.isNotEmpty()) {
+              IconButton(onClick = { query = ""; results = emptyList() }, modifier = Modifier.size(26.dp)) {
+                Icon(Icons.Default.Close, contentDescription = "Clear", tint = TeachColors.OnSurfaceMuted, modifier = Modifier.size(15.dp))
               }
-            } else if (results.isEmpty()) {
-              Column(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-              ) {
-                Text("Try searching:", fontSize = 12.sp, color = Color(0xFF64748B))
-                Spacer(Modifier.height(8.dp))
-                listOf("solar system", "human heart", "triangle", "plant cell", "map of india").forEach { topic ->
-                  TextButton(onClick = { runSearch(topic, reset = true) }) {
-                    Text("• $topic", color = TeachColors.AccentCyan, fontSize = 13.sp)
-                  }
+            }
+            Surface(
+              shape = RoundedCornerShape(10.dp),
+              color = TeachColors.Primary,
+              modifier = Modifier
+                .clickable { runSearch(query, reset = true) }
+                .padding(start = 4.dp)
+            ) {
+              Text(
+                "Search",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp)
+              )
+            }
+          }
+        }
+
+        errorMsg?.let {
+          Text(it, color = TeachColors.Danger, fontSize = 11.5.sp, modifier = Modifier.padding(horizontal = 4.dp))
+        }
+
+        if (loading && results.isEmpty()) {
+          Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+              CircularProgressIndicator(color = TeachColors.Primary, strokeWidth = 2.5.dp)
+              Text("Searching educational archives...", fontSize = 12.sp, color = TeachColors.OnSurfaceMuted)
+            }
+          }
+        } else if (results.isEmpty()) {
+          // Categorized Educational Discovery State
+          Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Subject Category Pills
+            Row(
+              modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+              horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+              educationalTopics.forEachIndexed { idx, (catName, _) ->
+                val isSel = idx == selectedCategory
+                Surface(
+                  shape = RoundedCornerShape(10.dp),
+                  color = if (isSel) TeachColors.Primary else TeachColors.Background,
+                  border = BorderStroke(1.dp, if (isSel) TeachColors.Primary else Color(0xFFECEFF8)),
+                  modifier = Modifier.clickable { selectedCategory = idx }
+                ) {
+                  Text(
+                    catName,
+                    color = if (isSel) Color.White else TeachColors.OnSurface,
+                    fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
+                    fontSize = 11.5.sp,
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                  )
                 }
               }
-            } else {
-              Text("${results.size} ${stringResource(R.string.results_tap_add)}", fontSize = 11.sp, color = Color(0xFF64748B))
-              LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-              ) {
-                items(results) { img ->
-                  Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = TeachColors.TrayBg,
-                    modifier = Modifier.clickable { onPickImage(img); onDismiss() }
-                  ) {
-                    Box(modifier = Modifier.aspectRatio(1f)) {
-                      AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                          .data(img.thumbUrl)
-                          .setHeader("User-Agent", AppConfig.USER_AGENT)
-                          .crossfade(true)
-                          .build(),
-                        contentDescription = img.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                      )
-                      Box(
-                        modifier = Modifier.align(Alignment.TopEnd).padding(5.dp).size(26.dp).clip(CircleShape).background(TeachColors.AccentCyan),
-                        contentAlignment = Alignment.Center
+            }
+
+            Text(
+              "Quick Visual Topics  ·  Tap to search",
+              fontSize = 11.sp,
+              fontWeight = FontWeight.SemiBold,
+              color = TeachColors.OnSurfaceMuted
+            )
+
+            // Topic Chips Grid
+            val currentTopics = educationalTopics[selectedCategory].second
+            val chunkCols = if (isLandscape) 3 else 2
+            LazyColumn(
+              verticalArrangement = Arrangement.spacedBy(6.dp),
+              modifier = Modifier.weight(1f)
+            ) {
+              items(currentTopics.chunked(chunkCols)) { rowTopics ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                  rowTopics.forEach { topic ->
+                    Surface(
+                      modifier = Modifier
+                        .weight(1f)
+                        .height(if (isLandscape) 36.dp else 42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { runSearch(topic, reset = true) },
+                      shape = RoundedCornerShape(12.dp),
+                      color = TeachColors.Background,
+                      border = BorderStroke(1.dp, Color(0xFFECEFF8))
+                    ) {
+                      Row(
+                        modifier = Modifier.padding(horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                       ) {
-                        Icon(Icons.Default.Add, contentDescription = "Add", tint = Color.White, modifier = Modifier.size(16.dp))
+                        Box(
+                          modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(TeachColors.Primary)
+                        )
+                        Text(
+                          topic,
+                          fontSize = 11.5.sp,
+                          fontWeight = FontWeight.SemiBold,
+                          color = TeachColors.OnSurface,
+                          maxLines = 1,
+                          overflow = TextOverflow.Ellipsis
+                        )
                       }
                     }
                   }
-                }
-              }
-              if (!loading) {
-                OutlinedButton(onClick = { runSearch(query, reset = false) }, modifier = Modifier.fillMaxWidth()) {
-                  Text(stringResource(R.string.load_more))
+                  repeat(chunkCols - rowTopics.size) { Spacer(Modifier.weight(1f)) }
                 }
               }
             }
           }
+        } else {
+          // Results view
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Text(
+              "${results.size} ${stringResource(R.string.results_tap_add)}",
+              fontSize = 11.5.sp,
+              fontWeight = FontWeight.SemiBold,
+              color = TeachColors.OnSurfaceMuted
+            )
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = TeachColors.PastelPeriwinkle,
+              modifier = Modifier.clickable { results = emptyList() }
+            ) {
+              Text(
+                "Clear",
+                fontSize = 10.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = TeachColors.Primary,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+              )
+            }
+          }
 
-          HorizontalDivider(color = Color(0xFFE5E7EB))
-          Text(
-            "Images from Wikimedia Commons (CC)",
-            fontSize = 11.sp,
-            color = Color(0xFF64748B),
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)
-          )
+          val gridCols = if (isLandscape) 4 else 2
+          val thumbHeight = if (isLandscape) 82.dp else 110.dp
+
+          LazyVerticalGrid(
+            columns = GridCells.Fixed(gridCols),
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            items(results) { img ->
+              Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = TeachColors.Background,
+                border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+                modifier = Modifier
+                  .clip(RoundedCornerShape(12.dp))
+                  .clickable { onPickImage(img); onDismiss() }
+              ) {
+                Column {
+                  Box(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .height(thumbHeight)
+                      .background(Color(0xFFF1F5F9)),
+                    contentAlignment = Alignment.Center
+                  ) {
+                    AsyncImage(
+                      model = ImageRequest.Builder(LocalContext.current)
+                        .data(img.thumbUrl)
+                        .setHeader("User-Agent", AppConfig.USER_AGENT)
+                        .crossfade(true)
+                        .build(),
+                      contentDescription = img.title,
+                      contentScale = ContentScale.Fit,
+                      modifier = Modifier
+                        .fillMaxSize()
+                        .padding(4.dp)
+                    )
+                    Surface(
+                      shape = RoundedCornerShape(6.dp),
+                      color = TeachColors.Primary,
+                      modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                    ) {
+                      Row(
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                      ) {
+                        Icon(Icons.Default.Add, contentDescription = "Add", tint = Color.White, modifier = Modifier.size(10.dp))
+                        Text("Add", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                      }
+                    }
+                  }
+                  Text(
+                    text = img.title.substringBefore(".").replace("_", " "),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = TeachColors.OnSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                  )
+                }
+              }
+            }
+
+            if (!loading) {
+              item(span = { GridItemSpan(gridCols) }) {
+                Surface(
+                  shape = RoundedCornerShape(10.dp),
+                  color = TeachColors.PastelPeriwinkle,
+                  border = BorderStroke(1.dp, TeachColors.Primary.copy(alpha = 0.2f)),
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { runSearch(query, reset = false) }
+                ) {
+                  Box(modifier = Modifier.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                    Text(stringResource(R.string.load_more), color = TeachColors.Primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                  }
+                }
+              }
+            }
+          }
         }
+
+        // Footer note
+        Text(
+          "Educational media from Wikimedia Commons (Creative Commons License)",
+          fontSize = 10.sp,
+          color = TeachColors.OnSurfaceMuted,
+          textAlign = TextAlign.Center,
+          modifier = Modifier.fillMaxWidth()
+        )
       }
-    }
     }
   }
 }
 
 // ===== 13. Stickers & Science Stickers (Matching ref_18_stickers.png & ref_19_science.png!) =====
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun StickerPickerDialog(
   group: StickerGroup,
@@ -2232,21 +3063,30 @@ fun StickerPickerDialog(
   onPick: (String, Int) -> Unit,
   onDismiss: () -> Unit
 ) {
+  val config = LocalConfiguration.current
+  val isLandscape = config.screenWidthDp > config.screenHeightDp
   val all = remember(group) { StickerCatalog.byGroup(group) }
-  val categories = remember(all) { all.map { it.category }.distinct() }
-  var selectedCat by remember(group) { mutableStateOf(if (group == StickerGroup.SCIENCE) "Atoms" else categories.first()) }
+  val isGeneral = group == StickerGroup.GENERAL
+  val rawCategories = remember(all) { all.map { it.category }.distinct() }
+  val categories = remember(rawCategories, isGeneral) {
+    if (!isGeneral) listOf("All") + rawCategories else rawCategories
+  }
+  var selectedCat by remember(group) { mutableStateOf(if (group == StickerGroup.SCIENCE) "All" else categories.first()) }
   var search by remember { mutableStateOf("") }
 
   val filtered = remember(all, selectedCat, search) {
     all.filter { spec ->
-      (search.isNotBlank() && (spec.label.contains(search, true) || spec.category.contains(search, true))) ||
-        (search.isBlank() && spec.category == selectedCat)
+      if (search.isNotBlank()) {
+        spec.label.contains(search, true) || spec.category.contains(search, true)
+      } else {
+        selectedCat == "All" || spec.category == selectedCat
+      }
     }
   }
 
-  val isGeneral = group == StickerGroup.GENERAL
   val accent = if (isGeneral) TeachColors.AccentPink else TeachColors.AccentEmerald
   val headerTint = if (isGeneral) TeachColors.HeaderPinkTint else TeachColors.HeaderMintTint
+  val columnsCount = if (isLandscape) 6 else 3
 
   PastelModalDialog(
     title = if (isGeneral) stringResource(R.string.stickers_title) else stringResource(R.string.tool_science),
@@ -2255,80 +3095,141 @@ fun StickerPickerDialog(
     headerTint = headerTint,
     onDismiss = onDismiss
   ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-      // Bold pill category tabs
-      Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    Column(
+      modifier = Modifier.fillMaxWidth(),
+      verticalArrangement = Arrangement.spacedBy(if (isLandscape) 6.dp else 10.dp)
+    ) {
+      // 1. Search Bar
+      if (!isGeneral) {
+        OutlinedTextField(
+          value = search,
+          onValueChange = { search = it },
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(if (isLandscape) 44.dp else 48.dp),
+          singleLine = true,
+          shape = RoundedCornerShape(12.dp),
+          placeholder = { Text(stringResource(R.string.search_stickers_hint), fontSize = 12.sp) },
+          leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
+          trailingIcon = {
+            if (search.isNotBlank()) {
+              IconButton(onClick = { search = "" }, modifier = Modifier.size(24.dp)) {
+                Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(16.dp))
+              }
+            }
+          }
+        )
+      }
+
+      // 2. Bold Category Chips wrapped with FlowRow (all categories visible on front screen without side swiping!)
+      FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(if (isLandscape) 4.dp else 6.dp)
       ) {
         categories.forEach { cat ->
           val sel = cat == selectedCat && search.isBlank()
           Surface(
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(12.dp),
             color = if (sel) accent else Color.White,
             modifier = Modifier
-              .border(1.dp, if (sel) accent else TeachColors.TrayBorder, RoundedCornerShape(14.dp))
+              .border(1.dp, if (sel) accent else TeachColors.TrayBorder, RoundedCornerShape(12.dp))
               .clickable { selectedCat = cat; search = "" }
           ) {
+            val catPrefix = when (cat) {
+              "All" -> "✨ "
+              "Lab" -> "🧪 "
+              "Biology" -> "🧬 "
+              "Chemistry" -> "⚗️ "
+              "Physics" -> "⚡ "
+              "Atoms" -> "⚛️ "
+              "Elements" -> "🧱 "
+              else -> ""
+            }
             Text(
-              cat,
-              fontSize = 13.sp,
+              "$catPrefix$cat",
+              fontSize = if (isLandscape) 11.sp else 12.sp,
               fontWeight = FontWeight.Bold,
               color = if (sel) Color.White else Color(0xFF1E293B),
-              modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+              modifier = Modifier.padding(horizontal = if (isLandscape) 8.dp else 10.dp, vertical = if (isLandscape) 4.dp else 6.dp)
             )
           }
         }
       }
 
-      if (!isGeneral) {
-        OutlinedTextField(
-          value = search,
-          onValueChange = { search = it },
-          modifier = Modifier.fillMaxWidth(),
-          singleLine = true,
-          shape = RoundedCornerShape(12.dp),
-          placeholder = { Text(stringResource(R.string.search_stickers_hint), fontSize = 12.sp) },
-          leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp)) }
-        )
-      }
-
-      val catIdx = (categories.indexOf(selectedCat) + 1).coerceAtLeast(1)
+      // 3. Status readout
+      val catLabel = if (search.isNotBlank()) "Search results" else selectedCat
       Text(
-        "$catIdx / ${categories.size}  ·  ${filtered.size} items",
+        "$catLabel  ·  ${filtered.size} items",
         fontSize = 11.sp,
+        fontWeight = FontWeight.Medium,
         color = Color(0xFF64748B),
         modifier = Modifier.align(Alignment.CenterHorizontally)
       )
 
-      // 3-column large crisp cards!
+      // 4. Dynamic Responsive Grid (Section Headers when "All" is active, Elements placed down below!)
+      val gridMaxH = if (isLandscape) (config.screenHeightDp - 145).coerceAtLeast(180).dp else 420.dp
       LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
-        modifier = Modifier.heightIn(max = 370.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        columns = GridCells.Fixed(columnsCount),
+        modifier = Modifier
+          .fillMaxWidth()
+          .heightIn(max = gridMaxH),
+        horizontalArrangement = Arrangement.spacedBy(if (isLandscape) 8.dp else 10.dp),
+        verticalArrangement = Arrangement.spacedBy(if (isLandscape) 8.dp else 10.dp)
       ) {
-        items(filtered, key = { it.id }) { spec ->
-          Surface(
-            modifier = Modifier
-              .aspectRatio(1f)
-              .clip(RoundedCornerShape(16.dp))
-              .border(1.dp, TeachColors.TrayBorder, RoundedCornerShape(16.dp))
-              .clickable { onPick(spec.id, initialColor); onDismiss() },
-            color = Color.White
-          ) {
-            Box(
-              modifier = Modifier
-                .fillMaxSize()
-                .padding(7.dp)
-                .clip(RoundedCornerShape(11.dp))
-                .background(if (!isGeneral) Color(0xFFEDF2F7) else Color.White),
-              contentAlignment = Alignment.Center
-            ) {
-              Canvas(modifier = Modifier.fillMaxSize().padding(8.dp)) {
-                val previewCol = if (initialColor == TeachColors.BrushWhite) TeachColors.BrushBlack else initialColor
-                StickerCatalog.drawSticker(drawContext.canvas.nativeCanvas, spec.id, previewCol, size.width, size.height)
+        if (!isGeneral && selectedCat == "All" && search.isBlank()) {
+          rawCategories.forEach { cat ->
+            val catItems = all.filter { it.category == cat }
+            if (catItems.isNotEmpty()) {
+              item(span = { GridItemSpan(maxLineSpan) }, key = "header_$cat") {
+                Row(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp, bottom = 4.dp),
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                  val catIcon = when (cat) {
+                    "Lab" -> "🧪"
+                    "Biology" -> "🧬"
+                    "Chemistry" -> "⚗️"
+                    "Physics" -> "⚡"
+                    "Atoms" -> "⚛️"
+                    "Elements" -> "🧱"
+                    else -> "🔬"
+                  }
+                  Text(
+                    "$catIcon $cat",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFF1E293B)
+                  )
+                  Text(
+                    "(${catItems.size})",
+                    fontSize = 11.sp,
+                    color = Color(0xFF64748B)
+                  )
+                  Box(
+                    modifier = Modifier
+                      .weight(1f)
+                      .height(1.dp)
+                      .background(Color(0xFFE2E8F0))
+                  )
+                }
               }
+              items(catItems, key = { it.id }) { spec ->
+                StickerCardTile(spec, initialColor, isGeneral) {
+                  onPick(spec.id, initialColor)
+                  onDismiss()
+                }
+              }
+            }
+          }
+        } else {
+          items(filtered, key = { it.id }) { spec ->
+            StickerCardTile(spec, initialColor, isGeneral) {
+              onPick(spec.id, initialColor)
+              onDismiss()
             }
           }
         }
@@ -2337,7 +3238,38 @@ fun StickerPickerDialog(
   }
 }
 
-// ===== 14. Laser Pointer Bottom Card (Matching ref_20_laser.png!) =====
+@Composable
+private fun StickerCardTile(
+  spec: StickerSpec,
+  initialColor: Int,
+  isGeneral: Boolean,
+  onClick: () -> Unit
+) {
+  Surface(
+    modifier = Modifier
+      .aspectRatio(1f)
+      .clip(RoundedCornerShape(14.dp))
+      .border(1.dp, TeachColors.TrayBorder, RoundedCornerShape(14.dp))
+      .clickable(onClick = onClick),
+    color = Color.White
+  ) {
+    Box(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(5.dp)
+        .clip(RoundedCornerShape(10.dp))
+        .background(if (!isGeneral) Color(0xFFEDF2F7) else Color.White),
+      contentAlignment = Alignment.Center
+    ) {
+      Canvas(modifier = Modifier.fillMaxSize().padding(6.dp)) {
+        val previewCol = if (initialColor == TeachColors.BrushWhite) TeachColors.BrushBlack else initialColor
+        StickerCatalog.drawSticker(drawContext.canvas.nativeCanvas, spec.id, previewCol, size.width, size.height)
+      }
+    }
+  }
+}
+
+// ===== 14. Laser Pointer Studio Card =====
 
 @Composable
 fun LaserDialog(
@@ -2347,6 +3279,23 @@ fun LaserDialog(
   onSizeChange: (Float) -> Unit,
   onDismiss: () -> Unit
 ) {
+  val laserSwatches = listOf(
+    Triple("Crimson", 0xFFEF4444.toInt(), Color(0xFFEF4444)),
+    Triple("Solar", 0xFFFACC15.toInt(), Color(0xFFFACC15)),
+    Triple("Emerald", 0xFF22C55E.toInt(), Color(0xFF22C55E)),
+    Triple("Cyan", 0xFF06B6D4.toInt(), Color(0xFF06B6D4)),
+    Triple("Cobalt", 0xFF3B82F6.toInt(), Color(0xFF3B82F6)),
+    Triple("Violet", 0xFFEC4899.toInt(), Color(0xFFEC4899)),
+    Triple("Starlight", 0xFFFFFFFF.toInt(), Color(0xFFFFFFFF))
+  )
+
+  val sizePresets = listOf(
+    Pair("Pinpoint", 6f),
+    Pair("Lecture", 14f),
+    Pair("Marker", 22f),
+    Pair("Spotlight", 32f)
+  )
+
   BottomDockCard(
     title = stringResource(R.string.laser_pointer_title),
     icon = Icons.Default.FlashlightOn,
@@ -2354,55 +3303,275 @@ fun LaserDialog(
     headerTint = TeachColors.HeaderPeachTint,
     onDismiss = onDismiss
   ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-      SectionLabel(stringResource(R.string.color_label))
-      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        TeachColors.LaserColors.forEach { c ->
-          val sel = c == currentColor
-          Box(
-            modifier = Modifier
-              .size(34.dp)
-              .clip(CircleShape)
-              .then(if (sel) Modifier.border(2.5.dp, TeachColors.AccentOrange, CircleShape).padding(3.dp) else Modifier)
-              .clip(CircleShape)
-              .background(Color(c))
-              .border(1.dp, Color(0x26000000), CircleShape)
-              .clickable { onColorChange(c) }
-          )
-        }
-      }
-
-      SectionLabel(stringResource(R.string.size_label))
-      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(4f, 8f, 16f, 24f, 32f).forEach { s ->
-          val sel = kotlin.math.abs(currentSize - s) < 1.5f
-          Box(
-            modifier = Modifier
-              .weight(1f)
-              .height(48.dp)
-              .clip(RoundedCornerShape(12.dp))
-              .background(if (sel) TeachColors.HeaderPeachTint else Color.White)
-              .border(if (sel) 2.dp else 1.dp, if (sel) TeachColors.AccentOrange else TeachColors.TrayBorder, RoundedCornerShape(12.dp))
-              .clickable { onSizeChange(s) }
+    Column(
+      modifier = Modifier.verticalScroll(rememberScrollState()),
+      verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+      // 1. Live Neon Laser Beam Showcase
+      val activeLaserColor = Color(currentColor)
+      Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFF0F172A),
+        border = BorderStroke(1.dp, Color(0xFF1E293B))
+      ) {
+        Column(
+          modifier = Modifier.padding(12.dp),
+          verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
           ) {
-            Text("${s.toInt()}", fontWeight = FontWeight.Bold, color = if (sel) TeachColors.AccentOrange else Color(0xFF1E293B), modifier = Modifier.align(Alignment.Center))
-            if (sel) CheckBadge(TeachColors.AccentOrange, Modifier.align(Alignment.TopEnd).padding(3.dp))
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+              Box(
+                modifier = Modifier
+                  .size(8.dp)
+                  .clip(CircleShape)
+                  .background(activeLaserColor)
+              )
+              Text(
+                "Live Neon Beam",
+                color = Color(0xFF94A3B8),
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Medium
+              )
+            }
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = activeLaserColor.copy(alpha = 0.2f),
+              border = BorderStroke(1.dp, activeLaserColor.copy(alpha = 0.5f))
+            ) {
+              Text(
+                "${currentSize.toInt()} px beam",
+                color = if (currentColor == 0xFFFFFFFF.toInt()) Color.White else activeLaserColor,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+              )
+            }
+          }
+
+          // Beam Canvas with glowing multi-layer curve
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(58.dp)
+              .clip(RoundedCornerShape(10.dp))
+              .background(Color(0xFF020617)),
+            contentAlignment = Alignment.Center
+          ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+              val w = size.width
+              val h = size.height
+
+              val path = Path().apply {
+                moveTo(w * 0.1f, h * 0.7f)
+                cubicTo(w * 0.35f, h * 0.2f, w * 0.65f, h * 0.85f, w * 0.88f, h * 0.35f)
+              }
+
+              // Layer 1: Wide diffused neon aura
+              drawPath(
+                path = path,
+                color = activeLaserColor.copy(alpha = 0.25f),
+                style = Stroke(width = (currentSize * 2.8f).coerceIn(12f, 70f), cap = StrokeCap.Round, join = StrokeJoin.Round)
+              )
+              // Layer 2: Medium glowing beam
+              drawPath(
+                path = path,
+                color = activeLaserColor.copy(alpha = 0.65f),
+                style = Stroke(width = (currentSize * 1.5f).coerceIn(6f, 40f), cap = StrokeCap.Round, join = StrokeJoin.Round)
+              )
+              // Layer 3: Intense core beam
+              drawPath(
+                path = path,
+                color = if (currentColor == 0xFFFFFFFF.toInt()) Color.White else Color.White.copy(alpha = 0.85f),
+                style = Stroke(width = (currentSize * 0.6f).coerceIn(2f, 18f), cap = StrokeCap.Round, join = StrokeJoin.Round)
+              )
+
+              // Head dot with glow rings
+              val endPoint = Offset(w * 0.88f, h * 0.35f)
+              drawCircle(
+                color = activeLaserColor.copy(alpha = 0.4f),
+                radius = (currentSize * 1.8f).coerceIn(8f, 32f),
+                center = endPoint
+              )
+              drawCircle(
+                color = Color.White,
+                radius = (currentSize * 0.6f).coerceIn(3f, 12f),
+                center = endPoint
+              )
+            }
           }
         }
       }
 
-      SectionLabel("CUSTOM  ·  ${currentSize.toInt()}")
-      Slider(
-        value = currentSize,
-        onValueChange = onSizeChange,
-        valueRange = 4f..36f,
-        colors = SliderDefaults.colors(thumbColor = TeachColors.AccentOrange, activeTrackColor = TeachColors.AccentOrange, inactiveTrackColor = Color(0xFFDCE3EC))
-      )
+      // 2. Named Neon Swatches with Aura Rings
+      SectionLabel("Neon Beam Colors")
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        laserSwatches.forEach { (name, colVal, col) ->
+          val isSel = colVal == currentColor
+          Surface(
+            modifier = Modifier
+              .clip(RoundedCornerShape(14.dp))
+              .clickable { onColorChange(colVal) },
+            shape = RoundedCornerShape(14.dp),
+            color = if (isSel) col.copy(alpha = 0.12f) else Color.White,
+            border = BorderStroke(if (isSel) 2.dp else 1.dp, if (isSel) col else Color(0xFFECEFF8))
+          ) {
+            Column(
+              modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+              horizontalAlignment = Alignment.CenterHorizontally,
+              verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+              Box(
+                modifier = Modifier
+                  .size(30.dp)
+                  .clip(CircleShape)
+                  .background(col)
+                  .then(
+                    if (isSel) Modifier.border(2.5.dp, if (colVal == 0xFFFFFFFF.toInt()) Color(0xFF0F172A) else Color.White, CircleShape)
+                    else Modifier.border(1.dp, Color(0x33000000), CircleShape)
+                  ),
+                contentAlignment = Alignment.Center
+              ) {
+                if (isSel) {
+                  Icon(
+                    Icons.Default.Check,
+                    contentDescription = null,
+                    tint = if (colVal == 0xFFFFFFFF.toInt() || colVal == 0xFFFACC15.toInt()) Color.Black else Color.White,
+                    modifier = Modifier.size(16.dp)
+                  )
+                }
+              }
+              Text(
+                name,
+                fontSize = 11.sp,
+                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSel) TeachColors.OnSurface else TeachColors.OnSurfaceMuted
+              )
+            }
+          }
+        }
+      }
+
+      // 3. Beam Thickness Presets
+      SectionLabel("Beam Thickness Presets")
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        sizePresets.forEach { (label, presetSize) ->
+          val isSel = kotlin.math.abs(currentSize - presetSize) < 2f
+          Surface(
+            modifier = Modifier
+              .weight(1f)
+              .clip(RoundedCornerShape(12.dp))
+              .clickable { onSizeChange(presetSize) },
+            shape = RoundedCornerShape(12.dp),
+            color = if (isSel) TeachColors.PastelPeach else Color.White,
+            border = BorderStroke(if (isSel) 2.dp else 1.dp, if (isSel) TeachColors.AccentOrange else Color(0xFFECEFF8))
+          ) {
+            Column(
+              modifier = Modifier.padding(vertical = 8.dp, horizontal = 2.dp),
+              horizontalAlignment = Alignment.CenterHorizontally,
+              verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+              Box(
+                modifier = Modifier
+                  .size((presetSize / 2f).coerceIn(6f, 16f).dp)
+                  .clip(CircleShape)
+                  .background(if (isSel) TeachColors.AccentOrange else Color(0xFF94A3B8))
+              )
+              Text(
+                label,
+                fontSize = 11.sp,
+                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSel) TeachColors.AccentOrange else TeachColors.OnSurface,
+                maxLines = 1
+              )
+              Text(
+                "${presetSize.toInt()} px",
+                fontSize = 9.5.sp,
+                color = if (isSel) TeachColors.AccentOrange else TeachColors.OnSurfaceMuted
+              )
+            }
+          }
+        }
+      }
+
+      // 4. Custom Fine-Tune Slider with Steppers
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        SectionLabel("Fine-Tune Beam Width")
+        Text(
+          "${currentSize.toInt()} px",
+          fontSize = 12.5.sp,
+          fontWeight = FontWeight.Bold,
+          color = TeachColors.AccentOrange
+        )
+      }
+
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        Surface(
+          shape = CircleShape,
+          color = TeachColors.Background,
+          border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+          modifier = Modifier
+            .size(34.dp)
+            .clickable { onSizeChange((currentSize - 2f).coerceAtLeast(4f)) }
+        ) {
+          Box(contentAlignment = Alignment.Center) {
+            Icon(Icons.Default.Remove, contentDescription = "Decrease", tint = TeachColors.OnSurface, modifier = Modifier.size(15.dp))
+          }
+        }
+
+        Slider(
+          value = currentSize.coerceIn(4f, 36f),
+          onValueChange = onSizeChange,
+          valueRange = 4f..36f,
+          modifier = Modifier.weight(1f),
+          colors = SliderDefaults.colors(
+            thumbColor = TeachColors.AccentOrange,
+            activeTrackColor = TeachColors.AccentOrange,
+            inactiveTrackColor = Color(0xFFE2E8F0)
+          )
+        )
+
+        Surface(
+          shape = CircleShape,
+          color = TeachColors.Background,
+          border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+          modifier = Modifier
+            .size(34.dp)
+            .clickable { onSizeChange((currentSize + 2f).coerceAtMost(36f)) }
+        ) {
+          Box(contentAlignment = Alignment.Center) {
+            Icon(Icons.Default.Add, contentDescription = "Increase", tint = TeachColors.OnSurface, modifier = Modifier.size(15.dp))
+          }
+        }
+      }
     }
   }
 }
 
-// ===== 15. Screen Recorder Dialog (Matching ref_23_record.png — 100% Free Unlimited!) =====
+// ===== 15. Screen Recorder Dialog =====
 
 @Composable
 fun ScreenRecorderDialog(
@@ -2417,49 +3586,111 @@ fun ScreenRecorderDialog(
   PastelModalDialog(
     title = stringResource(R.string.record_screen_title),
     icon = Icons.Default.RadioButtonChecked,
-    badgeColor = TeachColors.AccentRose,
-    headerTint = TeachColors.HeaderRoseTint,
+    badgeColor = TeachColors.Primary,
+    headerTint = TeachColors.HeaderSkyTint,
     onDismiss = onDismiss
   ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-      // Card 1: Record my voice
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+      // Card 1: Record voice
       Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        modifier = Modifier.fillMaxWidth().border(1.dp, TeachColors.TrayBorder, RoundedCornerShape(16.dp))
+        shape = RoundedCornerShape(18.dp),
+        color = TeachColors.PastelPeriwinkle.copy(alpha = 0.4f),
+        border = BorderStroke(1.dp, Color(0xFFC7D7FE)),
+        modifier = Modifier.fillMaxWidth()
       ) {
         Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-          Icon(Icons.Default.Mic, contentDescription = null, tint = TeachColors.AccentRose, modifier = Modifier.size(22.dp))
+          Box(
+            modifier = Modifier
+              .size(38.dp)
+              .clip(CircleShape)
+              .background(Color.White),
+            contentAlignment = Alignment.Center
+          ) {
+            Icon(Icons.Default.Mic, contentDescription = null, tint = TeachColors.Primary, modifier = Modifier.size(20.dp))
+          }
           Spacer(Modifier.width(12.dp))
           Column(modifier = Modifier.weight(1f)) {
-            Text(stringResource(R.string.recorder_voice), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF111827))
-            Text("Your microphone is recorded.", fontSize = 12.sp, color = Color(0xFF64748B))
+            Text(stringResource(R.string.recorder_voice), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TeachColors.OnSurface)
+            Text("Capture your microphone and audio", fontSize = 12.sp, color = TeachColors.OnSurfaceMuted)
           }
-          Switch(checked = audio, onCheckedChange = { audio = it }, colors = SwitchDefaults.colors(checkedTrackColor = TeachColors.AccentRose))
+          Switch(
+            checked = audio,
+            onCheckedChange = { audio = it },
+            colors = SwitchDefaults.colors(
+              checkedThumbColor = Color.White,
+              checkedTrackColor = TeachColors.Primary,
+              uncheckedTrackColor = Color(0xFFCBD5E1)
+            )
+          )
         }
       }
 
       // Card 2: Face cam
       Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        modifier = Modifier.fillMaxWidth().border(1.dp, TeachColors.TrayBorder, RoundedCornerShape(16.dp))
+        shape = RoundedCornerShape(18.dp),
+        color = TeachColors.PastelMint.copy(alpha = 0.35f),
+        border = BorderStroke(1.dp, Color(0xFFB6F0E4)),
+        modifier = Modifier.fillMaxWidth()
       ) {
         Column(modifier = Modifier.padding(14.dp)) {
           Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Videocam, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(22.dp))
+            Box(
+              modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(Color.White),
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(Icons.Default.Videocam, contentDescription = null, tint = TeachColors.Secondary, modifier = Modifier.size(20.dp))
+            }
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-              Text(stringResource(R.string.recorder_facecam), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF111827))
-              Text("Show your face in the video.", fontSize = 12.sp, color = Color(0xFF64748B))
+              Text(stringResource(R.string.recorder_facecam), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TeachColors.OnSurface)
+              Text("Overlay webcam bubble while teaching", fontSize = 12.sp, color = TeachColors.OnSurfaceMuted)
             }
-            Switch(checked = faceCam, onCheckedChange = { faceCam = it }, colors = SwitchDefaults.colors(checkedTrackColor = TeachColors.AccentRose))
+            Switch(
+              checked = faceCam,
+              onCheckedChange = { faceCam = it },
+              colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = TeachColors.Secondary,
+                uncheckedTrackColor = Color(0xFFCBD5E1)
+              )
+            )
           }
           if (faceCam) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-              FilterChip(selected = camShape == FaceCamShape.ROUND, onClick = { camShape = FaceCamShape.ROUND }, label = { Text(stringResource(R.string.round)) })
-              FilterChip(selected = camShape == FaceCamShape.SQUARE, onClick = { camShape = FaceCamShape.SQUARE }, label = { Text(stringResource(R.string.square)) })
+              val isRound = camShape == FaceCamShape.ROUND
+              Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = if (isRound) TeachColors.Secondary else Color.White,
+                border = BorderStroke(1.dp, if (isRound) TeachColors.Secondary else Color(0xFFECEFF8)),
+                onClick = { camShape = FaceCamShape.ROUND }
+              ) {
+                Text(
+                  stringResource(R.string.round),
+                  fontSize = 12.sp,
+                  fontWeight = FontWeight.SemiBold,
+                  color = if (isRound) Color.White else TeachColors.OnSurface,
+                  modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+              }
+              val isSquare = camShape == FaceCamShape.SQUARE
+              Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = if (isSquare) TeachColors.Secondary else Color.White,
+                border = BorderStroke(1.dp, if (isSquare) TeachColors.Secondary else Color(0xFFECEFF8)),
+                onClick = { camShape = FaceCamShape.SQUARE }
+              ) {
+                Text(
+                  stringResource(R.string.square),
+                  fontSize = 12.sp,
+                  fontWeight = FontWeight.SemiBold,
+                  color = if (isSquare) Color.White else TeachColors.OnSurface,
+                  modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+              }
             }
           }
         }
@@ -2467,50 +3698,81 @@ fun ScreenRecorderDialog(
 
       // Card 3: Video quality
       Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         color = Color.White,
-        modifier = Modifier.fillMaxWidth().border(1.dp, TeachColors.TrayBorder, RoundedCornerShape(16.dp))
+        border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+        modifier = Modifier.fillMaxWidth()
       ) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-          Text(stringResource(R.string.video_quality), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF111827))
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+          ) {
+            Text(stringResource(R.string.video_quality), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TeachColors.OnSurface)
+            Box(
+              modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(TeachColors.PastelPeriwinkle)
+                .padding(horizontal = 8.dp, vertical = 2.dp)
+            ) {
+              Text(quality.label, color = TeachColors.Primary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            }
+          }
           Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             RecordingQuality.entries.forEach { q ->
               val sel = quality == q
               Surface(
                 modifier = Modifier
                   .weight(1f)
-                  .height(40.dp)
-                  .clip(RoundedCornerShape(12.dp))
-                  .border(1.dp, if (sel) TeachColors.AccentRose else TeachColors.TrayBorder, RoundedCornerShape(12.dp))
-                  .clickable { quality = q },
-                color = if (sel) TeachColors.AccentRose else Color.White
+                  .height(42.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = if (sel) TeachColors.Primary else TeachColors.Background,
+                border = BorderStroke(1.dp, if (sel) TeachColors.Primary else Color(0xFFECEFF8)),
+                onClick = { quality = q }
               ) {
                 Box(contentAlignment = Alignment.Center) {
-                  Text(if (q == RecordingQuality.P1080) "Max" else q.label, fontWeight = FontWeight.Bold, color = if (sel) Color.White else Color(0xFF1E293B))
+                  Text(
+                    if (q == RecordingQuality.P1080) "1080p FHD" else if (q == RecordingQuality.P720) "720p HD" else q.label,
+                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
+                    fontSize = 12.sp,
+                    color = if (sel) Color.White else TeachColors.OnSurface
+                  )
                 }
               }
             }
           }
           Text(
-            "${quality.label} · ${quality.fps} fps · about ${quality.mbPerMinEstimate}",
+            "${quality.label} · ${quality.fps} fps · about ${quality.mbPerMinEstimate} · Crystal Clear",
             fontSize = 12.sp,
-            color = Color(0xFF64748B),
+            color = TeachColors.OnSurfaceMuted,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
           )
         }
       }
 
-      // 100% Free Unlimited Start Recording Button!
+      // Start Recording Button
       Button(
         onClick = { onStartRecording(quality, audio, faceCam, camShape); onDismiss() },
         modifier = Modifier.fillMaxWidth().height(54.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = TeachColors.AccentRose)
+        shape = RoundedCornerShape(18.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = TeachColors.Primary)
       ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-          Text(stringResource(R.string.start_recording), fontWeight = FontWeight.Bold, fontSize = 15.sp)
-          Text("Unlimited · 100% Free · No Watermark", fontSize = 10.sp, color = Color.White.copy(alpha = 0.88f))
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+          Box(
+            modifier = Modifier
+              .size(10.dp)
+              .clip(CircleShape)
+              .background(Color(0xFFEF4444))
+          )
+          Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(stringResource(R.string.start_recording), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text("Unlimited · 100% Free · No Watermark", fontSize = 10.sp, color = Color.White.copy(alpha = 0.88f))
+          }
         }
       }
     }
@@ -2742,7 +4004,7 @@ fun parsePageRange(input: String, maxPages: Int): List<Int> {
   return out.toList()
 }
 
-// ===== 17. Dark Add Shortcuts Modal (Matching ref_16_shortcuts.png!) =====
+// ===== 17. Add Shortcuts Dialog (Pastel Playful Expressive) =====
 
 @Composable
 fun ShortcutsDialog(
@@ -2760,32 +4022,55 @@ fun ShortcutsDialog(
     properties = DialogProperties(usePlatformDefaultWidth = false)
   ) {
     Surface(
-      modifier = Modifier.fillMaxWidth(0.90f).heightIn(max = 580.dp),
-      shape = RoundedCornerShape(22.dp),
-      color = Color(0xFF1F2124),
+      modifier = Modifier.fillMaxWidth(0.92f).heightIn(max = 580.dp),
+      shape = RoundedCornerShape(26.dp),
+      color = Color.White,
+      border = BorderStroke(1.dp, Color(0xFFECEFF8)),
       shadowElevation = 14.dp
     ) {
-      Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+      Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-          Text(stringResource(R.string.shortcuts_title), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.weight(1f))
-          Text("${chosen.size}/${AppConfig.MAX_SHORTCUTS}", color = Color(0xFF9CA3AF), fontSize = 13.sp)
-          TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = Color(0xFF9CA3AF)) }
+          Box(
+            modifier = Modifier
+              .size(32.dp)
+              .clip(RoundedCornerShape(10.dp))
+              .background(TeachColors.PastelPeriwinkle),
+            contentAlignment = Alignment.Center
+          ) {
+            Icon(Icons.Default.Add, contentDescription = null, tint = TeachColors.Primary, modifier = Modifier.size(18.dp))
+          }
+          Spacer(Modifier.width(10.dp))
+          Column(modifier = Modifier.weight(1f)) {
+            Text(stringResource(R.string.shortcuts_title), color = TeachColors.OnSurface, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            WavyAccentDivider(color = TeachColors.Primary, modifier = Modifier.width(54.dp).padding(top = 2.dp))
+          }
           Surface(
             shape = RoundedCornerShape(10.dp),
-            color = Color(0xFF2196F3),
-            modifier = Modifier.clickable { onSave(chosen.toList()); onDismiss() }
+            color = TeachColors.PastelPeriwinkle,
+            modifier = Modifier.padding(end = 8.dp)
           ) {
-            Text(stringResource(R.string.done), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp))
+            Text(
+              "${chosen.size}/${AppConfig.MAX_SHORTCUTS}",
+              color = TeachColors.Primary,
+              fontWeight = FontWeight.Bold,
+              fontSize = 11.5.sp,
+              modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+            )
+          }
+          IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+            Icon(Icons.Default.Close, contentDescription = "Close", tint = TeachColors.OnSurfaceMuted, modifier = Modifier.size(18.dp))
           }
         }
-        Text("Select tools for quick access (max ${AppConfig.MAX_SHORTCUTS})", color = Color(0xFF9CA3AF), fontSize = 12.sp)
 
-        LazyColumn(modifier = Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Select tools for quick access (max ${AppConfig.MAX_SHORTCUTS})", color = TeachColors.OnSurfaceMuted, fontSize = 12.sp)
+
+        LazyColumn(modifier = Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(7.dp)) {
           items(candidates) { action ->
             val checked = action in chosen
             Surface(
-              shape = RoundedCornerShape(12.dp),
-              color = Color(0xFF2A2D31),
+              shape = RoundedCornerShape(14.dp),
+              color = if (checked) TeachColors.PastelPeriwinkle else TeachColors.Background,
+              border = BorderStroke(if (checked) 1.5.dp else 1.dp, if (checked) TeachColors.Primary else Color(0xFFECEFF8)),
               modifier = Modifier
                 .fillMaxWidth()
                 .clickable {
@@ -2794,15 +4079,21 @@ fun ShortcutsDialog(
                 }
             ) {
               Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically
               ) {
-                Icon(toolbarIconFor(action), contentDescription = null, tint = Color(0xFFD1D5DB), modifier = Modifier.size(20.dp))
+                Icon(
+                  toolbarIconFor(action),
+                  contentDescription = null,
+                  tint = if (checked) TeachColors.Primary else TeachColors.OnSurfaceMuted,
+                  modifier = Modifier.size(20.dp)
+                )
                 Spacer(Modifier.width(12.dp))
                 Text(
                   action.name.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() },
-                  color = Color.White,
-                  fontSize = 14.sp,
+                  color = if (checked) TeachColors.Primary else TeachColors.OnSurface,
+                  fontWeight = if (checked) FontWeight.Bold else FontWeight.Medium,
+                  fontSize = 13.5.sp,
                   modifier = Modifier.weight(1f)
                 )
                 Checkbox(
@@ -2811,10 +4102,25 @@ fun ShortcutsDialog(
                     if (it && chosen.size < AppConfig.MAX_SHORTCUTS) chosen.add(action)
                     else if (!it) chosen.remove(action)
                   },
-                  colors = CheckboxDefaults.colors(checkedColor = Color(0xFF2196F3), uncheckedColor = Color(0xFF9CA3AF))
+                  colors = CheckboxDefaults.colors(checkedColor = TeachColors.Primary, uncheckedColor = TeachColors.OutlineVariant)
                 )
               }
             }
+          }
+        }
+
+        Surface(
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable { onSave(chosen.toList()); onDismiss() },
+          shape = RoundedCornerShape(14.dp),
+          color = TeachColors.Primary,
+          shadowElevation = 2.dp
+        ) {
+          Box(contentAlignment = Alignment.Center) {
+            Text(stringResource(R.string.done), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
           }
         }
       }
@@ -2822,7 +4128,7 @@ fun ShortcutsDialog(
   }
 }
 
-// ===== 18. Dark Customize Toolbar Dialog (Reorder + Enable/Disable + Reset) =====
+// ===== 18. Modern Pastel Playful Expressive Customize Toolbar Dialog =====
 
 private val EssentialToolbarActions = setOf(
   ToolbarAction.SAVE,
@@ -2831,6 +4137,7 @@ private val EssentialToolbarActions = setOf(
   ToolbarAction.REDO,
   ToolbarAction.CLEAR,
   ToolbarAction.PEN,
+  ToolbarAction.PENCIL,
   ToolbarAction.ERASER,
   ToolbarAction.BOARD
 )
@@ -2860,113 +4167,343 @@ fun CustomizeToolbarDialog(
   ) {
     Surface(
       modifier = Modifier.fillMaxSize(),
-      color = Color(0xFF17181A)
+      color = TeachColors.Background
     ) {
       Column(
         modifier = Modifier
           .fillMaxSize()
           .statusBarsPadding()
           .navigationBarsPadding()
-          .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+          .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
       ) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-          Text(
-            "Customize Toolbar",
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            fontSize = 22.sp,
-            modifier = Modifier.weight(1f)
-          )
-          Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = Color(0xFF3A2817),
-            modifier = Modifier.clickable {
-              customizable.clear()
-              customizable.addAll(ToolbarAction.entries.filter { it != ToolbarAction.CUSTOMIZE && it != ToolbarAction.HELP })
-              hidden = emptySet()
-              onReset()
-            }
-          ) {
-            Row(
-              modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(5.dp)
+        // 1. Top Bar: Title & Accent + Reset Pill + Close Pill
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+          Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+              text = "Customize Toolbar",
+              color = TeachColors.OnSurface,
+              fontWeight = FontWeight.ExtraBold,
+              fontSize = 24.sp,
+              letterSpacing = (-0.5).sp
+            )
+
+            Canvas(
+              modifier = Modifier
+                .width(100.dp)
+                .height(8.dp)
             ) {
-              Icon(Icons.Default.Refresh, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
-              Text("Reset", color = Color(0xFFF59E0B), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+              val midY = size.height / 2f
+              val waveCount = 4
+              val waveLength = size.width / waveCount
+              val amp = 2.5f * density
+              val strokeWidth = 3f * density
+
+              val path = Path().apply {
+                moveTo(0f, midY)
+                for (i in 0 until waveCount) {
+                  val startX = i * waveLength
+                  val cp1X = startX + waveLength * 0.25f
+                  val cp1Y = midY - amp
+                  val cp2X = startX + waveLength * 0.75f
+                  val cp2Y = midY + amp
+                  val endX = startX + waveLength
+                  val endY = midY
+                  cubicTo(cp1X, cp1Y, cp2X, cp2Y, endX, endY)
+                }
+              }
+              drawPath(path = path, color = TeachColors.Primary, style = Stroke(width = strokeWidth, cap = StrokeCap.Round))
             }
           }
-          Spacer(Modifier.width(8.dp))
-          IconButton(onClick = { persist(); onDismiss() }) {
-            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            // Reset Pill Button
+            Surface(
+              shape = RoundedCornerShape(9999.dp),
+              color = TeachColors.PastelPeach,
+              shadowElevation = 1.dp,
+              modifier = Modifier
+                .border(1.dp, Color(0xFFF5C9B3), RoundedCornerShape(9999.dp))
+                .clip(RoundedCornerShape(9999.dp))
+                .clickable {
+                  customizable.clear()
+                  customizable.addAll(ToolbarAction.entries.filter { it != ToolbarAction.CUSTOMIZE && it != ToolbarAction.HELP })
+                  hidden = emptySet()
+                  onReset()
+                }
+            ) {
+              Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+              ) {
+                Icon(
+                  Icons.Default.Refresh,
+                  contentDescription = null,
+                  tint = TeachColors.PastelPeachGlyph,
+                  modifier = Modifier.size(15.dp)
+                )
+                Text(
+                  text = "Reset",
+                  color = TeachColors.PastelPeachGlyph,
+                  fontWeight = FontWeight.Bold,
+                  fontSize = 12.sp
+                )
+              }
+            }
+
+            // Close Circular Pill
+            Surface(
+              shape = CircleShape,
+              color = Color.White,
+              shadowElevation = 2.dp,
+              modifier = Modifier
+                .size(40.dp)
+                .border(1.dp, Color(0xFFEBEBF5), CircleShape)
+                .clip(CircleShape)
+                .clickable { persist(); onDismiss() }
+            ) {
+              Box(contentAlignment = Alignment.Center) {
+                Icon(
+                  Icons.Default.Close,
+                  contentDescription = "Close",
+                  tint = TeachColors.OnSurface,
+                  modifier = Modifier.size(18.dp)
+                )
+              }
+            }
           }
         }
 
-        Text("Reorder tools with arrows · Enable/disable optional tools", color = Color(0xFF9CA3AF), fontSize = 13.sp)
+        // 2. Subtitle & Stats Pill Row
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+          Text(
+            text = "Reorder tools with arrows · Toggle optional tools",
+            color = TeachColors.OnSurfaceMuted,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.Medium
+          )
 
-        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-          items(customizable.size) { index ->
+          Surface(
+            shape = RoundedCornerShape(9999.dp),
+            color = TeachColors.PastelPeriwinkle
+          ) {
+            Text(
+              text = "${customizable.size - hidden.size} active",
+              fontSize = 11.sp,
+              fontWeight = FontWeight.Bold,
+              color = TeachColors.PastelPeriwinkleGlyph,
+              modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+            )
+          }
+        }
+
+        // 3. Reorderable Tool List
+        LazyColumn(
+          modifier = Modifier.weight(1f),
+          verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+          items(customizable.size, key = { customizable[it].name }) { index ->
             val action = customizable[index]
             val isEssential = action in EssentialToolbarActions
             val isEnabled = isEssential || action !in hidden
+            val canMoveUp = index > 0
+            val canMoveDown = index < customizable.lastIndex
+
+            val toolTitle = when (action) {
+              ToolbarAction.SAVE -> "Save Board"
+              ToolbarAction.SHARE -> "Share / Export"
+              ToolbarAction.UNDO -> "Undo"
+              ToolbarAction.REDO -> "Redo"
+              ToolbarAction.CLEAR -> "Clear Canvas"
+              ToolbarAction.PEN -> "Pen"
+              ToolbarAction.PENCIL -> "Pencil (Pressure)"
+              ToolbarAction.SMART -> "Smart Shapes"
+              ToolbarAction.SHAPES -> "Geometric Shapes"
+              ToolbarAction.ERASER -> "Eraser"
+              ToolbarAction.BOARD -> "Board Color"
+              ToolbarAction.TEXT -> "Text Tool"
+              ToolbarAction.STICKERS -> "Stickers"
+              ToolbarAction.OCR -> "Text Recognition (OCR)"
+              ToolbarAction.FORMULA -> "Math Formula"
+              ToolbarAction.TABLE -> "Grid / Table"
+              ToolbarAction.LAYERS -> "Canvas Layers"
+              ToolbarAction.IMAGE -> "Import Image"
+              ToolbarAction.VIDEO -> "Video Player"
+              ToolbarAction.WEB_IMAGE -> "Web Image Search"
+              ToolbarAction.CAMERA -> "Camera to Board"
+              ToolbarAction.LASER -> "Laser Pointer"
+              ToolbarAction.SCIENCE -> "Science & Labs"
+              ToolbarAction.IMPORT_PDF -> "Import PDF"
+              ToolbarAction.GEOMETRY -> "Ruler & Protractor"
+              ToolbarAction.CALCULATOR -> "Calculator"
+              ToolbarAction.TIMER -> "Timer & Stopwatch"
+              ToolbarAction.RECORD -> "Screen Recording"
+              ToolbarAction.LASSO -> "Lasso Selection"
+              ToolbarAction.HAND -> "Hand / Pan Canvas"
+              else -> action.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
+            }
+
             Surface(
-              shape = RoundedCornerShape(14.dp),
-              color = Color(0xFF232528),
-              modifier = Modifier.fillMaxWidth()
+              shape = RoundedCornerShape(18.dp),
+              color = Color.White,
+              shadowElevation = if (isEnabled) 1.5.dp else 0.5.dp,
+              modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                  width = 1.dp,
+                  color = if (isEnabled) Color(0xFFECEFF8) else Color(0xFFF1F3F9),
+                  shape = RoundedCornerShape(18.dp)
+                )
             ) {
               Row(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(horizontal = 10.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically
               ) {
-                Icon(Icons.Default.DragIndicator, contentDescription = null, tint = Color(0xFF6B7280), modifier = Modifier.size(20.dp))
-                IconButton(
-                  onClick = {
-                    if (index > 0) {
-                      val item = customizable.removeAt(index)
-                      customizable.add(index - 1, item)
-                      persist()
-                    }
-                  },
-                  enabled = index > 0,
-                  modifier = Modifier.size(28.dp)
-                ) {
-                  Icon(Icons.Default.ArrowUpward, contentDescription = "Move Up", tint = if (index > 0) Color(0xFF9CA3AF) else Color(0xFF3F434A), modifier = Modifier.size(16.dp))
-                }
-                IconButton(
-                  onClick = {
-                    if (index < customizable.lastIndex) {
-                      val item = customizable.removeAt(index)
-                      customizable.add(index + 1, item)
-                      persist()
-                    }
-                  },
-                  enabled = index < customizable.lastIndex,
-                  modifier = Modifier.size(28.dp)
-                ) {
-                  Icon(Icons.Default.ArrowDownward, contentDescription = "Move Down", tint = if (index < customizable.lastIndex) Color(0xFF9CA3AF) else Color(0xFF3F434A), modifier = Modifier.size(16.dp))
-                }
-                Spacer(Modifier.width(4.dp))
-                Icon(toolbarIconFor(action), contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(12.dp))
-                Text(
-                  text = when (action) {
-                    ToolbarAction.CLEAR -> "Clear Canvas"
-                    ToolbarAction.PEN -> "Pen / Brushes"
-                    ToolbarAction.BOARD -> "Board Color"
-                    ToolbarAction.WEB_IMAGE -> "Web Image"
-                    ToolbarAction.IMPORT_PDF -> "Import PDF"
-                    ToolbarAction.HAND -> "Hand / Pan"
-                    else -> action.name.lowercase().replaceFirstChar { it.uppercase() }
-                  },
-                  color = Color.White,
-                  fontSize = 15.sp,
-                  modifier = Modifier.weight(1f)
+                // Drag handle icon
+                Icon(
+                  Icons.Default.DragIndicator,
+                  contentDescription = null,
+                  tint = TeachColors.OutlineVariant,
+                  modifier = Modifier.size(18.dp)
                 )
-                if (isEssential) {
-                  Text("Essential", color = Color(0xFF22C55E), fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                  Spacer(Modifier.width(10.dp))
+
+                Spacer(Modifier.width(4.dp))
+
+                // Up arrow pill
+                Surface(
+                  shape = CircleShape,
+                  color = if (canMoveUp) TeachColors.PastelPeriwinkle else Color(0xFFF3F4F9),
+                  modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .clickable(enabled = canMoveUp) {
+                      if (canMoveUp) {
+                        val item = customizable.removeAt(index)
+                        customizable.add(index - 1, item)
+                        persist()
+                      }
+                    }
+                ) {
+                  Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                      Icons.Default.ArrowUpward,
+                      contentDescription = "Move Up",
+                      tint = if (canMoveUp) TeachColors.Primary else Color(0xFFCBD5E1),
+                      modifier = Modifier.size(15.dp)
+                    )
+                  }
                 }
+
+                Spacer(Modifier.width(4.dp))
+
+                // Down arrow pill
+                Surface(
+                  shape = CircleShape,
+                  color = if (canMoveDown) TeachColors.PastelPeriwinkle else Color(0xFFF3F4F9),
+                  modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .clickable(enabled = canMoveDown) {
+                      if (canMoveDown) {
+                        val item = customizable.removeAt(index)
+                        customizable.add(index + 1, item)
+                        persist()
+                      }
+                    }
+                ) {
+                  Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                      Icons.Default.ArrowDownward,
+                      contentDescription = "Move Down",
+                      tint = if (canMoveDown) TeachColors.Primary else Color(0xFFCBD5E1),
+                      modifier = Modifier.size(15.dp)
+                    )
+                  }
+                }
+
+                Spacer(Modifier.width(8.dp))
+
+                // Tool Icon Badge (Squircle)
+                Box(
+                  modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(
+                      when {
+                        isEssential -> TeachColors.PastelPeriwinkle
+                        isEnabled -> TeachColors.PastelMint
+                        else -> Color(0xFFF1F3F9)
+                      }
+                    ),
+                  contentAlignment = Alignment.Center
+                ) {
+                  Icon(
+                    toolbarIconFor(action),
+                    contentDescription = null,
+                    tint = when {
+                      isEssential -> TeachColors.Primary
+                      isEnabled -> TeachColors.PastelMintGlyph
+                      else -> TeachColors.OnSurfaceMuted
+                    },
+                    modifier = Modifier.size(19.dp)
+                  )
+                }
+
+                Spacer(Modifier.width(10.dp))
+
+                // Tool Title & Subtitle
+                Column(modifier = Modifier.weight(1f)) {
+                  Text(
+                    text = toolTitle,
+                    color = if (isEnabled) TeachColors.OnSurface else TeachColors.OnSurfaceMuted,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.5.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                  )
+                  Text(
+                    text = if (isEssential) "Always active" else if (isEnabled) "Visible on toolbar" else "Hidden from toolbar",
+                    color = TeachColors.OnSurfaceMuted,
+                    fontSize = 11.sp
+                  )
+                }
+
+                Spacer(Modifier.width(8.dp))
+
+                // "Essential" Chip
+                if (isEssential) {
+                  Surface(
+                    shape = RoundedCornerShape(9999.dp),
+                    color = TeachColors.PastelMint
+                  ) {
+                    Text(
+                      text = "Essential",
+                      color = TeachColors.PastelMintGlyph,
+                      fontSize = 11.sp,
+                      fontWeight = FontWeight.Bold,
+                      modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                  }
+                  Spacer(Modifier.width(8.dp))
+                }
+
+                // Switch Toggle
                 Switch(
                   checked = isEnabled,
                   enabled = !isEssential,
@@ -2976,13 +4513,53 @@ fun CustomizeToolbarDialog(
                   },
                   colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
-                    checkedTrackColor = Color(0xFF22C55E),
+                    checkedTrackColor = TeachColors.Primary,
+                    uncheckedThumbColor = Color.White,
+                    uncheckedTrackColor = Color(0xFFD8DADF),
                     disabledCheckedThumbColor = Color.White,
-                    disabledCheckedTrackColor = Color(0xFF9CA3AF)
+                    disabledCheckedTrackColor = Color(0xFFB4EEE2)
                   )
                 )
               }
             }
+          }
+        }
+
+        // 4. Helpful Footer Card
+        Surface(
+          shape = RoundedCornerShape(16.dp),
+          color = Color.White,
+          shadowElevation = 1.dp,
+          modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color(0xFFECEFF8), RoundedCornerShape(16.dp))
+        ) {
+          Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+          ) {
+            Box(
+              modifier = Modifier
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(TeachColors.PastelMint),
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(
+                Icons.Default.Check,
+                contentDescription = null,
+                tint = TeachColors.PastelMintGlyph,
+                modifier = Modifier.size(16.dp)
+              )
+            }
+            Text(
+              text = "Essential tools (Pen, Eraser, Undo, Redo, Save, Clear) are always locked to keep drawing instant and dependable.",
+              fontSize = 11.5.sp,
+              color = TeachColors.OnSurfaceMuted,
+              lineHeight = 15.sp,
+              modifier = Modifier.weight(1f)
+            )
           }
         }
       }

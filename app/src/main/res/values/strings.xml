@@ -48,6 +48,7 @@
     <string name="tool_redo">Redo</string>
     <string name="tool_clear">Clear</string>
     <string name="tool_pen">Pen</string>
+    <string name="tool_pencil">Pencil</string>
     <string name="tool_smart">Smart</string>
     <string name="tool_shapes">Shapes</string>
     <string name="tool_eraser">Eraser</string>

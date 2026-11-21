@@ -58,18 +58,40 @@ enum class ThemeMode {
  * [PLACEHOLDER] All named color tokens from PRD Section 11 live here.
  */
 object TeachColors {
-  val Primary = Color(0xFF2563EB)
+  // Brand Primary & Active Accents (from Pastel Playful Expressive spec)
+  val Primary = Color(0xFF4D5DFB)
   val OnPrimary = Color(0xFFFFFFFF)
-  val Secondary = Color(0xFF0D9488)
+  val PrimaryContainer = Color(0xFF4D5DFB)
+  val OnPrimaryContainer = Color(0xFFF7F5FF)
+  val Secondary = Color(0xFF2F685E)
   val OnSecondary = Color(0xFFFFFFFF)
+  val SecondaryContainer = Color(0xFFB4EEE2)
+  val OnSecondaryContainer = Color(0xFF366E64)
+  val Tertiary = Color(0xFF685359)
+  val OnTertiary = Color(0xFFFFFFFF)
+  val TertiaryContainer = Color(0xFFF8DBE3)
+  val OnTertiaryContainer = Color(0xFFFFF4F5)
   val Surface = Color(0xFFFFFFFF)
-  val SurfaceVariant = Color(0xFFF3F4F6)
-  val Background = Color(0xFFF8FAFC)
-  val OnSurface = Color(0xFF111827)
-  val OnSurfaceMuted = Color(0xFF6B7280)
-  val Outline = Color(0xFFE5E7EB)
-  val Danger = Color(0xFFDC2626)
+  val SurfaceVariant = Color(0xFFEDEEF3)
+  val Background = Color(0xFFF8F9FE)
+  val OnSurface = Color(0xFF191C1F)
+  val OnSurfaceMuted = Color(0xFF696C80)
+  val Outline = Color(0xFF757687)
+  val OutlineVariant = Color(0xFFC5C5D8)
+  val Danger = Color(0xFFBA1A1A)
   val Success = Color(0xFF16A34A)
+
+  // Expressive Pastel Palette (from spec)
+  val PastelMint = Color(0xFFB6F0E4)
+  val PastelMintGlyph = Color(0xFF1B6C5F)
+  val PastelBlush = Color(0xFFFDE0E8)
+  val PastelBlushGlyph = Color(0xFF8F2D56)
+  val PastelViolet = Color(0xFFE8DEFC)
+  val PastelVioletGlyph = Color(0xFF4E2A84)
+  val PastelPeach = Color(0xFFFCE4D6)
+  val PastelPeachGlyph = Color(0xFF7A4B1A)
+  val PastelPeriwinkle = Color(0xFFDCE7FE)
+  val PastelPeriwinkleGlyph = Color(0xFF26498D)
 
   val PrimaryDark = Color(0xFF60A5FA)
   val OnPrimaryDark = Color(0xFF0F172A)
@@ -254,8 +276,16 @@ object TeachColors {
 private val LightColorScheme = lightColorScheme(
   primary = TeachColors.Primary,
   onPrimary = TeachColors.OnPrimary,
+  primaryContainer = TeachColors.PrimaryContainer,
+  onPrimaryContainer = TeachColors.OnPrimaryContainer,
   secondary = TeachColors.Secondary,
   onSecondary = TeachColors.OnSecondary,
+  secondaryContainer = TeachColors.SecondaryContainer,
+  onSecondaryContainer = TeachColors.OnSecondaryContainer,
+  tertiary = TeachColors.Tertiary,
+  onTertiary = TeachColors.OnTertiary,
+  tertiaryContainer = TeachColors.TertiaryContainer,
+  onTertiaryContainer = TeachColors.OnTertiaryContainer,
   surface = TeachColors.Surface,
   onSurface = TeachColors.OnSurface,
   surfaceVariant = TeachColors.SurfaceVariant,
@@ -263,6 +293,7 @@ private val LightColorScheme = lightColorScheme(
   background = TeachColors.Background,
   onBackground = TeachColors.OnSurface,
   outline = TeachColors.Outline,
+  outlineVariant = TeachColors.OutlineVariant,
   error = TeachColors.Danger
 )
 

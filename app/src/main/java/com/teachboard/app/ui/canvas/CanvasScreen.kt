@@ -6,10 +6,12 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.content.pm.PackageManager
 import android.graphics.RectF
 import android.net.Uri
 import android.os.Build
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.core.view.WindowCompat
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -58,9 +60,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
@@ -174,6 +184,7 @@ import com.teachboard.app.domain.ocr.OcrScript
 import com.teachboard.app.domain.stickers.StickerGroup
 import com.teachboard.app.ui.theme.AppConfig
 import com.teachboard.app.ui.theme.TeachColors
+import com.teachboard.app.ui.home.InAppVideoPlayerDialog
 import android.graphics.Paint
 import androidx.compose.ui.graphics.toArgb
 import com.teachboard.app.util.BoardFrameSource
@@ -228,7 +239,6 @@ fun CanvasScreen(
 
   var activeDialog by remember { mutableStateOf(ActiveDialog.NONE) }
   var toolbarVisible by remember { mutableStateOf(true) }
-  var pagePillExpanded by remember { mutableStateOf(true) }
   var canvasViewRef by remember { mutableStateOf<TeachCanvasView?>(null) }
   var selectionScreenBounds by remember { mutableStateOf<RectF?>(null) }
   var toastMessage by remember { mutableStateOf<String?>(null) }
@@ -274,40 +284,33 @@ fun CanvasScreen(
   var recordCountdown by remember { mutableIntStateOf(0) }
   var savedVideoUri by remember { mutableStateOf<Uri?>(null) }
   var savedVideoSize by remember { mutableLongStateOf(0L) }
+  var playingSavedVideo by remember { mutableStateOf(false) }
 
-  // True full-screen immersive canvas (hides system bars while drawing, restores cleanly on exit!)
-  DisposableEffect(context) {
+  // Edge-to-edge status bar styling (dynamically contrasts dark/light board color)
+  val isDarkBoard = TeachColors.isDarkColor(ui.session?.backgroundColor ?: TeachColors.BoardWhite)
+  DisposableEffect(context, isDarkBoard) {
     val window = (context as? Activity)?.window
     val controller = window?.let { WindowCompat.getInsetsController(it, it.decorView) }
     controller?.apply {
-      systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-      hide(WindowInsetsCompat.Type.systemBars())
+      isAppearanceLightStatusBars = !isDarkBoard
+      isAppearanceLightNavigationBars = !isDarkBoard
     }
     onDispose {
-      controller?.show(WindowInsetsCompat.Type.systemBars())
       if (prefs.autoSaveEnabled) {
         viewModel.saveBoardNow(canvasViewRef?.width ?: 1080, canvasViewRef?.height ?: 1920)
       }
     }
   }
 
-  // Re-enforce immersive full-screen bars whenever dialogs/tour dismiss so no gesture bar lingers
-  LaunchedEffect(activeDialog, prefs.tourVersionCompleted) {
-    if (activeDialog == ActiveDialog.NONE) {
-      val window = (context as? Activity)?.window
-      window?.let {
-        WindowCompat.getInsetsController(it, it.decorView).apply {
-          systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-          hide(WindowInsetsCompat.Type.systemBars())
-        }
+  // Ensure status bar icon contrast updates when returning from dialogs
+  LaunchedEffect(activeDialog, isDarkBoard) {
+    val window = (context as? Activity)?.window
+    window?.let {
+      WindowCompat.getInsetsController(it, it.decorView).apply {
+        isAppearanceLightStatusBars = !isDarkBoard
+        isAppearanceLightNavigationBars = !isDarkBoard
       }
     }
-  }
-
-  // Auto-collapse left-edge page pill after 2.2s on initial open (also collapses immediately on first touch!)
-  LaunchedEffect(Unit) {
-    delay(2200L)
-    pagePillExpanded = false
   }
 
   // Trigger one-time "Hold to move" animated guide the first time an object is selected
@@ -486,8 +489,12 @@ fun CanvasScreen(
       ToolbarAction.REDO -> viewModel.redo()
       ToolbarAction.CLEAR -> activeDialog = ActiveDialog.CLEAR_CONFIRM
       ToolbarAction.PEN -> {
-        if (ui.activeTool.isBrush) activeDialog = ActiveDialog.BRUSH
-        else viewModel.selectTool(ui.lastBrushTool)
+        if (ui.activeTool == ToolType.Pen) activeDialog = ActiveDialog.BRUSH
+        else viewModel.selectTool(ToolType.Pen)
+      }
+      ToolbarAction.PENCIL -> {
+        if (ui.activeTool == ToolType.Pencil) activeDialog = ActiveDialog.BRUSH
+        else viewModel.selectTool(ToolType.Pencil)
       }
       ToolbarAction.SMART -> activeDialog = ActiveDialog.SMART_QUICK
       ToolbarAction.SHAPES -> {
@@ -543,9 +550,17 @@ fun CanvasScreen(
       ToolbarAction.SCIENCE -> activeDialog = ActiveDialog.STICKERS_SCIENCE
       ToolbarAction.LASER -> {
         if (ui.activeTool == ToolType.Laser) activeDialog = ActiveDialog.LASER
-        else viewModel.selectTool(ToolType.Laser)
+        else {
+          viewModel.setGeometryTool(null)
+          viewModel.selectTool(ToolType.Laser)
+        }
       }
-      ToolbarAction.GEOMETRY -> activeDialog = ActiveDialog.GEOMETRY
+      ToolbarAction.GEOMETRY -> {
+        if (ui.activeTool == ToolType.Laser) {
+          viewModel.selectTool(ui.lastBrushTool)
+        }
+        activeDialog = ActiveDialog.GEOMETRY
+      }
       ToolbarAction.CALCULATOR -> viewModel.setShowCalculator(!ui.showCalculator)
       ToolbarAction.TIMER -> viewModel.setShowTimer(!ui.showTimer)
       ToolbarAction.RECORD -> {
@@ -607,7 +622,7 @@ fun CanvasScreen(
       }
       override fun onViewportChanged(scale: Float, panX: Float, panY: Float) = viewModel.updateViewport(scale, panX, panY)
       override fun onSelectionScreenBoundsChanged(bounds: RectF?) { selectionScreenBounds = bounds }
-      override fun onCanvasTouched() { pagePillExpanded = false }
+      override fun onCanvasTouched() {}
       override fun onStampLine(a: StrokePoint, b: StrokePoint) = viewModel.stampGeometryLine(a, b)
       override fun onStampArc(
         needle: StrokePoint,
@@ -670,83 +685,239 @@ fun CanvasScreen(
       )
     }
 
-    // 2. Top-Left Back Circle + Left-Edge Collapsible Vertical Page Pill (with spring animation!)
-    Column(
-      modifier = Modifier
-        .align(Alignment.TopStart)
-        .statusBarsPadding()
-        .padding(start = 12.dp, top = 8.dp)
-        .animateContentSize(spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)),
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-      IconButton(
-        onClick = {
-          viewModel.saveBoardNow(canvasViewRef?.width ?: 1080, canvasViewRef?.height ?: 1920)
-          onNavigateHome()
-        },
+    val cutoutPadding = WindowInsets.displayCutout.asPaddingValues()
+    val statusBarPadding = WindowInsets.statusBars.asPaddingValues()
+    val layoutDir = LocalLayoutDirection.current
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val safeTopPadding = maxOf(
+      cutoutPadding.calculateTopPadding(),
+      statusBarPadding.calculateTopPadding(),
+      36.dp
+    ) + 8.dp
+    val safeStartPadding = 12.dp + cutoutPadding.calculateStartPadding(layoutDir)
+    val safeEndPadding = 12.dp + cutoutPadding.calculateEndPadding(layoutDir)
+
+    val backButton: @Composable () -> Unit = {
+      Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 3.dp,
         modifier = Modifier
           .size(44.dp)
+          .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), CircleShape)
           .clip(CircleShape)
-          .background(Color(0xB85F656D))
+          .clickable {
+            viewModel.saveBoardNow(canvasViewRef?.width ?: 1080, canvasViewRef?.height ?: 1920)
+            onNavigateHome()
+          }
       ) {
-        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(22.dp))
+        Box(contentAlignment = Alignment.Center) {
+          Icon(
+            Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "Back",
+            tint = TeachColors.OnSurface,
+            modifier = Modifier.size(20.dp)
+          )
+        }
       }
+    }
 
-      if (!pagePillExpanded) {
-        Surface(
-          shape = RoundedCornerShape(12.dp),
-          color = Color(0x999AA0A8),
-          modifier = Modifier
-            .size(42.dp)
-            .clickable { pagePillExpanded = true }
-            .tourAnchor("pages")
+    val pageCapsuleHorizontal: @Composable () -> Unit = {
+      Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 3.dp,
+        modifier = Modifier
+          .height(44.dp)
+          .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(18.dp))
+          .tourAnchor("pages")
+      ) {
+        Row(
+          modifier = Modifier.padding(horizontal = 6.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-          Box(contentAlignment = Alignment.Center) {
-            Text("${ui.pageIndex + 1}/$totalPages", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+          IconButton(
+            onClick = { viewModel.goToPage(ui.pageIndex - 1) },
+            enabled = ui.pageIndex > 0,
+            modifier = Modifier.size(32.dp)
+          ) {
+            Icon(
+              Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+              contentDescription = "Prev",
+              tint = if (ui.pageIndex > 0) TeachColors.OnSurface else TeachColors.OnSurfaceMuted.copy(alpha = 0.35f),
+              modifier = Modifier.size(18.dp)
+            )
+          }
+
+          Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = TeachColors.PastelPeriwinkle,
+            modifier = Modifier.clickable { activeDialog = ActiveDialog.PAGES }
+          ) {
+            Text(
+              "${ui.pageIndex + 1} / $totalPages",
+              color = TeachColors.Primary,
+              fontSize = 12.sp,
+              fontWeight = FontWeight.ExtraBold,
+              modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+          }
+
+          IconButton(
+            onClick = { viewModel.goToPage(ui.pageIndex + 1) },
+            enabled = ui.pageIndex < totalPages - 1,
+            modifier = Modifier.size(32.dp)
+          ) {
+            Icon(
+              Icons.AutoMirrored.Filled.KeyboardArrowRight,
+              contentDescription = "Next",
+              tint = if (ui.pageIndex < totalPages - 1) TeachColors.OnSurface else TeachColors.OnSurfaceMuted.copy(alpha = 0.35f),
+              modifier = Modifier.size(18.dp)
+            )
+          }
+
+          Box(
+            modifier = Modifier
+              .padding(horizontal = 2.dp)
+              .width(1.dp)
+              .height(18.dp)
+              .background(TeachColors.OutlineVariant.copy(alpha = 0.6f))
+          )
+
+          IconButton(
+            onClick = { viewModel.addPage() },
+            modifier = Modifier.size(32.dp)
+          ) {
+            Icon(
+              Icons.Default.Add,
+              contentDescription = "Add Page",
+              tint = TeachColors.Primary,
+              modifier = Modifier.size(18.dp)
+            )
+          }
+
+          IconButton(
+            onClick = { activeDialog = ActiveDialog.PAGES },
+            modifier = Modifier.size(32.dp)
+          ) {
+            Icon(
+              Icons.Default.GridView,
+              contentDescription = "All Pages",
+              tint = TeachColors.Primary,
+              modifier = Modifier.size(17.dp)
+            )
           }
         }
-      } else {
-        Surface(
-          shape = RoundedCornerShape(18.dp),
-          color = Color(0xE633363A),
-          shadowElevation = 6.dp,
-          modifier = Modifier.tourAnchor("pages")
+      }
+    }
+
+    val pageCapsuleVertical: @Composable () -> Unit = {
+      Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = TeachColors.DarkPillBg,
+        shadowElevation = 4.dp,
+        modifier = Modifier
+          .width(44.dp)
+          .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(22.dp))
+          .tourAnchor("pages")
+      ) {
+        Column(
+          modifier = Modifier.padding(vertical = 6.dp),
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-          Column(
-            modifier = Modifier.padding(vertical = 6.dp, horizontal = 4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+          IconButton(
+            onClick = { viewModel.goToPage(ui.pageIndex - 1) },
+            enabled = ui.pageIndex > 0,
+            modifier = Modifier.size(32.dp)
           ) {
-            IconButton(
-              onClick = { viewModel.goToPage(ui.pageIndex - 1) },
-              enabled = ui.pageIndex > 0,
-              modifier = Modifier.size(32.dp)
-            ) {
-              Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Prev", tint = if (ui.pageIndex > 0) Color.White else Color(0x66FFFFFF), modifier = Modifier.size(18.dp))
-            }
+            Icon(
+              Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+              contentDescription = "Prev",
+              tint = if (ui.pageIndex > 0) Color.White else Color.White.copy(alpha = 0.35f),
+              modifier = Modifier.size(18.dp)
+            )
+          }
+
+          Box(
+            modifier = Modifier
+              .clickable { activeDialog = ActiveDialog.PAGES }
+              .padding(vertical = 2.dp),
+            contentAlignment = Alignment.Center
+          ) {
             Text(
               "${ui.pageIndex + 1}/$totalPages",
               color = Color.White,
-              fontSize = 12.sp,
-              fontWeight = FontWeight.Bold,
-              modifier = Modifier.clickable { pagePillExpanded = false }.padding(vertical = 2.dp)
+              fontSize = 11.sp,
+              fontWeight = FontWeight.Bold
             )
-            IconButton(
-              onClick = { viewModel.goToPage(ui.pageIndex + 1) },
-              enabled = ui.pageIndex < totalPages - 1,
-              modifier = Modifier.size(32.dp)
-            ) {
-              Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next", tint = if (ui.pageIndex < totalPages - 1) Color.White else Color(0x66FFFFFF), modifier = Modifier.size(18.dp))
-            }
-            IconButton(onClick = { viewModel.addPage() }, modifier = Modifier.size(32.dp)) {
-              Icon(Icons.Default.Add, contentDescription = "Add Page", tint = Color.White, modifier = Modifier.size(18.dp))
-            }
-            IconButton(onClick = { pagePillExpanded = false; activeDialog = ActiveDialog.PAGES }, modifier = Modifier.size(32.dp)) {
-              Icon(Icons.Default.GridView, contentDescription = "All Pages", tint = Color(0xFF3B82F6), modifier = Modifier.size(18.dp))
-            }
+          }
+
+          IconButton(
+            onClick = { viewModel.goToPage(ui.pageIndex + 1) },
+            enabled = ui.pageIndex < totalPages - 1,
+            modifier = Modifier.size(32.dp)
+          ) {
+            Icon(
+              Icons.AutoMirrored.Filled.KeyboardArrowRight,
+              contentDescription = "Next",
+              tint = if (ui.pageIndex < totalPages - 1) Color.White else Color.White.copy(alpha = 0.35f),
+              modifier = Modifier.size(18.dp)
+            )
+          }
+
+          IconButton(
+            onClick = { viewModel.addPage() },
+            modifier = Modifier.size(32.dp)
+          ) {
+            Icon(
+              Icons.Default.Add,
+              contentDescription = "Add Page",
+              tint = Color.White,
+              modifier = Modifier.size(18.dp)
+            )
+          }
+
+          IconButton(
+            onClick = { activeDialog = ActiveDialog.PAGES },
+            modifier = Modifier.size(32.dp)
+          ) {
+            Icon(
+              Icons.Default.GridView,
+              contentDescription = "All Pages",
+              tint = TeachColors.Primary,
+              modifier = Modifier.size(17.dp)
+            )
           }
         }
+      }
+    }
+
+    // 2. Top-Left: Exit Button + Page Navigation Capsule
+    // In portrait: Vertical dark pill capsule placed below circular exit button (exact match to screenshot!)
+    // In landscape: Side-by-side horizontally with plenty of canvas width
+    if (!isLandscape) {
+      Column(
+        modifier = Modifier
+          .align(Alignment.TopStart)
+          .padding(start = safeStartPadding, top = safeTopPadding),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        backButton()
+        pageCapsuleVertical()
+      }
+    } else {
+      Row(
+        modifier = Modifier
+          .align(Alignment.TopStart)
+          .padding(start = safeStartPadding, top = safeTopPadding),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        backButton()
+        pageCapsuleHorizontal()
       }
     }
 
@@ -754,8 +925,7 @@ fun CanvasScreen(
     Column(
       modifier = Modifier
         .align(Alignment.TopCenter)
-        .statusBarsPadding()
-        .padding(top = 16.dp),
+        .padding(top = safeTopPadding),
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -831,8 +1001,7 @@ fun CanvasScreen(
     Column(
       modifier = Modifier
         .align(Alignment.TopEnd)
-        .statusBarsPadding()
-        .padding(end = 12.dp, top = 8.dp),
+        .padding(end = safeEndPadding, top = safeTopPadding),
       horizontalAlignment = Alignment.End,
       verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -844,31 +1013,42 @@ fun CanvasScreen(
           onClick = { showGuideSheet = true },
           modifier = Modifier
             .size(44.dp)
-            .clip(CircleShape)
-            .background(Color(0xB85F656D))
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
             .tourAnchor("guide")
         ) {
-          Icon(Icons.Outlined.MenuBook, contentDescription = "Tool Guide", tint = Color.White, modifier = Modifier.size(22.dp))
+          Icon(Icons.Outlined.MenuBook, contentDescription = "Tool Guide", tint = TeachColors.OnSurface, modifier = Modifier.size(22.dp))
         }
 
         IconButton(
           onClick = { viewModel.toggleStylusOnly() },
           modifier = Modifier
             .size(44.dp)
-            .clip(CircleShape)
-            .background(if (prefs.stylusOnly) Color(0xFF2B7FFF) else Color(0xB85F656D))
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (prefs.stylusOnly) TeachColors.Primary else MaterialTheme.colorScheme.surface)
+            .border(
+              1.dp,
+              if (prefs.stylusOnly) TeachColors.Primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+              RoundedCornerShape(16.dp)
+            )
             .tourAnchor("stylus")
         ) {
-          Icon(Icons.Default.Edit, contentDescription = "Palm Rejection", tint = Color.White, modifier = Modifier.size(22.dp))
+          Icon(
+            Icons.Default.Edit,
+            contentDescription = "Palm Rejection",
+            tint = if (prefs.stylusOnly) Color.White else TeachColors.OnSurface,
+            modifier = Modifier.size(22.dp)
+          )
         }
       }
 
       AnimatedVisibility(visible = ui.showSavedToast, enter = fadeIn(), exit = fadeOut()) {
-        Surface(shape = RoundedCornerShape(20.dp), color = Color(0xE6E7F9ED), shadowElevation = 2.dp) {
+        Surface(shape = RoundedCornerShape(20.dp), color = TeachColors.PastelMint, shadowElevation = 2.dp) {
           Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.saved_toast), color = Color(0xFF16A34A), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.saved_toast), color = TeachColors.PastelMintGlyph, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.width(3.dp))
-            Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(14.dp))
+            Icon(Icons.Default.Check, contentDescription = null, tint = TeachColors.PastelMintGlyph, modifier = Modifier.size(14.dp))
           }
         }
       }
@@ -881,20 +1061,19 @@ fun CanvasScreen(
     Column(
       modifier = Modifier
         .align(if (sideDockOnLeft) Alignment.TopStart else Alignment.TopEnd)
-        .statusBarsPadding()
         .padding(
-          start = if (sideDockOnLeft) 12.dp else 0.dp,
-          end = if (sideDockOnLeft) 0.dp else 12.dp,
-          top = if (sideDockOnLeft) 130.dp else 60.dp
+          start = if (sideDockOnLeft) safeStartPadding else 0.dp,
+          end = if (sideDockOnLeft) 0.dp else safeEndPadding,
+          top = safeTopPadding + (if (sideDockOnLeft) (if (!isLandscape) 220.dp else 54.dp) else 54.dp)
         ),
       horizontalAlignment = Alignment.CenterHorizontally,
       verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-      // Collapse/Expand chevron square button
+      // Collapse/Expand chevron square button (Royal blue squircle)
       Surface(
-        shape = RoundedCornerShape(13.dp),
-        color = Color(0xFF5D739C),
-        shadowElevation = 3.dp,
+        shape = RoundedCornerShape(16.dp),
+        color = TeachColors.Primary,
+        shadowElevation = 4.dp,
         modifier = Modifier
           .size(42.dp)
           .clickable { sideDockExpanded = !sideDockExpanded }
@@ -912,10 +1091,10 @@ fun CanvasScreen(
       // Vertical frosted pill with shortcuts + utility buttons
       AnimatedVisibility(visible = sideDockExpanded) {
         Surface(
-          shape = RoundedCornerShape(18.dp),
-          color = Color(0xF5F7F8FC),
+          shape = RoundedCornerShape(22.dp),
+          color = MaterialTheme.colorScheme.surface,
           shadowElevation = 4.dp,
-          modifier = Modifier.border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(18.dp))
+          modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(22.dp))
         ) {
           Column(
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
@@ -926,9 +1105,10 @@ fun CanvasScreen(
             extraShortcuts.forEach { action ->
               val isActionSelected = when (action) {
                 ToolbarAction.HAND -> ui.activeTool == ToolType.Hand
-                ToolbarAction.PEN -> ui.activeTool.isBrush
+                ToolbarAction.PEN -> ui.activeTool == ToolType.Pen || (ui.activeTool.isBrush && ui.activeTool != ToolType.Pencil)
+                ToolbarAction.PENCIL -> ui.activeTool == ToolType.Pencil
                 ToolbarAction.ERASER -> ui.activeTool == ToolType.Eraser
-                ToolbarAction.LASER -> ui.activeTool == ToolType.Laser
+                ToolbarAction.LASER -> ui.activeGeometryTool == null && ui.activeTool == ToolType.Laser
                 ToolbarAction.LASSO -> ui.activeTool == ToolType.Lasso
                 ToolbarAction.SMART -> ui.smartShapesEnabled
                 else -> false
@@ -1406,11 +1586,16 @@ fun CanvasScreen(
       // Bottom Frosted Light Toolbar with Pinned "> Collapse" Button (rock-solid flush to bottom — zero jump/gap!)
       if (toolbarVisible) {
         Surface(
-          color = Color(0xFFF3F4F6),
-          shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
-          shadowElevation = 10.dp,
+          color = MaterialTheme.colorScheme.surface,
+          shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+          shadowElevation = 12.dp,
           modifier = Modifier
             .fillMaxWidth()
+            .border(
+              1.dp,
+              MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+              RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            )
             .tourAnchor("toolbar")
         ) {
           Row(
@@ -1435,11 +1620,12 @@ fun CanvasScreen(
                   Box(modifier = Modifier.padding(horizontal = 4.dp).width(1.dp).height(34.dp).background(Color(0xFFD1D5DB)))
                 }
                 val isSelected = when (action) {
-                  ToolbarAction.PEN -> ui.activeTool.isBrush
+                  ToolbarAction.PEN -> ui.activeTool == ToolType.Pen || (ui.activeTool.isBrush && ui.activeTool != ToolType.Pencil)
+                ToolbarAction.PENCIL -> ui.activeTool == ToolType.Pencil
                   ToolbarAction.SMART -> ui.activeTool == ToolType.SmartWriting || ui.smartShapesEnabled
                   ToolbarAction.SHAPES -> ui.activeTool.isShape
                   ToolbarAction.ERASER -> ui.activeTool == ToolType.Eraser
-                  ToolbarAction.LASER -> ui.activeTool == ToolType.Laser
+                  ToolbarAction.LASER -> ui.activeGeometryTool == null && ui.activeTool == ToolType.Laser
                   ToolbarAction.LASSO -> ui.activeTool == ToolType.Lasso
                   ToolbarAction.HAND -> ui.activeTool == ToolType.Hand
                   ToolbarAction.CALCULATOR -> ui.showCalculator
@@ -1455,6 +1641,7 @@ fun CanvasScreen(
                 }
                 val dotColor: Color? = when (action) {
                   ToolbarAction.PEN -> Color(ui.brushColor)
+                  ToolbarAction.PENCIL -> Color(ui.brushColor)
                   ToolbarAction.LASER -> Color(ui.laserColor)
                   ToolbarAction.BOARD -> Color(session?.backgroundColor ?: TeachColors.BoardWhite)
                   else -> null
@@ -1486,17 +1673,17 @@ fun CanvasScreen(
             Surface(
               modifier = Modifier
                 .padding(end = 6.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .clickable { toolbarVisible = false },
-              color = Color(0xFFE0E3E8),
+              color = TeachColors.SurfaceVariant,
               shadowElevation = 2.dp
             ) {
               Column(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
               ) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Collapse", tint = Color(0xFF1F2937), modifier = Modifier.size(22.dp))
-                Text(stringResource(R.string.collapse), fontSize = 10.sp, color = Color(0xFF1F2937), fontWeight = FontWeight.Medium)
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Collapse", tint = TeachColors.OnSurfaceMuted, modifier = Modifier.size(22.dp))
+                Text(stringResource(R.string.collapse), fontSize = 10.sp, color = TeachColors.OnSurfaceMuted, fontWeight = FontWeight.Bold)
               }
             }
           }
@@ -1705,7 +1892,12 @@ fun CanvasScreen(
     )
     ActiveDialog.GEOMETRY -> GeometryPickerDialog(
       activeTool = ui.activeGeometryTool,
-      onSelect = { viewModel.setGeometryTool(it) },
+      onSelect = {
+        if (ui.activeTool == ToolType.Laser) {
+          viewModel.selectTool(ui.lastBrushTool)
+        }
+        viewModel.setGeometryTool(it)
+      },
       onDismiss = { activeDialog = ActiveDialog.NONE }
     )
     ActiveDialog.RECORD -> ScreenRecorderDialog(
@@ -1792,26 +1984,18 @@ fun CanvasScreen(
       })
     }
 
-    savedVideoUri?.let { uri ->
+    if (savedVideoUri != null && !playingSavedVideo) {
       RecordingSavedDialog(
-        uri = uri,
+        uri = savedVideoUri!!,
         sizeBytes = savedVideoSize,
         onPlay = {
-          try {
-            val playIntent = Intent(Intent.ACTION_VIEW).apply {
-              setDataAndType(uri, "video/mp4")
-              addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            context.startActivity(playIntent)
-          } catch (e: Exception) {
-            viewModel.showMessage("No video player found. Open it from your gallery.")
-          }
+          playingSavedVideo = true
         },
         onShare = {
           try {
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
               type = "video/mp4"
-              putExtra(Intent.EXTRA_STREAM, uri)
+              putExtra(Intent.EXTRA_STREAM, savedVideoUri)
               addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             context.startActivity(Intent.createChooser(shareIntent, "Share recording"))
@@ -1821,7 +2005,7 @@ fun CanvasScreen(
         },
         onDelete = {
           try {
-            val deleted = context.contentResolver.delete(uri, null, null)
+            val deleted = context.contentResolver.delete(savedVideoUri!!, null, null)
             if (deleted > 0) {
               viewModel.showMessage("Video deleted")
             } else {
@@ -1833,6 +2017,43 @@ fun CanvasScreen(
           savedVideoUri = null
         },
         onDismiss = { savedVideoUri = null }
+      )
+    }
+
+    if (playingSavedVideo && savedVideoUri != null) {
+      InAppVideoPlayerDialog(
+        uri = savedVideoUri!!,
+        title = "TeachBoard Screen Recording",
+        durationMs = (recordingState.elapsedSeconds * 1000L).coerceAtLeast(1_000L),
+        onDismiss = {
+          playingSavedVideo = false
+        },
+        onShare = {
+          try {
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+              type = "video/mp4"
+              putExtra(Intent.EXTRA_STREAM, savedVideoUri)
+              addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(shareIntent, "Share recording"))
+          } catch (e: Exception) {
+            viewModel.showMessage("Could not share video")
+          }
+        },
+        onDelete = {
+          try {
+            val deleted = context.contentResolver.delete(savedVideoUri!!, null, null)
+            if (deleted > 0) {
+              viewModel.showMessage("Video deleted")
+            } else {
+              viewModel.showMessage("Could not delete the video")
+            }
+          } catch (e: Exception) {
+            viewModel.showMessage("Could not delete the video")
+          }
+          savedVideoUri = null
+          playingSavedVideo = false
+        }
       )
     }
 
@@ -1914,21 +2135,23 @@ private fun ToolbarItemButton(
   val showHelp = LocalToolHelp.current
   val isUtility = action == ToolbarAction.CUSTOMIZE || action == ToolbarAction.HELP
   val isSmartBlueActive = action == ToolbarAction.SMART && selected
+  val isSmartInactive = action == ToolbarAction.SMART && !selected
   val fg = when {
     !enabled -> Color(0x55374151)
-    isSmartBlueActive -> Color.White
-    isUtility -> Color(0xFF1D4ED8)
-    else -> Color(0xFF1F2937)
+    selected || isSmartBlueActive -> Color.White
+    isSmartInactive -> TeachColors.PastelMintGlyph
+    isUtility -> TeachColors.Primary
+    else -> TeachColors.OnSurface
   }
 
   Box(
     modifier = modifier
       .widthIn(min = 52.dp)
-      .clip(RoundedCornerShape(11.dp))
+      .clip(RoundedCornerShape(16.dp))
       .background(
         when {
-          isSmartBlueActive -> Color(0xFF1D4ED8)
-          selected -> Color(0xFFDCDFE5)
+          selected || isSmartBlueActive -> TeachColors.Primary
+          isSmartInactive -> TeachColors.PastelMint.copy(alpha = 0.55f)
           else -> Color.Transparent
         }
       )
@@ -1943,35 +2166,6 @@ private fun ToolbarItemButton(
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
       Box {
         Icon(icon, contentDescription = label, tint = fg, modifier = Modifier.size(23.dp))
-        // Smart circular badge: △ when Smart Shapes is ON, Aa when Smart Writing
-        if (action == ToolbarAction.SMART) {
-          if (isSmartBlueActive) {
-            Box(
-              modifier = Modifier
-                .align(Alignment.TopStart)
-                .offset(x = (-6).dp, y = (-4).dp)
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(Color(0xFF22C55E))
-            )
-          }
-          Box(
-            modifier = Modifier
-              .align(Alignment.TopEnd)
-              .offset(x = 8.dp, y = (-4).dp)
-              .size(16.dp)
-              .clip(CircleShape)
-              .background(if (isSmartBlueActive) Color(0xFF3B82F6) else Color(0xFF2563EB)),
-            contentAlignment = Alignment.Center
-          ) {
-            Text(
-              if (smartShapesMode) "△" else "Aa",
-              fontSize = 7.sp,
-              fontWeight = FontWeight.Bold,
-              color = Color.White
-            )
-          }
-        }
         // OCR clean green "AI" badge
         if (action == ToolbarAction.OCR) {
           Box(
@@ -1987,7 +2181,7 @@ private fun ToolbarItemButton(
           }
         }
         // Live color dot on Pen, Laser & Board (top-right, never overlaps label!)
-        if (colorDot != null && (action == ToolbarAction.PEN || action == ToolbarAction.LASER || action == ToolbarAction.BOARD)) {
+        if (colorDot != null && (action == ToolbarAction.PEN || action == ToolbarAction.PENCIL || action == ToolbarAction.LASER || action == ToolbarAction.BOARD)) {
           Box(
             modifier = Modifier
               .align(Alignment.TopEnd)
@@ -2000,11 +2194,18 @@ private fun ToolbarItemButton(
         }
       }
       Spacer(Modifier.height(3.dp))
-      Text(text = label, fontSize = 10.sp, color = fg, maxLines = 1, softWrap = false)
+      Text(
+        text = label,
+        fontSize = 10.sp,
+        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+        color = fg,
+        maxLines = 1,
+        softWrap = false
+      )
     }
 
     // Crisp bottom-right diagonal triangle ◢ on tools with options (Pen, Smart, Eraser, Laser)
-    if (action == ToolbarAction.PEN || action == ToolbarAction.SMART || action == ToolbarAction.ERASER || action == ToolbarAction.LASER) {
+    if (action == ToolbarAction.PEN || action == ToolbarAction.PENCIL || action == ToolbarAction.SMART || action == ToolbarAction.ERASER || action == ToolbarAction.LASER) {
       Canvas(modifier = Modifier.align(Alignment.BottomEnd).padding(3.dp).size(7.dp)) {
         val tri = Path().apply {
           moveTo(size.width, 0f)
@@ -2012,7 +2213,7 @@ private fun ToolbarItemButton(
           lineTo(0f, size.height)
           close()
         }
-        drawPath(tri, Color(0xFF6B7280))
+        drawPath(tri, if (selected) Color.White.copy(alpha = 0.8f) else Color(0xFF6B7280))
       }
     }
   }
@@ -2053,6 +2254,7 @@ internal fun toolbarIconFor(action: ToolbarAction): ImageVector = when (action) 
   ToolbarAction.REDO -> Icons.AutoMirrored.Filled.Redo
   ToolbarAction.CLEAR -> Icons.Default.DeleteOutline
   ToolbarAction.PEN -> Icons.Default.Edit
+  ToolbarAction.PENCIL -> Icons.Default.Draw
   ToolbarAction.SMART -> Icons.Default.AutoFixHigh
   ToolbarAction.SHAPES -> Icons.Default.Category
   ToolbarAction.ERASER -> Icons.Default.CleaningServices
@@ -2088,6 +2290,7 @@ private fun toolbarLabelFor(action: ToolbarAction): String = when (action) {
   ToolbarAction.REDO -> stringResource(R.string.tool_redo)
   ToolbarAction.CLEAR -> stringResource(R.string.tool_clear)
   ToolbarAction.PEN -> stringResource(R.string.tool_pen)
+  ToolbarAction.PENCIL -> stringResource(R.string.tool_pencil)
   ToolbarAction.SMART -> stringResource(R.string.tool_smart)
   ToolbarAction.SHAPES -> stringResource(R.string.tool_shapes)
   ToolbarAction.ERASER -> stringResource(R.string.tool_eraser)

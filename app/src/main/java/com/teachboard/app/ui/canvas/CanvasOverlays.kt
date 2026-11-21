@@ -9,6 +9,7 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -175,45 +176,46 @@ fun GeometryPickerDialog(
         modifier = Modifier
           .width(sheetW.dp)
           .padding(bottom = bottomInset.dp),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(22.dp),
         color = Color.White,
-        shadowElevation = 6.dp
+        border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+        shadowElevation = 10.dp
       ) {
         Column {
-          // Amber wash gradient header
+          // Pastel header bar
           Row(
             modifier = Modifier
               .fillMaxWidth()
-              .background(Brush.horizontalGradient(listOf(Color(0x73FFCE54), Color(0x1FFFCE54))))
-              .padding(horizontal = 10.dp, vertical = 7.dp),
+              .background(TeachColors.Background)
+              .padding(horizontal = 12.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically
           ) {
             Box(
               modifier = Modifier
-                .size(18.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(Color(0xFFB45309)),
+                .size(24.dp)
+                .clip(RoundedCornerShape(7.dp))
+                .background(TeachColors.PastelMint),
               contentAlignment = Alignment.Center
             ) {
               Icon(
                 painter = painterResource(R.drawable.ic_geo_box),
                 contentDescription = null,
-                modifier = Modifier.size(11.dp),
-                tint = Color.White
+                modifier = Modifier.size(14.dp),
+                tint = TeachColors.PastelMintGlyph
               )
             }
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(8.dp))
             Text(
               text = stringResource(R.string.tb_geometry_box),
-              color = Color(0xFF0F172A),
-              fontSize = 12.sp,
-              fontWeight = FontWeight.W800
+              color = TeachColors.OnSurface,
+              fontSize = 13.sp,
+              fontWeight = FontWeight.Bold
             )
           }
 
           HorizontalDivider(
             thickness = 1.dp,
-            color = Color(0xFFB45309).copy(alpha = 0.14f)
+            color = Color(0xFFECEFF8)
           )
 
           // 4 Tiles Row: Ruler · Protractor · Compass · Set Square
@@ -301,30 +303,30 @@ fun GeometryBoxTile(
   Column(
     modifier = Modifier
       .width(tileW)
-      .clip(RoundedCornerShape(11.dp))
-      .background(if (selected) Color(0x29FFCE54) else Color(0xFFFBFAF7))
+      .clip(RoundedCornerShape(14.dp))
+      .background(if (selected) TeachColors.PastelMint else Color.White)
       .border(
-        width = 1.25.dp,
-        color = if (selected) Color(0xFFB45309) else Color(0xFFE2E8F0),
-        shape = RoundedCornerShape(11.dp)
+        width = if (selected) 2.dp else 1.dp,
+        color = if (selected) TeachColors.Secondary else Color(0xFFECEFF8),
+        shape = RoundedCornerShape(14.dp)
       )
       .clickable(onClick = onClick)
-      .padding(horizontal = 2.dp, vertical = 7.dp),
+      .padding(horizontal = 4.dp, vertical = 8.dp),
     horizontalAlignment = Alignment.CenterHorizontally
   ) {
     Icon(
       painter = painterResource(icon),
       contentDescription = label,
       modifier = Modifier.size(iconSize),
-      tint = Color(0xFFB45309)
+      tint = if (selected) TeachColors.PastelMintGlyph else TeachColors.OnSurface
     )
     Spacer(Modifier.height(4.dp))
     Text(
       text = label,
       modifier = Modifier.fillMaxWidth(),
-      color = Color(0xFF0F172A),
+      color = if (selected) TeachColors.Secondary else TeachColors.OnSurface,
       fontSize = size.sp,
-      fontWeight = FontWeight.W600,
+      fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
       textAlign = TextAlign.Center,
       maxLines = if (fitsOneLine) 1 else 2,
       lineHeight = (size * 1.4f).sp
@@ -333,15 +335,15 @@ fun GeometryBoxTile(
       Spacer(Modifier.height(4.dp))
       Box(
         modifier = Modifier
-          .size(14.dp)
+          .size(15.dp)
           .clip(CircleShape)
-          .background(Color(0xFFB45309)),
+          .background(TeachColors.Secondary),
         contentAlignment = Alignment.Center
       ) {
         Icon(
           imageVector = Icons.Default.Check,
           contentDescription = null,
-          modifier = Modifier.size(9.dp),
+          modifier = Modifier.size(10.dp),
           tint = Color.White
         )
       }
@@ -1526,7 +1528,7 @@ private fun SetSquareOverlay(
   }
 }
 
-// ===== 2. Cobalt-Blue Header Floating Calculator (Resizable + Minimizable Bubble + Centered!) =====
+// ===== 2. Pastel Expressive Floating Calculator (Resizable + Minimizable Bubble + Centered!) =====
 
 @Composable
 fun CalculatorOverlay(
@@ -1555,18 +1557,19 @@ fun CalculatorOverlay(
   }
 
   if (minimized) {
-    // Sleek draggable circular Cobalt-Blue Calculator bubble (tap to expand!)
+    // Sleek draggable squircle Primary Calculator bubble (tap to expand!)
     Surface(
       modifier = Modifier
         .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
-        .size(56.dp)
+        .size(54.dp)
         .pointerInput(Unit) {
           detectDragGestures { change, drag -> change.consume(); offsetX += drag.x; offsetY += drag.y }
         }
         .clickable { minimized = false },
-      shape = CircleShape,
-      color = Color(0xFF0020E0),
-      shadowElevation = 10.dp
+      shape = RoundedCornerShape(18.dp),
+      color = TeachColors.Primary,
+      border = BorderStroke(2.dp, Color.White),
+      shadowElevation = 8.dp
     ) {
       Box(contentAlignment = Alignment.Center) {
         Icon(Icons.Default.Calculate, contentDescription = "Expand Calculator", tint = Color.White, modifier = Modifier.size(26.dp))
@@ -1588,72 +1591,112 @@ fun CalculatorOverlay(
       .pointerInput(Unit) {
         detectDragGestures { change, drag -> change.consume(); offsetX += drag.x; offsetY += drag.y }
       },
-    shape = RoundedCornerShape(18.dp),
-    shadowElevation = 12.dp,
-    color = Color(0xFFF3F4F6)
+    shape = RoundedCornerShape(22.dp),
+    shadowElevation = 10.dp,
+    color = Color.White,
+    border = BorderStroke(1.dp, Color(0xFFECEFF8))
   ) {
     Box {
       Column {
-        // Vivid Cobalt Blue header bar (⋮⋮ Calculator  Σ  ∨  ×)
+        // Soft Pastel header bar (⋮⋮ [Icon] Calculator  Σ  ∨  ×)
         Row(
           modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF0020E0))
-            .padding(horizontal = 8.dp, vertical = 5.dp),
+            .background(TeachColors.Background)
+            .padding(horizontal = 10.dp, vertical = 7.dp),
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Icon(Icons.Default.DragIndicator, contentDescription = null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(17.dp))
-          Spacer(Modifier.width(4.dp))
-          Text(stringResource(R.string.tool_calculator), color = Color.White, fontWeight = FontWeight.Bold, fontSize = (13.5f * scale).coerceAtMost(17f).sp, modifier = Modifier.weight(1f))
-          IconButton(onClick = { scientific = !scientific }, modifier = Modifier.size(28.dp)) {
-            Icon(Icons.Default.Functions, contentDescription = "Scientific", tint = if (scientific) Color(0xFFFDE047) else Color.White, modifier = Modifier.size(18.dp))
+          Icon(Icons.Default.DragIndicator, contentDescription = null, tint = TeachColors.OutlineVariant, modifier = Modifier.size(17.dp))
+          Spacer(Modifier.width(6.dp))
+          Box(
+            modifier = Modifier
+              .size(24.dp)
+              .clip(RoundedCornerShape(7.dp))
+              .background(TeachColors.PastelPeriwinkle),
+            contentAlignment = Alignment.Center
+          ) {
+            Icon(Icons.Default.Calculate, contentDescription = null, tint = TeachColors.Primary, modifier = Modifier.size(15.dp))
           }
+          Spacer(Modifier.width(7.dp))
+          Text(
+            stringResource(R.string.tool_calculator),
+            color = TeachColors.OnSurface,
+            fontWeight = FontWeight.Bold,
+            fontSize = (13.5f * scale).coerceAtMost(16f).sp,
+            modifier = Modifier.weight(1f)
+          )
+          Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = if (scientific) TeachColors.PastelViolet else Color.Transparent,
+            border = if (scientific) BorderStroke(1.dp, TeachColors.PastelVioletGlyph.copy(alpha = 0.4f)) else null,
+            modifier = Modifier.size(28.dp).clip(RoundedCornerShape(8.dp)).clickable { scientific = !scientific }
+          ) {
+            Box(contentAlignment = Alignment.Center) {
+              Icon(
+                Icons.Default.Functions,
+                contentDescription = "Scientific",
+                tint = if (scientific) TeachColors.PastelVioletGlyph else TeachColors.OnSurfaceMuted,
+                modifier = Modifier.size(17.dp)
+              )
+            }
+          }
+          Spacer(Modifier.width(2.dp))
           IconButton(onClick = { minimized = true }, modifier = Modifier.size(28.dp)) {
-            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Minimize", tint = Color.White, modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Minimize", tint = TeachColors.OnSurfaceMuted, modifier = Modifier.size(18.dp))
           }
           IconButton(onClick = onClose, modifier = Modifier.size(28.dp)) {
-            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.Close, contentDescription = "Close", tint = TeachColors.OnSurfaceMuted, modifier = Modifier.size(17.dp))
           }
         }
 
-        Column(modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-          // White rounded display
+        HorizontalDivider(thickness = 1.dp, color = Color(0xFFECEFF8))
+
+        Column(modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+          // Soft rounded display container
           Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = Color.White,
-            modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+            shape = RoundedCornerShape(14.dp),
+            color = TeachColors.Background,
+            border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+            modifier = Modifier.fillMaxWidth()
           ) {
             Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = (8f * scale).dp), horizontalAlignment = Alignment.End) {
               if (expr.isNotEmpty()) {
-                Text(expr, fontSize = (11.5f * scale).sp, color = Color(0xFF64748B), maxLines = 1)
+                Text(expr, fontSize = (11.5f * scale).sp, color = TeachColors.OnSurfaceMuted, maxLines = 1)
               }
-              Text(result, fontSize = (24f * scale).sp, fontWeight = FontWeight.Medium, color = Color(0xFF111827), maxLines = 1)
+              Text(result, fontSize = (24f * scale).sp, fontWeight = FontWeight.Bold, color = TeachColors.OnSurface, maxLines = 1)
             }
           }
+
+          val sciBg = TeachColors.PastelViolet
+          val sciFg = TeachColors.PastelVioletGlyph
 
           if (scientific) {
             listOf(listOf("sin(", "cos(", "tan(", "√("), listOf("ln(", "log(", "π", "^")).forEach { row ->
               Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
-                row.forEach { k -> CalcPillKey(k, Modifier.weight(1f), bg = Color(0xFFE2E8F0), height = keyHeight, fontSize = (12.5f * scale).sp) { expr += k } }
+                row.forEach { k ->
+                  CalcPillKey(k, Modifier.weight(1f), bg = sciBg, fg = sciFg, height = keyHeight, fontSize = (12.5f * scale).sp) { expr += k }
+                }
               }
             }
           }
 
-          val opBg = Color(0xFFE0E7FF)
-          val opFg = Color(0xFF1D4ED8)
-          val topBg = Color(0xFFE5E7EB)
+          val opBg = TeachColors.PastelPeriwinkle
+          val opFg = TeachColors.Primary
+          val topBg = TeachColors.PastelPeach
+          val topFg = TeachColors.PastelPeachGlyph
 
           Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
-            CalcPillKey("C", Modifier.weight(1f), bg = topBg, height = keyHeight, fontSize = keyFont) { expr = ""; result = "0" }
+            CalcPillKey("C", Modifier.weight(1f), bg = topBg, fg = topFg, height = keyHeight, fontSize = keyFont) { expr = ""; result = "0" }
             Surface(
-              modifier = Modifier.weight(1f).height(keyHeight).clip(RoundedCornerShape(10.dp)).clickable { if (expr.isNotEmpty()) expr = expr.dropLast(1) },
-              color = topBg
+              modifier = Modifier.weight(1f).height(keyHeight).clip(RoundedCornerShape(11.dp)).clickable { if (expr.isNotEmpty()) expr = expr.dropLast(1) },
+              color = topBg,
+              shape = RoundedCornerShape(11.dp)
             ) {
               Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.AutoMirrored.Filled.Backspace, contentDescription = "Backspace", tint = Color(0xFF1E293B), modifier = Modifier.size((17f * scale).dp))
+                Icon(Icons.AutoMirrored.Filled.Backspace, contentDescription = "Backspace", tint = topFg, modifier = Modifier.size((17f * scale).dp))
               }
             }
-            CalcPillKey("%", Modifier.weight(1f), bg = topBg, height = keyHeight, fontSize = keyFont) { expr += "%" }
+            CalcPillKey("%", Modifier.weight(1f), bg = opBg, fg = opFg, height = keyHeight, fontSize = keyFont) { expr += "%" }
             CalcPillKey("÷", Modifier.weight(1f), bg = opBg, fg = opFg, height = keyHeight, fontSize = keyFont) { expr += "÷" }
           }
           listOf(
@@ -1664,28 +1707,44 @@ fun CalculatorOverlay(
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
               row.forEachIndexed { idx, key ->
                 val isOp = idx == 3
-                CalcPillKey(key, Modifier.weight(1f), bg = if (isOp) opBg else Color.White, fg = if (isOp) opFg else Color(0xFF111827), height = keyHeight, fontSize = keyFont) {
+                CalcPillKey(
+                  key,
+                  Modifier.weight(1f),
+                  bg = if (isOp) opBg else Color.White,
+                  fg = if (isOp) opFg else TeachColors.OnSurface,
+                  border = if (isOp) null else BorderStroke(1.dp, Color(0xFFECEFF8)),
+                  height = keyHeight,
+                  fontSize = keyFont
+                ) {
                   expr += if (key == "−") "-" else key
                 }
               }
             }
           }
           Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
-            CalcPillKey("0", Modifier.weight(2.06f), bg = Color.White, height = keyHeight, fontSize = keyFont) { expr += "0" }
-            CalcPillKey(".", Modifier.weight(1f), bg = Color.White, height = keyHeight, fontSize = keyFont) { expr += "." }
-            CalcPillKey("=", Modifier.weight(1f), bg = Color(0xFF0020E0), fg = Color.White, height = keyHeight, fontSize = keyFont) { eval() }
+            CalcPillKey("0", Modifier.weight(2.06f), bg = Color.White, fg = TeachColors.OnSurface, border = BorderStroke(1.dp, Color(0xFFECEFF8)), height = keyHeight, fontSize = keyFont) { expr += "0" }
+            CalcPillKey(".", Modifier.weight(1f), bg = Color.White, fg = TeachColors.OnSurface, border = BorderStroke(1.dp, Color(0xFFECEFF8)), height = keyHeight, fontSize = keyFont) { expr += "." }
+            CalcPillKey("=", Modifier.weight(1f), bg = TeachColors.Primary, fg = Color.White, height = keyHeight, fontSize = keyFont) { eval() }
           }
 
           Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-            TextButton(
-              onClick = {
+            Surface(
+              shape = RoundedCornerShape(12.dp),
+              color = TeachColors.PastelMint,
+              border = BorderStroke(1.dp, TeachColors.Secondary.copy(alpha = 0.25f)),
+              modifier = Modifier.clickable {
                 eval()
                 onPutOnBoard(if (expr.isNotBlank() && result != "Error") "$expr = $result" else result)
-              },
-              modifier = Modifier.height(if (isLandscape) 24.dp else 30.dp),
-              contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+              }
             ) {
-              Text(stringResource(R.string.put_on_board), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0020E0))
+              Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+              ) {
+                Icon(Icons.Default.Add, contentDescription = null, tint = TeachColors.PastelMintGlyph, modifier = Modifier.size(13.dp))
+                Text(stringResource(R.string.put_on_board), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TeachColors.PastelMintGlyph)
+              }
             }
           }
         }
@@ -1693,7 +1752,7 @@ fun CalculatorOverlay(
 
       // Bottom-right diagonal resize grip (///)
       ResizeCornerGrip(
-        color = Color(0xFF94A3B8),
+        color = TeachColors.OutlineVariant,
         modifier = Modifier.align(Alignment.BottomEnd),
         onDragDeltaPx = { dx ->
           val dDp = with(density) { dx.toDp().value }
@@ -1709,18 +1768,21 @@ private fun CalcPillKey(
   label: String,
   modifier: Modifier,
   bg: Color,
-  fg: Color = Color(0xFF111827),
+  fg: Color = TeachColors.OnSurface,
+  border: BorderStroke? = null,
   height: androidx.compose.ui.unit.Dp = 36.dp,
   fontSize: androidx.compose.ui.unit.TextUnit = 15.sp,
   onClick: () -> Unit
 ) {
   Surface(
-    modifier = modifier.height(height).clip(RoundedCornerShape(10.dp)).clickable(onClick = onClick),
+    modifier = modifier.height(height).clip(RoundedCornerShape(11.dp)).clickable(onClick = onClick),
+    shape = RoundedCornerShape(11.dp),
     color = bg,
-    shadowElevation = 0.5.dp
+    border = border,
+    shadowElevation = if (bg == Color.White) 1.dp else 0.dp
   ) {
     Box(contentAlignment = Alignment.Center) {
-      Text(label, fontWeight = FontWeight.SemiBold, color = fg, fontSize = fontSize, maxLines = 1)
+      Text(label, fontWeight = FontWeight.Bold, color = fg, fontSize = fontSize, maxLines = 1)
     }
   }
 }
@@ -1763,18 +1825,19 @@ fun TimerOverlay(onClose: () -> Unit) {
   }
 
   if (minimized) {
-    // Sleek draggable circular Dark Charcoal Timer bubble (shows live countdown when running!)
+    // Sleek draggable squircle Pastel Mint Timer bubble (shows live countdown when running!)
     Surface(
       modifier = Modifier
         .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
-        .size(56.dp)
+        .size(54.dp)
         .pointerInput(Unit) {
           detectDragGestures { change, drag -> change.consume(); offsetX += drag.x; offsetY += drag.y }
         }
         .clickable { minimized = false },
-      shape = CircleShape,
-      color = Color(0xFF282B30),
-      shadowElevation = 10.dp
+      shape = RoundedCornerShape(18.dp),
+      color = TeachColors.PastelMint,
+      border = BorderStroke(2.dp, Color.White),
+      shadowElevation = 8.dp
     ) {
       Column(
         modifier = Modifier.fillMaxSize(),
@@ -1784,13 +1847,13 @@ fun TimerOverlay(onClose: () -> Unit) {
         Icon(
           Icons.Default.Timer,
           contentDescription = "Expand Timer",
-          tint = if (running) Color(0xFF4ADE80) else Color.White,
-          modifier = Modifier.size(if (running) 20.dp else 26.dp)
+          tint = if (remaining <= 5 && running) TeachColors.Danger else TeachColors.PastelMintGlyph,
+          modifier = Modifier.size(if (running) 20.dp else 24.dp)
         )
         if (running) {
           Text(
             String.format("%d:%02d", remaining / 60, remaining % 60),
-            color = if (remaining <= 5) Color(0xFFF87171) else Color.White,
+            color = if (remaining <= 5) TeachColors.Danger else TeachColors.PastelMintGlyph,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold
           )
@@ -1809,86 +1872,140 @@ fun TimerOverlay(onClose: () -> Unit) {
       .pointerInput(Unit) {
         detectDragGestures { change, drag -> change.consume(); offsetX += drag.x; offsetY += drag.y }
       },
-    shape = RoundedCornerShape(18.dp),
-    shadowElevation = 12.dp,
-    color = Color(0xFF282B30)
+    shape = RoundedCornerShape(22.dp),
+    shadowElevation = 10.dp,
+    color = Color.White,
+    border = BorderStroke(1.dp, Color(0xFFECEFF8))
   ) {
     Box {
-      Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy((9f * scale).dp)) {
-        // Header: ⋮⋮ Timer   🔔   ∨   ×
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-          Icon(Icons.Default.DragIndicator, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(16.dp))
-          Spacer(Modifier.width(4.dp))
-          Text(stringResource(R.string.tool_timer), color = Color(0xFFD1D5DB), fontWeight = FontWeight.SemiBold, fontSize = 14.sp, modifier = Modifier.weight(1f))
+      Column(modifier = Modifier.padding(bottom = 14.dp)) {
+        // Pastel Header: ⋮⋮ [Icon] Timer   🔔   ∨   ×
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .background(TeachColors.Background)
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Icon(Icons.Default.DragIndicator, contentDescription = null, tint = TeachColors.OutlineVariant, modifier = Modifier.size(17.dp))
+          Spacer(Modifier.width(6.dp))
+          Box(
+            modifier = Modifier
+              .size(24.dp)
+              .clip(RoundedCornerShape(7.dp))
+              .background(TeachColors.PastelMint),
+            contentAlignment = Alignment.Center
+          ) {
+            Icon(Icons.Default.Timer, contentDescription = null, tint = TeachColors.PastelMintGlyph, modifier = Modifier.size(15.dp))
+          }
+          Spacer(Modifier.width(7.dp))
+          Text(
+            stringResource(R.string.tool_timer),
+            color = TeachColors.OnSurface,
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.5.sp,
+            modifier = Modifier.weight(1f)
+          )
           IconButton(onClick = { soundOn = !soundOn }, modifier = Modifier.size(28.dp)) {
-            Icon(Icons.Default.Notifications, contentDescription = "Bell", tint = if (soundOn) Color.White else Color(0xFF6B7280), modifier = Modifier.size(18.dp))
+            Icon(
+              Icons.Default.Notifications,
+              contentDescription = "Bell",
+              tint = if (soundOn) TeachColors.PastelMintGlyph else TeachColors.OnSurfaceMuted,
+              modifier = Modifier.size(18.dp)
+            )
           }
           IconButton(onClick = { minimized = true }, modifier = Modifier.size(28.dp)) {
-            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Minimize", tint = Color(0xFFD1D5DB), modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Minimize", tint = TeachColors.OnSurfaceMuted, modifier = Modifier.size(18.dp))
           }
           IconButton(onClick = onClose, modifier = Modifier.size(28.dp)) {
-            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color(0xFFD1D5DB), modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.Close, contentDescription = "Close", tint = TeachColors.OnSurfaceMuted, modifier = Modifier.size(17.dp))
           }
         }
 
-        // -  00:30  +
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
-          IconButton(
-            onClick = { if (!running && totalSeconds > 5) { totalSeconds -= 5; remaining = totalSeconds } },
-            modifier = Modifier.size((36f * scale).dp).clip(CircleShape).background(Color(0xFF3C4048))
+        HorizontalDivider(thickness = 1.dp, color = Color(0xFFECEFF8))
+
+        Column(
+          modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp),
+          verticalArrangement = Arrangement.spacedBy((9f * scale).dp)
+        ) {
+          // -  00:30  +
+          Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = (4f * scale).dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceEvenly
           ) {
-            Icon(Icons.Default.Remove, contentDescription = "-5s", tint = Color.White, modifier = Modifier.size((18f * scale).dp))
+            IconButton(
+              onClick = { if (!running && totalSeconds > 5) { totalSeconds -= 5; remaining = totalSeconds } },
+              modifier = Modifier
+                .size((36f * scale).dp)
+                .clip(CircleShape)
+                .background(TeachColors.Background)
+                .border(1.dp, Color(0xFFECEFF8), CircleShape)
+            ) {
+              Icon(Icons.Default.Remove, contentDescription = "-5s", tint = TeachColors.OnSurface, modifier = Modifier.size((18f * scale).dp))
+            }
+            Text(
+              text = String.format("%02d:%02d", remaining / 60, remaining % 60),
+              color = if (remaining <= 5 && remaining > 0) TeachColors.Danger else TeachColors.Primary,
+              fontSize = (32f * scale).sp,
+              fontWeight = FontWeight.ExtraBold
+            )
+            IconButton(
+              onClick = { if (!running && totalSeconds < 300) { totalSeconds += 5; remaining = totalSeconds } },
+              modifier = Modifier
+                .size((36f * scale).dp)
+                .clip(CircleShape)
+                .background(TeachColors.Background)
+                .border(1.dp, Color(0xFFECEFF8), CircleShape)
+            ) {
+              Icon(Icons.Default.Add, contentDescription = "+5s", tint = TeachColors.OnSurface, modifier = Modifier.size((18f * scale).dp))
+            }
           }
-          Text(
-            text = String.format("%02d:%02d", remaining / 60, remaining % 60),
-            color = if (remaining <= 5 && remaining > 0) Color(0xFFF87171) else Color.White,
-            fontSize = (31f * scale).sp,
-            fontWeight = FontWeight.Bold
+
+          // Progress bar
+          LinearProgressIndicator(
+            progress = { (remaining.toFloat() / totalSeconds.coerceAtLeast(1)).coerceIn(0f, 1f) },
+            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+            color = if (remaining <= 5) TeachColors.Danger else TeachColors.Primary,
+            trackColor = TeachColors.PastelPeriwinkle
           )
-          IconButton(
-            onClick = { if (!running && totalSeconds < 300) { totalSeconds += 5; remaining = totalSeconds } },
-            modifier = Modifier.size((36f * scale).dp).clip(CircleShape).background(Color(0xFF3C4048))
-          ) {
-            Icon(Icons.Default.Add, contentDescription = "+5s", tint = Color.White, modifier = Modifier.size((18f * scale).dp))
-          }
-        }
 
-        // Progress bar
-        LinearProgressIndicator(
-          progress = { (remaining.toFloat() / totalSeconds.coerceAtLeast(1)).coerceIn(0f, 1f) },
-          modifier = Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(4.dp)),
-          color = Color(0xFF4ADE80),
-          trackColor = Color(0xFF4B5563)
-        )
-
-        val chipH = (31f * scale).dp
-        // 2 rows of preset chips + bright green ▶ play pill!
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-          listOf(5, 10, 15, 20).forEach { sec ->
-            TimerPresetPill(sec, totalSeconds == sec, Modifier.weight(1f), chipH) {
-              totalSeconds = sec; remaining = sec; running = false
+          val chipH = (31f * scale).dp
+          // 2 rows of preset chips + play pill!
+          Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(5, 10, 15, 20).forEach { sec ->
+              TimerPresetPill(sec, totalSeconds == sec, Modifier.weight(1f), chipH) {
+                totalSeconds = sec; remaining = sec; running = false
+              }
             }
           }
-        }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-          listOf(30, 45, 60).forEach { sec ->
-            TimerPresetPill(sec, totalSeconds == sec, Modifier.weight(1f), chipH) {
-              totalSeconds = sec; remaining = sec; running = false
+          Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(30, 45, 60).forEach { sec ->
+              TimerPresetPill(sec, totalSeconds == sec, Modifier.weight(1f), chipH) {
+                totalSeconds = sec; remaining = sec; running = false
+              }
             }
-          }
-          Surface(
-            modifier = Modifier
-              .weight(1f)
-              .height(chipH)
-              .clip(RoundedCornerShape(16.dp))
-              .clickable {
-                if (remaining == 0) remaining = totalSeconds
-                running = !running
-              },
-            color = if (running) Color(0xFFEF4444) else Color(0xFF4ADE80)
-          ) {
-            Box(contentAlignment = Alignment.Center) {
-              Icon(if (running) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = "Start/Pause", tint = Color(0xFF0F172A), modifier = Modifier.size(18.dp))
+            Surface(
+              modifier = Modifier
+                .weight(1f)
+                .height(chipH)
+                .clip(RoundedCornerShape(12.dp))
+                .clickable {
+                  if (remaining == 0) remaining = totalSeconds
+                  running = !running
+                },
+              shape = RoundedCornerShape(12.dp),
+              color = if (running) TeachColors.Danger else TeachColors.Primary,
+              shadowElevation = 2.dp
+            ) {
+              Box(contentAlignment = Alignment.Center) {
+                Icon(
+                  if (running) Icons.Default.Pause else Icons.Default.PlayArrow,
+                  contentDescription = "Start/Pause",
+                  tint = Color.White,
+                  modifier = Modifier.size(18.dp)
+                )
+              }
             }
           }
         }
@@ -1896,7 +2013,7 @@ fun TimerOverlay(onClose: () -> Unit) {
 
       // Bottom-right diagonal resize grip (///)
       ResizeCornerGrip(
-        color = Color(0xFF9CA3AF),
+        color = TeachColors.OutlineVariant,
         modifier = Modifier.align(Alignment.BottomEnd),
         onDragDeltaPx = { dx ->
           val dDp = with(density) { dx.toDp().value }
@@ -1943,11 +2060,19 @@ private fun TimerPresetPill(
   onClick: () -> Unit
 ) {
   Surface(
-    modifier = modifier.height(height).clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick),
-    color = if (selected) Color.White else Color(0xFF3C4048)
+    modifier = modifier.height(height).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick),
+    shape = RoundedCornerShape(12.dp),
+    color = if (selected) TeachColors.PastelMint else Color.White,
+    border = BorderStroke(if (selected) 1.5.dp else 1.dp, if (selected) TeachColors.Secondary else Color(0xFFECEFF8)),
+    shadowElevation = if (!selected) 0.5.dp else 0.dp
   ) {
     Box(contentAlignment = Alignment.Center) {
-      Text("$sec", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (selected) Color(0xFF111827) else Color(0xFFE5E7EB))
+      Text(
+        "${sec}s",
+        fontSize = 11.5.sp,
+        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+        color = if (selected) TeachColors.Secondary else TeachColors.OnSurface
+      )
     }
   }
 }

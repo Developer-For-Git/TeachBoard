@@ -73,6 +73,10 @@ class PrefsRepository(context: Context) {
     }.orEmpty()
     val mergedOrder = if (savedOrder.isEmpty()) {
       ToolbarAction.entries
+    } else if (ToolbarAction.PENCIL !in savedOrder && ToolbarAction.PEN in savedOrder) {
+      val penIdx = savedOrder.indexOf(ToolbarAction.PEN)
+      val withPencil = savedOrder.toMutableList().apply { add(penIdx + 1, ToolbarAction.PENCIL) }
+      withPencil + ToolbarAction.entries.filterNot { it in withPencil }
     } else {
       (savedOrder + ToolbarAction.entries.filterNot { it in savedOrder })
     }

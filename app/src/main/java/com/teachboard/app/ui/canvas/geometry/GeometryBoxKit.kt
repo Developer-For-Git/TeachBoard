@@ -240,6 +240,11 @@ object GeoKit {
     fun setSquareLeg(s: GeoState) = s.legCm * PX_PER_CM
     fun protractorScale(s: GeoState) = s.radius / 160f * s.uiScale
 
+    fun world(s: GeoState, local: P): P {
+        val r = rotate(local.x * s.uiScale, local.y * s.uiScale, s.angle)
+        return P(s.ox + r.x, s.oy + r.y)
+    }
+
     fun rotate(x: Float, y: Float, rad: Float): P {
         val c = cos(rad); val n = sin(rad)
         return P(x * c - y * n, x * n + y * c)
@@ -391,9 +396,24 @@ class GeoController(
         gesture = G.None
     }
 
+    var brushWidth: Float = 4f
+    var brushColor: Int = 0xFF000000.toInt()
+
+    fun cancelGesture() {
+        if (gesture !== G.None) {
+            gesture = G.None
+            val s = state ?: return
+            val defaultHint = when (s.instrument) {
+                GeoInstrument.Ruler -> GeoKit.rulerReadout(s, strings)
+                else -> null
+            }
+            state = s.copy(hint = defaultHint, activeEdgeLine = null)
+        }
+    }
+
     fun draw(c: Canvas) {
         val s = state ?: return
-        GeoRenderer(style, strings).draw(c, s)
+        GeoRenderer(style, strings, brushColor, brushWidth).draw(c, s)
     }
 
     // ---------------- input ----------------
@@ -440,7 +460,9 @@ class GeoController(
         }
     }
 
-    fun onDown(x: Float, y: Float, zoom: Float): Boolean {
+    fun onDown(x: Float, y: Float, zoom: Float, width: Float = brushWidth, color: Int = brushColor): Boolean {
+        this.brushWidth = width
+        this.brushColor = color
         val s = state ?: return false
         val p = P(x, y)
         val hit = 22f / zoom
@@ -451,11 +473,17 @@ class GeoController(
             GeoInstrument.SetSquare -> beginSetSquare(s, p, zoom)
         }
         val g = gesture
-        if (g is G.DrawEdge) {
-            g.t1 = 1f
-            g.hasDragged = false
-            val startP = lerp(g.a, g.b, g.t0.coerceIn(0f, 1f))
-            state = s.copy(activeEdgeLine = startP to g.b)
+        if (g is G.Dismiss) {
+            gesture = G.None
+            return true
+        }
+        if (g is G.DrawRuler) {
+            val perp = g.side * (32f + (g.brushWidth / 2f + 1f) / s.uiScale)
+            val pStart = world(s, P(g.startAlong, perp))
+            state = s.copy(
+                activeEdgeLine = pStart to pStart,
+                hint = String.format(Locale.US, strings.rulerDraw, 0f, 0f)
+            )
         }
         if (g is G.DrawSetSquareEdge) {
             g.hasDragged = false
@@ -488,48 +516,46 @@ class GeoController(
         val lx = local.x / s.uiScale
         val ly = local.y / s.uiScale
         val len = GeoKit.rulerLen(s)
-        val scaleStart = GeoKit.RULER_HEAD
-        val scaleEnd = GeoKit.RULER_HEAD + s.spanCm * GeoKit.PX_PER_CM
+        val head = GeoKit.RULER_HEAD
+        val spanPx = s.spanCm * GeoKit.PX_PER_CM
 
         // 1. Close button (✕) INSIDE the ruler head margin at (20f, 0f)
         val closeBtn = world(s, P(20f, 0f))
         if (hypot(p.x - closeBtn.x, p.y - closeBtn.y) <= 22f + hit || hypot(lx - 20f, ly) <= hit / s.uiScale + 14f) {
             close()
             cb.onDismiss()
-            return G.None
+            return G.Dismiss
         }
 
-        // 2. Rotate knob at right end
+        // 2. Rotate knob near right end at (len + 30f, 0f)
         val rotateBtn = P(s.ox, s.oy) + GeoKit.rotate((len + 30f) * s.uiScale, 0f, s.angle)
-        if (hypot(p.x - rotateBtn.x, p.y - rotateBtn.y) <= 24f + hit || hypot(lx - (len + 30f), ly) <= hit / s.uiScale + 12f) {
+        if (hypot(p.x - rotateBtn.x, p.y - rotateBtn.y) <= 26f + hit || hypot(lx - (len + 30f), ly) <= hit / s.uiScale + 14f) {
             return G.Rotate(s, bearing(s, p))
         }
 
-        // 3. Resize grip at right end
-        if (lx in (len - 40f)..(len + 12f) && abs(ly) <= 32f) return G.ResizeRuler(s)
-
-        // 4. Middle strip for dragging / moving ruler
-        if (lx in 35f..(len - 40f) && abs(ly) <= 14f) return G.Move(s, p - P(s.ox, s.oy))
-
-        // 5. Line drawing along upward (top) and downward (bottom) edges, anchored from scale 0
-        val hitMargin = hit / s.uiScale + 30f
-        val isTopEdge = lx in (scaleStart - 20f)..(scaleEnd + 25f) && ly in (-32f - hitMargin)..(-14f)
-        val isBottomEdge = lx in (scaleStart - 20f)..(scaleEnd + 25f) && ly in 14f..(32f + hitMargin)
-
-        if (isTopEdge) {
-            val a = world(s, P(scaleStart, -32f))
-            val b = world(s, P(scaleEnd, -32f))
-            return G.DrawEdge(s, a, b, 0f)
-        }
-        if (isBottomEdge) {
-            val a = world(s, P(scaleStart, 32f))
-            val b = world(s, P(scaleEnd, 32f))
-            return G.DrawEdge(s, a, b, 0f)
+        // 3. On the ruler body: 0 <= lx <= len && abs(ly) <= 32f
+        if (lx in 0f..len && abs(ly) <= 32f) {
+            // Resize grip at right end (lx >= len - 34f)
+            if (lx >= len - 34f) {
+                return G.ResizeRuler(s)
+            }
+            // Anywhere else on the body moves the ruler
+            return G.Move(s, p - P(s.ox, s.oy))
         }
 
-        if (lx in 0f..len && abs(ly) <= 32f) return G.Move(s, p - P(s.ox, s.oy))
+        // 4. Any other touch anywhere on the board -> DRAW mode (Teardown Rules #2, #3, #4, #5)
+        // Latched side: -1 for upper edge (ly < 0), +1 for lower edge (ly >= 0)
+        val side = if (ly < 0f) -1f else 1f
+        // Start point along-axis clamped to printed scale marks [head, head + spanPx] and frozen
+        val startAlong = lx.coerceIn(head, head + spanPx)
 
-        return G.None
+        return G.DrawRuler(
+            start = s,
+            side = side,
+            startAlong = startAlong,
+            endAlong = startAlong,
+            brushWidth = brushWidth
+        )
     }
 
     private fun beginProtractor(s: GeoState, p: P, hit: Float): G {
@@ -768,16 +794,35 @@ class GeoController(
                 moved.copy(hint = moved.compassReadoutText())
             }
 
-            is G.DrawEdge -> {
-                g.hasDragged = true
-                val t = project(p, g.a, g.b).coerceIn(0f, 1f)
-                g.t1 = if (t > 0.88f) 1f else t.coerceAtLeast(0.04f)
-                val lineStart = lerp(g.a, g.b, g.t0.coerceIn(0f, 1f))
-                val lineEnd = lerp(g.a, g.b, g.t1)
-                val len = hypot(lineEnd.x - lineStart.x, lineEnd.y - lineStart.y)
+            is G.DrawRuler -> {
+                val local = GeoKit.rotate(p.x - s.ox, p.y - s.oy, -s.angle)
+                val lx = local.x / s.uiScale
+                val head = GeoKit.RULER_HEAD
+                val spanPx = s.spanCm * GeoKit.PX_PER_CM
+                val endAlong = lx.coerceIn(head, head + spanPx)
+                g.endAlong = endAlong
+
+                val perp = g.side * (32f + (g.brushWidth / 2f + 1f) / s.uiScale)
+                val pStart = world(s, P(g.startAlong, perp))
+                val pEnd = world(s, P(endAlong, perp))
+
+                val now = System.currentTimeMillis()
+                val lenRulerUnits = abs(endAlong - g.startAlong)
+                val lenCm = lenRulerUnits / GeoKit.PX_PER_CM
+                val lenIn = lenCm / 2.54f
+
+                val hintText = if (now - g.lastReadoutTime >= 16L || g.lastReadoutStr.isEmpty()) {
+                    val str = String.format(Locale.US, strings.rulerDraw, lenCm, lenIn)
+                    g.lastReadoutTime = now
+                    g.lastReadoutStr = str
+                    str
+                } else {
+                    g.lastReadoutStr
+                }
+
                 s.copy(
-                    hint = String.format(Locale.US, strings.rulerDraw, len / GeoKit.PX_PER_CM, len / 96f),
-                    activeEdgeLine = lineStart to lineEnd
+                    hint = hintText,
+                    activeEdgeLine = pStart to pEnd
                 )
             }
 
@@ -797,6 +842,7 @@ class GeoController(
                 )
             }
 
+            G.Dismiss,
             G.None -> null
         }
     }
@@ -804,13 +850,15 @@ class GeoController(
     private fun finish(g: G, p: P) {
         val s = state ?: return
         when (g) {
-            is G.DrawEdge -> {
-                val lineStart = lerp(g.a, g.b, g.t0.coerceIn(0f, 1f))
-                val lineEnd = if (g.hasDragged) lerp(g.a, g.b, g.t1) else g.b
-                if (hypot(lineEnd.x - lineStart.x, lineEnd.y - lineStart.y) > 6f) {
-                    cb.onStampLine(lineStart, lineEnd)
+            is G.DrawRuler -> {
+                val lenRulerUnits = abs(g.endAlong - g.startAlong)
+                if (lenRulerUnits >= 6.0f) {
+                    val perp = g.side * (32f + (g.brushWidth / 2f + 1f) / s.uiScale)
+                    val pStart = world(s, P(g.startAlong, perp))
+                    val pEnd = world(s, P(g.endAlong, perp))
+                    cb.onStampLine(pStart, pEnd)
                 }
-                state = s.copy(hint = null, activeEdgeLine = null)
+                state = s.copy(hint = GeoKit.rulerReadout(s, strings), activeEdgeLine = null)
             }
             is G.DrawSetSquareEdge -> {
                 val leg = s.setSquareLegPx
@@ -928,14 +976,17 @@ class GeoController(
             override val start: GeoState,
             val radiusSign: Float,
         ) : G
-        data class DrawEdge(
+        data class DrawRuler(
             override val start: GeoState,
-            val a: P,
-            val b: P,
-            val t0: Float = 0f,
-        ) : G {
-            var t1: Float = 1f
-            var hasDragged: Boolean = false
+            val side: Float,
+            val startAlong: Float,
+            var endAlong: Float,
+            val brushWidth: Float,
+            var lastReadoutTime: Long = 0L,
+            var lastReadoutStr: String = "",
+        ) : G
+        data object Dismiss : G {
+            override val start: GeoState get() = error("dismiss")
         }
         data class DrawSetSquareEdge(
             override val start: GeoState,
@@ -954,7 +1005,12 @@ class GeoController(
 // Renderer — a 1:1 port of the four reference renderers
 // -----------------------------------------------------------------------------
 
-internal class GeoRenderer(private val st: GeoStyle, private val str: GeoStrings) {
+internal class GeoRenderer(
+    private val st: GeoStyle,
+    private val str: GeoStrings,
+    private val brushColor: Int = st.ink,
+    private val brushWidth: Float = 4f
+) {
 
     fun draw(c: Canvas, s: GeoState) {
         when (s.instrument) {
@@ -964,7 +1020,7 @@ internal class GeoRenderer(private val st: GeoStyle, private val str: GeoStrings
             GeoInstrument.SetSquare -> setSquare(c, s)
         }
         s.activeEdgeLine?.let { (a, b) ->
-            val p = stroke(tint(st.ink, 0.95f), 3.5f * s.uiScale)
+            val p = stroke(tint(brushColor, 0.95f), brushWidth.coerceAtLeast(2.5f))
             c.drawLine(a.x, a.y, b.x, b.y, p)
         }
         if (s.instrument != GeoInstrument.Compass && s.instrument != GeoInstrument.SetSquare) {
@@ -1478,9 +1534,9 @@ internal class GeoRenderer(private val st: GeoStyle, private val str: GeoStrings
         val half = paint.measureText(label) / 2f + 12f
         val at = when (s.instrument) {
             GeoInstrument.Ruler -> {
-                val len = GeoKit.rulerLen(s) * s.uiScale / 2f
-                val r = GeoKit.rotate(len, 0f, s.angle)
-                P(s.ox + r.x, s.oy + r.y - 52f)
+                val spanPx = s.spanCm * GeoKit.PX_PER_CM
+                val midX = GeoKit.RULER_HEAD + spanPx / 2f
+                GeoKit.world(s, P(midX, -48f))
             }
             GeoInstrument.SetSquare -> {
                 val leg = GeoKit.setSquareLeg(s) * s.uiScale

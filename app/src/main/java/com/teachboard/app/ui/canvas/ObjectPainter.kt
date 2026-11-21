@@ -203,6 +203,9 @@ object ObjectPainter {
         drawSmoothPath(canvas, points, p)
         p.maskFilter = null
       }
+      ToolType.Pencil -> {
+        FreehandStrokeRenderer.drawPencilStroke(canvas, points, color, effectiveAlpha, strokeWidth)
+      }
       ToolType.Calligraphy -> {
         drawCalligraphyStroke(canvas, points, color, effectiveAlpha, strokeWidth)
       }

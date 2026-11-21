@@ -1386,7 +1386,17 @@ class CanvasViewModel(
 
   // ===== Overlays & Helpers =====
 
-  fun setGeometryTool(tool: GeometryToolType?) = _ui.update { it.copy(activeGeometryTool = tool) }
+  fun setGeometryTool(tool: GeometryToolType?) = _ui.update { cur ->
+    val newActiveTool = if (tool != null && (cur.activeTool == ToolType.Laser || cur.activeTool == ToolType.Eraser || cur.activeTool == ToolType.Hand)) {
+      cur.lastBrushTool
+    } else {
+      cur.activeTool
+    }
+    cur.copy(
+      activeGeometryTool = tool,
+      activeTool = newActiveTool
+    )
+  }
   fun setShowCalculator(show: Boolean) = _ui.update { it.copy(showCalculator = show) }
   fun setShowTimer(show: Boolean) = _ui.update { it.copy(showTimer = show) }
   fun setShowPdfViewer(show: Boolean) = _ui.update { it.copy(showPdfViewer = show) }

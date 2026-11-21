@@ -37,6 +37,7 @@ import com.teachboard.app.ui.home.LandingHomeScreen
 import com.teachboard.app.ui.home.SplashScreen
 import com.teachboard.app.ui.settings.SettingsScreen
 import com.teachboard.app.ui.theme.TeachBoardTheme
+import com.teachboard.app.ui.theme.ThemeMode
 import java.util.Locale
 
 /**
@@ -138,17 +139,22 @@ class MainActivity : AppCompatActivity() {
               route = "canvas/{sessionId}",
               arguments = listOf(navArgument("sessionId") { type = NavType.StringType })
             ) { entry ->
-              key(prefs.languageTag) {
-                val sessionId = entry.arguments?.getString("sessionId") ?: return@composable
-                val vm: CanvasViewModel = viewModel(
-                  key = "canvas_$sessionId",
-                  factory = CanvasViewModel.factory(app, sessionId)
-                )
-                CanvasScreen(
-                  viewModel = vm,
-                  onNavigateHome = { navController.popBackStack() },
-                  onOpenHelp = { navController.navigate("help") }
-                )
+              val sessionId = entry.arguments?.getString("sessionId")
+              if (sessionId != null) {
+                // Whiteboard drawing canvas remains pure light mode (Dark Mode applies only to front screen)
+                TeachBoardTheme(themeMode = ThemeMode.LIGHT) {
+                  key(prefs.languageTag) {
+                    val vm: CanvasViewModel = viewModel(
+                      key = "canvas_$sessionId",
+                      factory = CanvasViewModel.factory(app, sessionId)
+                    )
+                    CanvasScreen(
+                      viewModel = vm,
+                      onNavigateHome = { navController.popBackStack() },
+                      onOpenHelp = { navController.navigate("help") }
+                    )
+                  }
+                }
               }
             }
             composable("settings") {

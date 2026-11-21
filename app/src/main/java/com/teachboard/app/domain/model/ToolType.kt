@@ -7,6 +7,7 @@ package com.teachboard.app.domain.model
 enum class ToolType(val category: ToolCategory = ToolCategory.DRAWING) {
   // Brushes & Strokes
   Pen(ToolCategory.DRAWING),
+  Pencil(ToolCategory.DRAWING),
   Brush(ToolCategory.DRAWING),
   Marker(ToolCategory.DRAWING),
   Highlighter(ToolCategory.DRAWING),
@@ -87,7 +88,7 @@ enum class ToolType(val category: ToolCategory = ToolCategory.DRAWING) {
   Bracket(ToolCategory.SHAPE_DIAGRAM);
 
   val isBrush: Boolean
-    get() = this == Pen || this == Brush || this == Marker || this == Highlighter || this == Calligraphy
+    get() = this == Pen || this == Pencil || this == Brush || this == Marker || this == Highlighter || this == Calligraphy
 
   val isShape: Boolean
     get() = category == ToolCategory.SHAPE_2D ||
@@ -128,7 +129,8 @@ enum class ToolbarAction(
   REDO,
   CLEAR,
   PEN(hasOptionsIndicator = true),
-  SMART(hasOptionsIndicator = true, badge = ToolBadge.AI),
+  PENCIL(hasOptionsIndicator = true),
+  SMART(hasOptionsIndicator = true),
   SHAPES(hasOptionsIndicator = true),
   ERASER(hasOptionsIndicator = true),
   BOARD,

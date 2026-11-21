@@ -395,12 +395,14 @@ class TeachCanvasView(context: Context) : View(context) {
     this.pdfBitmap = pdf
     this.layers = layers
     this.objects = objects
-    this.activeTool = tool
+    this.activeTool = if (activeGeometryTool != null && tool == ToolType.Laser) ToolType.Pen else tool
     this.eraserMode = eraserMode
     this.brushColor = brushColor
     this.fillColor = fillColor
     this.isFilled = isFilled
     this.strokeWidth = strokeWidth
+    geo.brushColor = brushColor
+    geo.brushWidth = strokeWidth
     this.eraserSize = eraserSize
     this.alpha = alpha
     this.laserColor = laserColor
@@ -1054,7 +1056,7 @@ class TeachCanvasView(context: Context) : View(context) {
       val by = (event.y - viewPanY) / viewScale
       val hitInstrument = geo.contains(bx, by, viewScale)
       val used = when (action) {
-        MotionEvent.ACTION_DOWN -> geo.onDown(bx, by, viewScale)
+        MotionEvent.ACTION_DOWN -> geo.onDown(bx, by, viewScale, strokeWidth, brushColor)
         MotionEvent.ACTION_MOVE -> geo.onMove(bx, by, viewScale)
         MotionEvent.ACTION_UP,
         MotionEvent.ACTION_CANCEL -> geo.onUp(bx, by, viewScale)
@@ -1074,6 +1076,7 @@ class TeachCanvasView(context: Context) : View(context) {
       removeCallbacks(holdToMoveRunnable)
       when (action) {
         MotionEvent.ACTION_POINTER_DOWN -> {
+          geo.cancelGesture()
           cancelLiveStroke()
           isTwoFingerGesturing = true
           prevPinchDist = spacing(event)
@@ -1133,7 +1136,7 @@ class TeachCanvasView(context: Context) : View(context) {
         holdCandidateUid = null
         removeCallbacks(holdToMoveRunnable)
 
-        val world = screenToWorld(sx, sy).copy(pressure = event.pressure.coerceIn(0.1f, 1f))
+        val world = screenToWorld(sx, sy).copy(pressure = event.pressure.coerceIn(0f, 1f))
         val toolType = event.getToolType(0)
         isTemporaryEraser = toolType == MotionEvent.TOOL_TYPE_ERASER ||
           (toolType == MotionEvent.TOOL_TYPE_STYLUS && (event.buttonState and MotionEvent.BUTTON_STYLUS_PRIMARY) != 0)
@@ -1230,7 +1233,7 @@ class TeachCanvasView(context: Context) : View(context) {
           holdMovedTooFar = true
           removeCallbacks(holdToMoveRunnable)
         }
-        val world = screenToWorld(sx, sy).copy(pressure = event.getPressure(idx).coerceIn(0.1f, 1f))
+        val world = screenToWorld(sx, sy).copy(pressure = event.getPressure(idx).coerceIn(0f, 1f))
 
         // Live smooth selection transform
         if (draggingSelection) {
@@ -1350,8 +1353,8 @@ class TeachCanvasView(context: Context) : View(context) {
             }
             activeTool.isBrush -> {
               if (livePoints.isNotEmpty()) {
-                val simplified = ObjectPainter.simplifyPoints(livePoints.toList(), 1.1f)
-                callbacks?.onCommitStroke(activeTool, simplified, isEraser = false)
+                val strokeToCommit = if (activeTool == ToolType.Pencil) livePoints.toList() else ObjectPainter.simplifyPoints(livePoints.toList(), 1.1f)
+                callbacks?.onCommitStroke(activeTool, strokeToCommit, isEraser = false)
               }
             }
           }
@@ -1369,11 +1372,11 @@ class TeachCanvasView(context: Context) : View(context) {
   private fun appendWithHistory(event: MotionEvent, pointerIdx: Int, out: MutableList<StrokePoint>) {
     for (h in 0 until event.historySize) {
       val wp = screenToWorld(event.getHistoricalX(pointerIdx, h), event.getHistoricalY(pointerIdx, h))
-        .copy(pressure = event.getHistoricalPressure(pointerIdx, h).coerceIn(0.1f, 1f), t = event.getHistoricalEventTime(h))
+        .copy(pressure = event.getHistoricalPressure(pointerIdx, h).coerceIn(0f, 1f), t = event.getHistoricalEventTime(h))
       if (out.isEmpty() || hypot(wp.x - out.last().x, wp.y - out.last().y) >= 1.2f) out.add(wp)
     }
     val wp = screenToWorld(event.getX(pointerIdx), event.getY(pointerIdx))
-      .copy(pressure = event.getPressure(pointerIdx).coerceIn(0.1f, 1f), t = event.eventTime)
+      .copy(pressure = event.getPressure(pointerIdx).coerceIn(0f, 1f), t = event.eventTime)
     if (out.isEmpty() || hypot(wp.x - out.last().x, wp.y - out.last().y) >= 1.2f) out.add(wp)
   }
 

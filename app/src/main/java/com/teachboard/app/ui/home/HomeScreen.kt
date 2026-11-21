@@ -12,6 +12,16 @@ import android.util.Size
 import java.io.File
 import androidx.activity.compose.BackHandler
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import com.teachboard.app.ui.tour.PrefsTourStore
 import com.teachboard.app.ui.tour.TeachBoardTour
 import com.teachboard.app.ui.tour.TourOverlay
@@ -27,6 +37,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,6 +50,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,6 +64,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Draw
 import androidx.compose.material.icons.filled.History
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MoreVert
@@ -430,9 +445,9 @@ fun SplashScreen(onFinished: () -> Unit) {
     contentAlignment = Alignment.Center
   ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-      Surface(shape = RoundedCornerShape(24.dp), color = Color(0xFF2B7FFF), modifier = Modifier.size(84.dp)) {
+      Surface(shape = RoundedCornerShape(26.dp), color = TeachColors.Primary, modifier = Modifier.size(88.dp)) {
         Box(contentAlignment = Alignment.Center) {
-          Icon(Icons.Default.Draw, contentDescription = null, tint = Color.White, modifier = Modifier.size(46.dp))
+          Icon(Icons.Default.Draw, contentDescription = null, tint = Color.White, modifier = Modifier.size(48.dp))
         }
       }
       Spacer(Modifier.height(18.dp))
@@ -443,6 +458,70 @@ fun SplashScreen(onFinished: () -> Unit) {
         fontWeight = FontWeight.ExtraBold
       )
     }
+  }
+}
+
+@Composable
+fun Modifier.bouncyClickable(
+  enabled: Boolean = true,
+  onClick: () -> Unit
+): Modifier {
+  val interactionSource = remember { MutableInteractionSource() }
+  val isPressed by interactionSource.collectIsPressedAsState()
+  val scale by animateFloatAsState(
+    targetValue = if (isPressed) 0.94f else 1.0f,
+    animationSpec = spring(
+      dampingRatio = Spring.DampingRatioMediumBouncy,
+      stiffness = Spring.StiffnessMedium
+    ),
+    label = "bouncyScale"
+  )
+  return this
+    .graphicsLayer {
+      scaleX = scale
+      scaleY = scale
+    }
+    .clickable(
+      interactionSource = interactionSource,
+      indication = null,
+      enabled = enabled,
+      onClick = onClick
+    )
+}
+
+/**
+ * Playful organic sine-wave line accent matching the Pastel Playful Expressive design system.
+ */
+@Composable
+fun WavyAccentDivider(
+  modifier: Modifier = Modifier,
+  color: Color = TeachColors.Primary,
+  waveCount: Int = 5,
+  amplitudeDp: Float = 3f,
+  strokeWidthDp: Float = 3.5f
+) {
+  Canvas(modifier = modifier) {
+    val wavePath = Path()
+    val totalWidth = size.width
+    val waveLength = totalWidth / waveCount
+    val amplitude = amplitudeDp * density
+    val midY = size.height / 2f
+
+    wavePath.moveTo(0f, midY)
+    for (i in 0 until waveCount) {
+      val startX = i * waveLength
+      wavePath.cubicTo(
+        startX + waveLength * 0.25f, midY - amplitude,
+        startX + waveLength * 0.75f, midY + amplitude,
+        startX + waveLength, midY
+      )
+    }
+
+    drawPath(
+      path = wavePath,
+      color = color,
+      style = Stroke(width = strokeWidthDp * density, cap = StrokeCap.Round)
+    )
   }
 }
 
@@ -499,33 +578,38 @@ fun LandingHomeScreen(
           .navigationBarsPadding()
           .padding(horizontal = 20.dp, vertical = 14.dp)
       ) {
-      // Top-left Language pill
+      // Top-left Language pill (Pastel pill capsule with bouncy animation)
       Surface(
         modifier = Modifier
           .align(Alignment.TopStart)
-          .clip(RoundedCornerShape(24.dp))
-          .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.7f), RoundedCornerShape(24.dp))
-          .clickable { showLangDialog = true },
-        color = Color.Transparent
+          .clip(RoundedCornerShape(9999.dp))
+          .bouncyClickable { showLangDialog = true },
+        color = MaterialTheme.colorScheme.surfaceVariant
       ) {
         Row(
-          modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+          modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
           Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-          Text(currentLangLabel, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+          Text(currentLangLabel, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
         }
       }
 
-      // Top-right Settings gear
-      IconButton(
-        onClick = onOpenSettings,
+      // Top-right Settings gear (Tactile circular pill)
+      Surface(
         modifier = Modifier
           .align(Alignment.TopEnd)
+          .size(44.dp)
+          .clip(CircleShape)
           .tourAnchor("home_settings")
+          .bouncyClickable(onClick = onOpenSettings),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = CircleShape
       ) {
-        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_title), modifier = Modifier.size(26.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+          Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_title), modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
       }
 
       val rateAndShareRow: @Composable () -> Unit = {
@@ -533,46 +617,62 @@ fun LandingHomeScreen(
           horizontalArrangement = Arrangement.spacedBy(14.dp),
           verticalAlignment = Alignment.CenterVertically
         ) {
+          // Playful Blush Pill for Rate CTA
           Surface(
             modifier = Modifier
-              .clip(RoundedCornerShape(24.dp))
-              .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.7f), RoundedCornerShape(24.dp))
-              .clickable {
+              .clip(RoundedCornerShape(9999.dp))
+              .bouncyClickable {
                 runCatching {
                   context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(AppConfig.PLAY_STORE_URL)))
                 }
               },
-            color = Color.Transparent
+            color = if (isDarkBg) Color(0xFF3D2028) else TeachColors.PastelBlush
           ) {
             Row(
-              modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
+              modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
               verticalAlignment = Alignment.CenterVertically,
               horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-              Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFACC15), modifier = Modifier.size(18.dp))
-              Text(stringResource(R.string.rate_cta), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+              Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(18.dp))
+              Text(
+                stringResource(R.string.rate_cta),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isDarkBg) Color(0xFFFFD1DC) else TeachColors.PastelBlushGlyph
+              )
             }
           }
+
+          // Playful Periwinkle Pill for Share CTA
           Surface(
             modifier = Modifier
-              .clip(RoundedCornerShape(24.dp))
-              .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.7f), RoundedCornerShape(24.dp))
-              .clickable {
+              .clip(RoundedCornerShape(9999.dp))
+              .bouncyClickable {
                 val share = Intent(Intent.ACTION_SEND).apply {
                   type = "text/plain"
                   putExtra(Intent.EXTRA_TEXT, "${AppConfig.APP_NAME} — 100% Free Offline Teaching Whiteboard")
                 }
                 context.startActivity(Intent.createChooser(share, "Share"))
               },
-            color = Color.Transparent
+            color = if (isDarkBg) Color(0xFF1E2840) else TeachColors.PastelPeriwinkle
           ) {
             Row(
-              modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
+              modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
               verticalAlignment = Alignment.CenterVertically,
               horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-              Icon(Icons.Default.Share, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-              Text(stringResource(R.string.tool_share), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+              Icon(
+                Icons.Default.Share,
+                contentDescription = null,
+                tint = if (isDarkBg) Color(0xFFBFDBFE) else TeachColors.PastelPeriwinkleGlyph,
+                modifier = Modifier.size(18.dp)
+              )
+              Text(
+                stringResource(R.string.tool_share),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isDarkBg) Color(0xFFBFDBFE) else TeachColors.PastelPeriwinkleGlyph
+              )
             }
           }
         }
@@ -584,16 +684,17 @@ fun LandingHomeScreen(
           verticalArrangement = Arrangement.spacedBy(18.dp),
           horizontalAlignment = Alignment.CenterHorizontally
         ) {
-          // Primary Blue "+ New Board" button
+          // Primary Bold Royal Blue "+ New Board" pill capsule button (with tactile spring bounce)
           Surface(
             modifier = Modifier
               .fillMaxWidth()
-              .height(if (isLandscape) 68.dp else 78.dp)
-              .clip(RoundedCornerShape(22.dp))
+              .height(if (isLandscape) 58.dp else 66.dp)
+              .clip(RoundedCornerShape(9999.dp))
               .tourAnchor("home_new")
-              .clickable { viewModel.createNewBoard(onNewBoardCreated) },
-            color = Color(0xFF2B7FFF),
-            shadowElevation = 4.dp
+              .bouncyClickable { viewModel.createNewBoard(onNewBoardCreated) },
+            color = TeachColors.Primary,
+            shape = RoundedCornerShape(9999.dp),
+            shadowElevation = 8.dp
           ) {
             Row(
               modifier = Modifier.fillMaxSize(),
@@ -604,49 +705,66 @@ fun LandingHomeScreen(
               Spacer(Modifier.width(10.dp))
               Text(
                 text = stringResource(R.string.new_board_cta),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontSize = 19.sp,
+                fontWeight = FontWeight.Bold,
                 color = Color.White
               )
             }
           }
 
-          // Secondary Charcoal / Neutral "History" button
+          // Secondary Expressive Soft Violet "History" pill capsule button
           Surface(
             modifier = Modifier
               .fillMaxWidth()
-              .height(if (isLandscape) 68.dp else 78.dp)
-              .clip(RoundedCornerShape(22.dp))
-              .clickable(onClick = onOpenHistory),
-            color = if (isDarkBg) Color(0xFF424242) else Color(0xFFE5E7EB),
-            shadowElevation = 2.dp
+              .height(if (isLandscape) 58.dp else 66.dp)
+              .clip(RoundedCornerShape(9999.dp))
+              .bouncyClickable(onClick = onOpenHistory),
+            color = if (isDarkBg) Color(0xFF2E243A) else TeachColors.PastelViolet,
+            shape = RoundedCornerShape(9999.dp),
+            shadowElevation = 3.dp
           ) {
             Row(
-              modifier = Modifier.fillMaxSize(),
+              modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
               verticalAlignment = Alignment.CenterVertically,
               horizontalArrangement = Arrangement.Center
             ) {
               Icon(
                 Icons.Default.History,
                 contentDescription = null,
-                tint = if (isDarkBg) Color.White else TeachColors.OnSurface,
+                tint = if (isDarkBg) Color(0xFFDDD6FE) else TeachColors.PastelVioletGlyph,
                 modifier = Modifier.size(24.dp)
               )
               Spacer(Modifier.width(10.dp))
-              val boardCount = sessions.size
               Text(
-                text = if (boardCount == 0) stringResource(R.string.history_cta) else "${stringResource(R.string.history_cta)} ($boardCount)",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = if (isDarkBg) Color.White else TeachColors.OnSurface
+                text = stringResource(R.string.history_cta),
+                fontSize = 19.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isDarkBg) Color(0xFFDDD6FE) else TeachColors.PastelVioletGlyph
               )
+              val boardCount = sessions.size
+              if (boardCount > 0) {
+                Spacer(Modifier.width(10.dp))
+                // Pastel Mint pill badge for counter
+                Surface(
+                  shape = RoundedCornerShape(9999.dp),
+                  color = if (isDarkBg) Color(0xFF133830) else TeachColors.PastelMint
+                ) {
+                  Text(
+                    text = "$boardCount",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDarkBg) Color(0xFF86EFAC) else TeachColors.PastelMintGlyph,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                  )
+                }
+              }
             }
           }
         }
       }
 
       if (isLandscape) {
-        // 2-column Landscape Home Hub (cleanly balanced side-by-side!)
+        // 2-column Landscape Home Hub (cleanly balanced side-by-side with playful wavy divider)
         Row(
           modifier = Modifier
             .align(Alignment.Center)
@@ -658,22 +776,27 @@ fun LandingHomeScreen(
           Column(
             modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
           ) {
             Text(
               text = stringResource(R.string.app_name),
-              fontSize = 42.sp,
+              fontSize = 44.sp,
               fontWeight = FontWeight.ExtraBold,
               color = MaterialTheme.colorScheme.onBackground,
               letterSpacing = (-0.5).sp
             )
+            // Playful sine-wave divider
+            WavyAccentDivider(
+              modifier = Modifier.width(140.dp).height(10.dp),
+              color = TeachColors.Primary
+            )
             rateAndShareRow()
           }
           Spacer(Modifier.width(28.dp))
-          ctaButtonsColumn(Modifier.weight(1f).widthIn(max = 320.dp))
+          ctaButtonsColumn(Modifier.weight(1f).widthIn(max = 340.dp))
         }
       } else {
-        // Portrait vertical hero CTA stack
+        // Portrait vertical hero CTA stack with playful sine-wave divider
         Column(
           modifier = Modifier
             .align(Alignment.Center)
@@ -683,12 +806,18 @@ fun LandingHomeScreen(
         ) {
           Text(
             text = stringResource(R.string.app_name),
-            fontSize = 44.sp,
+            fontSize = 46.sp,
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.onBackground,
             letterSpacing = (-0.5).sp
           )
-          Spacer(Modifier.height(44.dp))
+          Spacer(Modifier.height(10.dp))
+          // Playful sine-wave divider
+          WavyAccentDivider(
+            modifier = Modifier.width(150.dp).height(12.dp),
+            color = TeachColors.Primary
+          )
+          Spacer(Modifier.height(36.dp))
           ctaButtonsColumn(Modifier.fillMaxWidth().widthIn(max = 360.dp))
           Spacer(Modifier.height(34.dp))
           rateAndShareRow()
@@ -702,36 +831,14 @@ fun LandingHomeScreen(
   }
 
   if (showLangDialog) {
-    AlertDialog(
-      onDismissRequest = { showLangDialog = false },
-      title = { Text(stringResource(R.string.language_title)) },
-      text = {
-        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-          QuickLanguages.distinctBy { it.second }.forEach { (tag, name) ->
-            Row(
-              modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                  showLangDialog = false
-                  scope.launch { app.prefs.setLanguageTag(tag) }
-                  val locales = if (tag.isBlank()) LocaleListCompat.getEmptyLocaleList() else LocaleListCompat.forLanguageTags(tag)
-                  AppCompatDelegate.setApplicationLocales(locales)
-                }
-                .padding(vertical = 10.dp, horizontal = 4.dp),
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              Text(
-                name,
-                fontWeight = if (prefs.languageTag == tag) FontWeight.Bold else FontWeight.Normal,
-                color = if (prefs.languageTag == tag) TeachColors.Primary else MaterialTheme.colorScheme.onSurface
-              )
-            }
-          }
-        }
+    LanguagePickerDialog(
+      currentTag = prefs.languageTag,
+      onSelectLanguage = { tag ->
+        scope.launch { app.prefs.setLanguageTag(tag) }
+        val locales = if (tag.isBlank()) LocaleListCompat.getEmptyLocaleList() else LocaleListCompat.forLanguageTags(tag)
+        AppCompatDelegate.setApplicationLocales(locales)
       },
-      confirmButton = {
-        TextButton(onClick = { showLangDialog = false }) { Text(stringResource(R.string.close)) }
-      }
+      onDismiss = { showLangDialog = false }
     )
   }
 }
@@ -760,6 +867,67 @@ fun HistoryGalleryScreen(
   var renameTarget by remember { mutableStateOf<BoardSession?>(null) }
   var deleteTarget by remember { mutableStateOf<BoardSession?>(null) }
   var deleteRecTarget by remember { mutableStateOf<RecordingItem?>(null) }
+  var activePlayerRecording by remember { mutableStateOf<RecordingItem?>(null) }
+  var selectedSessionForRecordings by remember { mutableStateOf<BoardSession?>(null) }
+
+  val shareRecording = { rec: RecordingItem ->
+    try {
+      val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "video/mp4"
+        putExtra(Intent.EXTRA_STREAM, rec.uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+      }
+      context.startActivity(Intent.createChooser(shareIntent, "Share recording"))
+    } catch (e: Exception) {
+      viewModel.message.value = "Could not share video"
+    }
+  }
+
+  val playRecording = { rec: RecordingItem ->
+    activePlayerRecording = rec
+  }
+
+  val (sessionRecordingsMap, unassignedRecordings) = remember(sessions, recordings) {
+    val map = mutableMapOf<String, MutableList<RecordingItem>>()
+    sessions.forEach { map[it.id] = mutableListOf() }
+    val unassigned = mutableListOf<RecordingItem>()
+
+    val hexIdRegex = Regex("""TeachBoard_([a-fA-F0-9]{8})_""", RegexOption.IGNORE_CASE)
+
+    for (rec in recordings) {
+      val hexMatch = hexIdRegex.find(rec.displayName)
+      val extractedPrefix = hexMatch?.groupValues?.get(1)?.lowercase()
+
+      if (extractedPrefix != null) {
+        // 1. Strict 1-to-1 match by embedded session ID prefix
+        val targetSession = sessions.firstOrNull {
+          it.id.replace("-", "").lowercase().startsWith(extractedPrefix)
+        }
+        if (targetSession != null) {
+          map[targetSession.id]?.add(rec)
+        } else {
+          // Board was deleted or not found
+          unassigned.add(rec)
+        }
+        continue
+      }
+
+      // 2. Legacy recordings: assign to AT MOST ONE closest session within 15 minutes
+      val recTimeMs = rec.dateModifiedSec * 1000L
+      val closestSession = sessions
+        .map { s -> s to kotlin.math.abs(s.updatedAt - recTimeMs) }
+        .filter { it.second <= 15 * 60 * 1000L }
+        .minByOrNull { it.second }
+        ?.first
+
+      if (closestSession != null) {
+        map[closestSession.id]?.add(rec)
+      } else {
+        unassigned.add(rec)
+      }
+    }
+    map to unassigned
+  }
 
   LaunchedEffect(Unit) {
     viewModel.refreshRecordings()
@@ -769,83 +937,259 @@ fun HistoryGalleryScreen(
     msg?.let { snackbar.showSnackbar(it); viewModel.clearMessage() }
   }
 
-  Scaffold(
-    topBar = {
-      TopAppBar(
-        navigationIcon = {
-          IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-          }
-        },
-        title = {
-          Column {
-            Text(stringResource(R.string.my_whiteboards), fontWeight = FontWeight.Bold, fontSize = 20.sp)
-            Text(
-              stringResource(R.string.gallery_boards_count, sessions.size),
-              fontSize = 12.sp,
-              color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-          }
-        },
-        actions = {
-          Box {
-            IconButton(onClick = { sortMenuOpen = true }) {
-              Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort")
-            }
-            DropdownMenu(expanded = sortMenuOpen, onDismissRequest = { sortMenuOpen = false }) {
-              DropdownMenuItem(
-                text = { Text(stringResource(R.string.sort_newest), fontWeight = if (sort == SortOption.NEWEST) FontWeight.Bold else FontWeight.Normal) },
-                onClick = { viewModel.sortOption.value = SortOption.NEWEST; sortMenuOpen = false }
-              )
-              DropdownMenuItem(
-                text = { Text(stringResource(R.string.sort_oldest), fontWeight = if (sort == SortOption.OLDEST) FontWeight.Bold else FontWeight.Normal) },
-                onClick = { viewModel.sortOption.value = SortOption.OLDEST; sortMenuOpen = false }
-              )
-              DropdownMenuItem(
-                text = { Text(stringResource(R.string.sort_name), fontWeight = if (sort == SortOption.NAME_AZ) FontWeight.Bold else FontWeight.Normal) },
-                onClick = { viewModel.sortOption.value = SortOption.NAME_AZ; sortMenuOpen = false }
-              )
-            }
-          }
-        }
-      )
-    },
-    floatingActionButton = {
-      FloatingActionButton(
-        onClick = { viewModel.createNewBoard(onOpenBoard) },
-        containerColor = Color(0xFF2B7FFF),
-        contentColor = Color.White,
-        shape = RoundedCornerShape(16.dp)
-      ) {
-        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.new_whiteboard), modifier = Modifier.size(28.dp))
+  if (selectedSessionForRecordings != null) {
+    val activeSession = selectedSessionForRecordings!!
+    val activeRecordings = sessionRecordingsMap[activeSession.id] ?: emptyList()
+    BoardRecordingsDetailScreen(
+      session = activeSession,
+      recordings = activeRecordings,
+      onBack = { selectedSessionForRecordings = null },
+      onPlayRecording = playRecording,
+      onShareRecording = shareRecording,
+      onDeleteRecording = { deleteRecTarget = it },
+      onOpenBoard = { sessionId ->
+        selectedSessionForRecordings = null
+        onOpenBoard(sessionId)
       }
-    },
-    snackbarHost = { SnackbarHost(snackbar) }
-  ) { padding ->
+    )
+  } else {
+    Scaffold(
+      containerColor = TeachColors.Background,
+      contentWindowInsets = WindowInsets(0, 0, 0, 0),
+      floatingActionButton = {
+        FloatingActionButton(
+          onClick = { viewModel.createNewBoard(onOpenBoard) },
+          containerColor = TeachColors.Primary,
+          contentColor = Color.White,
+          shape = RoundedCornerShape(22.dp),
+          modifier = Modifier.navigationBarsPadding().padding(bottom = 8.dp)
+        ) {
+          Icon(Icons.Default.Add, contentDescription = stringResource(R.string.new_whiteboard), modifier = Modifier.size(28.dp))
+        }
+      },
+      snackbarHost = { SnackbarHost(snackbar) }
+    ) { _ ->
     Column(
       modifier = Modifier
         .fillMaxSize()
-        .padding(padding)
+        .statusBarsPadding()
         .padding(horizontal = 16.dp)
     ) {
-      OutlinedTextField(
-        value = query,
-        onValueChange = { viewModel.searchQuery.value = it },
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = true,
-        shape = RoundedCornerShape(16.dp),
-        placeholder = { Text(stringResource(R.string.search_boards_hint)) },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-        trailingIcon = {
+      // 1. Top Action Controls Row (Back pill squircle + Sort dropdown pill)
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(top = 4.dp, bottom = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        // Back Pill Squircle
+        Surface(
+          shape = CircleShape,
+          color = Color.White,
+          shadowElevation = 2.dp,
+          modifier = Modifier
+            .size(44.dp)
+            .border(1.dp, Color(0xFFEBEBF5), CircleShape)
+            .bouncyClickable(onClick = onBack)
+        ) {
+          Box(contentAlignment = Alignment.Center) {
+            Icon(
+              Icons.AutoMirrored.Filled.ArrowBack,
+              contentDescription = "Back",
+              tint = TeachColors.OnSurface,
+              modifier = Modifier.size(20.dp)
+            )
+          }
+        }
+
+        // Sort Filter Pill Button
+        Box {
+          Surface(
+            shape = RoundedCornerShape(9999.dp),
+            color = Color.White,
+            shadowElevation = 2.dp,
+            modifier = Modifier
+              .height(40.dp)
+              .border(1.dp, Color(0xFFEBEBF5), RoundedCornerShape(9999.dp))
+              .bouncyClickable { sortMenuOpen = true }
+          ) {
+            Row(
+              modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+              Icon(
+                Icons.AutoMirrored.Filled.Sort,
+                contentDescription = null,
+                tint = TeachColors.Primary,
+                modifier = Modifier.size(16.dp)
+              )
+              Text(
+                text = when (sort) {
+                  SortOption.NEWEST -> stringResource(R.string.sort_newest)
+                  SortOption.OLDEST -> stringResource(R.string.sort_oldest)
+                  SortOption.NAME_AZ -> stringResource(R.string.sort_name)
+                },
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = TeachColors.OnSurface
+              )
+              Icon(
+                Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = TeachColors.OnSurfaceMuted,
+                modifier = Modifier.size(16.dp)
+              )
+            }
+          }
+
+          DropdownMenu(
+            expanded = sortMenuOpen,
+            onDismissRequest = { sortMenuOpen = false },
+            modifier = Modifier
+              .background(Color.White)
+              .clip(RoundedCornerShape(16.dp))
+          ) {
+            DropdownMenuItem(
+              text = {
+                Text(
+                  stringResource(R.string.sort_newest),
+                  fontWeight = if (sort == SortOption.NEWEST) FontWeight.Bold else FontWeight.Normal,
+                  color = if (sort == SortOption.NEWEST) TeachColors.Primary else TeachColors.OnSurface
+                )
+              },
+              onClick = { viewModel.sortOption.value = SortOption.NEWEST; sortMenuOpen = false }
+            )
+            DropdownMenuItem(
+              text = {
+                Text(
+                  stringResource(R.string.sort_oldest),
+                  fontWeight = if (sort == SortOption.OLDEST) FontWeight.Bold else FontWeight.Normal,
+                  color = if (sort == SortOption.OLDEST) TeachColors.Primary else TeachColors.OnSurface
+                )
+              },
+              onClick = { viewModel.sortOption.value = SortOption.OLDEST; sortMenuOpen = false }
+            )
+            DropdownMenuItem(
+              text = {
+                Text(
+                  stringResource(R.string.sort_name),
+                  fontWeight = if (sort == SortOption.NAME_AZ) FontWeight.Bold else FontWeight.Normal,
+                  color = if (sort == SortOption.NAME_AZ) TeachColors.Primary else TeachColors.OnSurface
+                )
+              },
+              onClick = { viewModel.sortOption.value = SortOption.NAME_AZ; sortMenuOpen = false }
+            )
+          }
+        }
+      }
+
+      // 2. Title & Dynamic Count Pill Badge & Wavy Accent Divider
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(bottom = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+      ) {
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+          Text(
+            text = stringResource(R.string.my_whiteboards),
+            fontSize = 26.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = TeachColors.OnSurface,
+            letterSpacing = (-0.5).sp
+          )
+          Surface(
+            shape = RoundedCornerShape(9999.dp),
+            color = TeachColors.PastelMint,
+            modifier = Modifier.padding(top = 2.dp)
+          ) {
+            Text(
+              text = stringResource(R.string.gallery_boards_count, sessions.size),
+              fontSize = 12.sp,
+              fontWeight = FontWeight.Bold,
+              color = TeachColors.PastelMintGlyph,
+              modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+            )
+          }
+        }
+
+        WavyAccentDivider(
+          modifier = Modifier
+            .width(96.dp)
+            .height(10.dp),
+          color = TeachColors.Primary,
+          waveCount = 4,
+          amplitudeDp = 2.5f,
+          strokeWidthDp = 3f
+        )
+      }
+
+      // 3. Pill Search Field (Full capsule shape matching Stitch design)
+      Surface(
+        shape = RoundedCornerShape(9999.dp),
+        color = Color.White,
+        shadowElevation = 2.dp,
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(52.dp)
+          .border(1.dp, Color(0xFFECEEF6), RoundedCornerShape(9999.dp))
+      ) {
+        Row(
+          modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+          Icon(
+            Icons.Default.Search,
+            contentDescription = null,
+            tint = TeachColors.Primary,
+            modifier = Modifier.size(20.dp)
+          )
+          BasicTextField(
+            value = query,
+            onValueChange = { viewModel.searchQuery.value = it },
+            modifier = Modifier.weight(1f),
+            singleLine = true,
+            textStyle = TextStyle(
+              fontSize = 14.sp,
+              fontWeight = FontWeight.Medium,
+              color = TeachColors.OnSurface
+            ),
+            decorationBox = { innerTextField ->
+              if (query.isEmpty()) {
+                Text(
+                  stringResource(R.string.search_boards_hint),
+                  fontSize = 14.sp,
+                  color = Color(0xFF8F92A1)
+                )
+              }
+              innerTextField()
+            }
+          )
           if (query.isNotEmpty()) {
-            IconButton(onClick = { viewModel.searchQuery.value = "" }) {
-              Icon(Icons.Default.Close, contentDescription = "Clear")
+            IconButton(
+              onClick = { viewModel.searchQuery.value = "" },
+              modifier = Modifier.size(28.dp)
+            ) {
+              Icon(
+                Icons.Default.Close,
+                contentDescription = "Clear",
+                tint = TeachColors.OnSurfaceMuted,
+                modifier = Modifier.size(18.dp)
+              )
             }
           }
         }
-      )
+      }
 
-      Spacer(Modifier.height(14.dp))
+      Spacer(Modifier.height(16.dp))
 
       if (sessions.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -856,73 +1200,6 @@ fun HistoryGalleryScreen(
           }
         }
       } else {
-        val playRecording = { rec: RecordingItem ->
-          try {
-            val playIntent = Intent(Intent.ACTION_VIEW).apply {
-              setDataAndType(rec.uri, "video/mp4")
-              addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            context.startActivity(playIntent)
-          } catch (e: Exception) {
-            viewModel.message.value = "No video player found. Open it from your gallery."
-          }
-        }
-
-        val shareRecording = { rec: RecordingItem ->
-          try {
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-              type = "video/mp4"
-              putExtra(Intent.EXTRA_STREAM, rec.uri)
-              addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            context.startActivity(Intent.createChooser(shareIntent, "Share recording"))
-          } catch (e: Exception) {
-            viewModel.message.value = "Could not share video"
-          }
-        }
-
-        val (sessionRecordingsMap, unassignedRecordings) = remember(sessions, recordings) {
-          val map = mutableMapOf<String, MutableList<RecordingItem>>()
-          sessions.forEach { map[it.id] = mutableListOf() }
-          val unassigned = mutableListOf<RecordingItem>()
-
-          val hexIdRegex = Regex("""TeachBoard_([a-fA-F0-9]{8})_""", RegexOption.IGNORE_CASE)
-
-          for (rec in recordings) {
-            val hexMatch = hexIdRegex.find(rec.displayName)
-            val extractedPrefix = hexMatch?.groupValues?.get(1)?.lowercase()
-
-            if (extractedPrefix != null) {
-              // 1. Strict 1-to-1 match by embedded session ID prefix
-              val targetSession = sessions.firstOrNull {
-                it.id.replace("-", "").lowercase().startsWith(extractedPrefix)
-              }
-              if (targetSession != null) {
-                map[targetSession.id]?.add(rec)
-              } else {
-                // Board was deleted or not found
-                unassigned.add(rec)
-              }
-              continue
-            }
-
-            // 2. Legacy recordings: assign to AT MOST ONE closest session within 15 minutes
-            val recTimeMs = rec.dateModifiedSec * 1000L
-            val closestSession = sessions
-              .map { s -> s to kotlin.math.abs(s.updatedAt - recTimeMs) }
-              .filter { it.second <= 15 * 60 * 1000L }
-              .minByOrNull { it.second }
-              ?.first
-
-            if (closestSession != null) {
-              map[closestSession.id]?.add(rec)
-            } else {
-              unassigned.add(rec)
-            }
-          }
-          map to unassigned
-        }
-
         LazyColumn(
           contentPadding = PaddingValues(bottom = 96.dp),
           verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -939,7 +1216,8 @@ fun HistoryGalleryScreen(
               onDelete = { deleteTarget = session },
               onPlayRecording = playRecording,
               onShareRecording = shareRecording,
-              onDeleteRecording = { deleteRecTarget = it }
+              onDeleteRecording = { deleteRecTarget = it },
+              onOpenRecordings = { selectedSessionForRecordings = session }
             )
           }
 
@@ -956,6 +1234,7 @@ fun HistoryGalleryScreen(
         }
       }
     }
+  }
   }
 
   renameTarget?.let { target ->
@@ -1001,8 +1280,8 @@ fun HistoryGalleryScreen(
   deleteRecTarget?.let { target ->
     AlertDialog(
       onDismissRequest = { deleteRecTarget = null },
-      title = { Text("Delete recording?") },
-      text = { Text("This will permanently remove \"${target.title}\" from your gallery. This cannot be undone.") },
+      title = { Text(stringResource(R.string.delete_board_title)) },
+      text = { Text(stringResource(R.string.delete_board_confirm, target.title)) },
       confirmButton = {
         TextButton(onClick = { viewModel.deleteRecording(target); deleteRecTarget = null }) {
           Text(stringResource(R.string.delete), color = TeachColors.Danger)
@@ -1011,6 +1290,15 @@ fun HistoryGalleryScreen(
       dismissButton = {
         TextButton(onClick = { deleteRecTarget = null }) { Text(stringResource(R.string.cancel)) }
       }
+    )
+  }
+
+  activePlayerRecording?.let { rec ->
+    InAppVideoPlayerDialog(
+      recording = rec,
+      onDismiss = { activePlayerRecording = null },
+      onShare = { shareRecording(rec) },
+      onDelete = { deleteRecTarget = rec; activePlayerRecording = null }
     )
   }
 }
@@ -1026,7 +1314,8 @@ private fun FullWidthBoardCard(
   onDelete: () -> Unit,
   onPlayRecording: (RecordingItem) -> Unit,
   onShareRecording: (RecordingItem) -> Unit,
-  onDeleteRecording: (RecordingItem) -> Unit
+  onDeleteRecording: (RecordingItem) -> Unit,
+  onOpenRecordings: () -> Unit
 ) {
   val context = LocalContext.current
   var menuOpen by remember { mutableStateOf(false) }
@@ -1059,20 +1348,21 @@ private fun FullWidthBoardCard(
   Surface(
     modifier = Modifier
       .fillMaxWidth()
-      .clip(RoundedCornerShape(20.dp))
-      .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.7f), RoundedCornerShape(20.dp))
-      .clickable(onClick = onClick),
-    color = MaterialTheme.colorScheme.surface,
-    tonalElevation = 2.dp
+      .clip(RoundedCornerShape(26.dp))
+      .border(1.dp, Color(0xFFEBEBF5), RoundedCornerShape(26.dp))
+      .bouncyClickable(onClick = onClick),
+    color = Color.White,
+    shadowElevation = 3.dp
   ) {
-    Column(modifier = Modifier.padding(12.dp)) {
-      // Whiteboard Preview Box
+    Column(modifier = Modifier.padding(14.dp)) {
+      // 1. Whiteboard Preview Box
       Box(
         modifier = Modifier
           .fillMaxWidth()
-          .aspectRatio(1.55f)
-          .clip(RoundedCornerShape(14.dp))
+          .aspectRatio(1.65f)
+          .clip(RoundedCornerShape(18.dp))
           .background(Color(session.backgroundColor))
+          .border(1.dp, Color(0xFFECEFF8), RoundedCornerShape(18.dp))
       ) {
         if (thumbBitmap != null) {
           Image(
@@ -1081,146 +1371,214 @@ private fun FullWidthBoardCard(
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
           )
+        } else {
+          Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+          ) {
+            Icon(
+              Icons.Default.Draw,
+              contentDescription = null,
+              tint = TeachColors.Primary.copy(alpha = 0.25f),
+              modifier = Modifier.size(40.dp)
+            )
+          }
         }
 
-        // Top-right: Pages & PDF badge
-        if (session.pageCount > 1 || !session.pdfPath.isNullOrBlank()) {
-          Surface(
-            shape = RoundedCornerShape(10.dp),
-            color = TeachColors.DarkPillBg,
-            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
+        // Top-left: Page Count Pill Badge (Pastel Periwinkle)
+        Surface(
+          shape = RoundedCornerShape(9999.dp),
+          color = TeachColors.PastelPeriwinkle,
+          shadowElevation = 1.dp,
+          modifier = Modifier
+            .align(Alignment.TopStart)
+            .padding(10.dp)
+        ) {
+          Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
           ) {
-            Row(
-              modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-              if (!session.pdfPath.isNullOrBlank()) {
-                Icon(Icons.Default.PictureAsPdf, contentDescription = null, tint = Color(0xFFF87171), modifier = Modifier.size(13.dp))
-              }
-              Text("${session.pageCount} pages", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+            if (!session.pdfPath.isNullOrBlank()) {
+              Icon(
+                Icons.Default.PictureAsPdf,
+                contentDescription = null,
+                tint = Color(0xFFE11D48),
+                modifier = Modifier.size(12.dp)
+              )
             }
+            Text(
+              text = "${session.pageCount} page${if (session.pageCount > 1) "s" else ""}${if (!session.pdfPath.isNullOrBlank()) " · PDF" else ""}",
+              color = TeachColors.PastelPeriwinkleGlyph,
+              fontSize = 11.sp,
+              fontWeight = FontWeight.Bold
+            )
           }
         }
       }
 
-      Spacer(Modifier.height(10.dp))
+      Spacer(Modifier.height(12.dp))
 
-      // Title & Date Row
+      // 2. Title & Date & 3-dots Menu Row
       Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(horizontal = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
       ) {
         Column(modifier = Modifier.weight(1f)) {
-          Text(session.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+          Text(
+            text = session.title,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
+            color = TeachColors.OnSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+          )
           Spacer(Modifier.height(2.dp))
           Text(
-            stringResource(R.string.board_modified_label, dateStr),
+            text = stringResource(R.string.board_modified_label, dateStr),
             fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = TeachColors.OnSurfaceMuted,
+            fontWeight = FontWeight.Medium
           )
         }
+
         Box {
-          IconButton(onClick = { menuOpen = true }) {
-            Icon(Icons.Default.MoreVert, contentDescription = "More")
+          IconButton(
+            onClick = { menuOpen = true },
+            modifier = Modifier.size(36.dp)
+          ) {
+            Icon(
+              Icons.Default.MoreVert,
+              contentDescription = "Options",
+              tint = TeachColors.OnSurfaceMuted,
+              modifier = Modifier.size(20.dp)
+            )
           }
-          DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-            DropdownMenuItem(text = { Text(stringResource(R.string.rename)) }, onClick = { menuOpen = false; onRename() })
-            DropdownMenuItem(text = { Text(stringResource(R.string.duplicate)) }, onClick = { menuOpen = false; onDuplicate() })
-            DropdownMenuItem(text = { Text(stringResource(R.string.export_pdf_title)) }, onClick = { menuOpen = false; onExportPdf() })
+
+          DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+            modifier = Modifier
+              .background(Color.White)
+              .clip(RoundedCornerShape(16.dp))
+          ) {
             DropdownMenuItem(
-              text = { Text(stringResource(R.string.delete), color = TeachColors.Danger) },
+              text = { Text(stringResource(R.string.rename), fontWeight = FontWeight.Medium) },
+              onClick = { menuOpen = false; onRename() }
+            )
+            DropdownMenuItem(
+              text = { Text(stringResource(R.string.duplicate), fontWeight = FontWeight.Medium) },
+              onClick = { menuOpen = false; onDuplicate() }
+            )
+            DropdownMenuItem(
+              text = { Text(stringResource(R.string.export_pdf_title), fontWeight = FontWeight.Medium) },
+              onClick = { menuOpen = false; onExportPdf() }
+            )
+            DropdownMenuItem(
+              text = { Text(stringResource(R.string.delete), color = TeachColors.Danger, fontWeight = FontWeight.Bold) },
               onClick = { menuOpen = false; onDelete() }
             )
           }
         }
       }
 
-      // Bottom Section: Option to see recordings for this specific board
+      // 3. Screen Recording Sub-Card (Pastel Blush with dedicated recordings gallery launcher)
       if (recordings.isNotEmpty()) {
         Spacer(Modifier.height(10.dp))
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)))
-        Spacer(Modifier.height(8.dp))
 
         Surface(
-          shape = RoundedCornerShape(12.dp),
-          color = Color(0xFFFFF1F2),
+          shape = RoundedCornerShape(18.dp),
+          color = TeachColors.PastelBlush,
           modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, Color(0xFFFECDD3), RoundedCornerShape(12.dp))
-            .clickable { expandedRecordings = !expandedRecordings }
+            .border(1.dp, Color(0xFFFAD0DC), RoundedCornerShape(18.dp))
+            .bouncyClickable { onOpenRecordings() }
         ) {
           Row(
             modifier = Modifier
               .fillMaxWidth()
-              .padding(horizontal = 12.dp, vertical = 9.dp),
+              .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
           ) {
+            // Left: Video Icon + Count & Duration
             Row(
               verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(8.dp)
+              horizontalArrangement = Arrangement.spacedBy(10.dp),
+              modifier = Modifier.weight(1f, fill = false)
             ) {
               Box(
                 modifier = Modifier
-                  .size(28.dp)
+                  .size(34.dp)
                   .clip(CircleShape)
-                  .background(Color(0xFFE11D48)),
+                  .background(Color(0xFFE54874)),
                 contentAlignment = Alignment.Center
               ) {
                 Icon(
                   Icons.Default.Videocam,
                   contentDescription = null,
                   tint = Color.White,
-                  modifier = Modifier.size(16.dp)
+                  modifier = Modifier.size(18.dp)
                 )
               }
               Column {
                 Text(
-                  "${recordings.size} Screen Recording${if (recordings.size > 1) "s" else ""}",
+                  text = "${recordings.size} Screen Recording${if (recordings.size > 1) "s" else ""}",
                   fontWeight = FontWeight.Bold,
                   fontSize = 13.sp,
-                  color = Color(0xFF9F1239)
+                  color = TeachColors.PastelBlushGlyph
                 )
                 if (totalDurationAndSize.isNotBlank()) {
                   Text(
-                    totalDurationAndSize,
+                    text = totalDurationAndSize,
                     fontSize = 11.sp,
-                    color = Color(0xFFBE123C)
+                    fontWeight = FontWeight.Medium,
+                    color = TeachColors.PastelBlushGlyph.copy(alpha = 0.8f)
                   )
                 }
               }
             }
+
+            // Right: "Watch ▶" / "See All" pill button + chevron
             Row(
               verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(4.dp)
+              horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-              Text(
-                if (expandedRecordings) "Hide" else "See recordings",
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp,
-                color = Color(0xFFE11D48)
-              )
-              Icon(
-                if (expandedRecordings) Icons.Default.KeyboardArrowUp else Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Color(0xFFE11D48),
-                modifier = Modifier.size(18.dp)
-              )
-            }
-          }
-        }
+              Surface(
+                shape = RoundedCornerShape(9999.dp),
+                color = TeachColors.Primary,
+                shadowElevation = 2.dp,
+                modifier = Modifier
+                  .bouncyClickable { onOpenRecordings() }
+              ) {
+                Row(
+                  modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                  Text(
+                    text = if (recordings.size > 1) "See All (${recordings.size})" else "Watch",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                  )
+                  Icon(
+                    if (recordings.size > 1) Icons.AutoMirrored.Filled.KeyboardArrowRight else Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(14.dp)
+                  )
+                }
+              }
 
-        if (expandedRecordings) {
-          Spacer(Modifier.height(8.dp))
-          Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            recordings.forEach { rec ->
-              RecordingMiniItem(
-                recording = rec,
-                onPlay = { onPlayRecording(rec) },
-                onShare = { onShareRecording(rec) },
-                onDelete = { onDeleteRecording(rec) }
+              Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "Open recordings",
+                tint = TeachColors.PastelBlushGlyph,
+                modifier = Modifier.size(20.dp)
               )
             }
           }
@@ -1271,12 +1629,13 @@ private fun RecordingMiniItem(
   }
 
   Surface(
-    shape = RoundedCornerShape(12.dp),
-    color = Color(0xFFF8FAFC),
+    shape = RoundedCornerShape(16.dp),
+    color = Color.White,
+    shadowElevation = 1.dp,
     modifier = Modifier
       .fillMaxWidth()
-      .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
-      .clickable(onClick = onPlay)
+      .border(1.dp, Color(0xFFECEFF8), RoundedCornerShape(16.dp))
+      .bouncyClickable(onClick = onPlay)
   ) {
     Row(
       modifier = Modifier
@@ -1285,11 +1644,10 @@ private fun RecordingMiniItem(
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-      // Video thumbnail with small play badge
       Box(
         modifier = Modifier
-          .size(width = 72.dp, height = 48.dp)
-          .clip(RoundedCornerShape(8.dp))
+          .size(width = 68.dp, height = 46.dp)
+          .clip(RoundedCornerShape(10.dp))
           .background(Color(0xFF0F172A)),
         contentAlignment = Alignment.Center
       ) {
@@ -1317,7 +1675,7 @@ private fun RecordingMiniItem(
           recording.title,
           fontWeight = FontWeight.SemiBold,
           fontSize = 13.sp,
-          color = Color(0xFF0F172A),
+          color = TeachColors.OnSurface,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis
         )
@@ -1325,16 +1683,16 @@ private fun RecordingMiniItem(
         Text(
           listOfNotNull(durationStr.ifBlank { null }, formattedSize.ifBlank { null }).joinToString(" · "),
           fontSize = 11.sp,
-          color = Color(0xFF64748B)
+          color = TeachColors.OnSurfaceMuted
         )
       }
 
       Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         IconButton(onClick = onShare, modifier = Modifier.size(32.dp)) {
-          Icon(Icons.Default.Share, contentDescription = "Share", tint = Color(0xFF475569), modifier = Modifier.size(16.dp))
+          Icon(Icons.Default.Share, contentDescription = "Share", tint = TeachColors.OnSurfaceMuted, modifier = Modifier.size(16.dp))
         }
         IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-          Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
+          Icon(Icons.Default.Delete, contentDescription = "Delete", tint = TeachColors.Danger, modifier = Modifier.size(16.dp))
         }
       }
     }
@@ -1352,25 +1710,25 @@ private fun UnassignedRecordingsCard(
   Surface(
     modifier = Modifier
       .fillMaxWidth()
-      .clip(RoundedCornerShape(20.dp))
-      .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.7f), RoundedCornerShape(20.dp)),
-    color = MaterialTheme.colorScheme.surface,
-    tonalElevation = 2.dp
+      .clip(RoundedCornerShape(26.dp))
+      .border(1.dp, Color(0xFFEBEBF5), RoundedCornerShape(26.dp)),
+    color = Color.White,
+    shadowElevation = 2.dp
   ) {
     Column(modifier = Modifier.padding(14.dp)) {
       Row(
         modifier = Modifier
           .fillMaxWidth()
-          .clickable { expanded = !expanded },
+          .bouncyClickable { expanded = !expanded },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
       ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
           Box(
             modifier = Modifier
-              .size(32.dp)
+              .size(34.dp)
               .clip(CircleShape)
-              .background(Color(0xFFE11D48)),
+              .background(Color(0xFFE54874)),
             contentAlignment = Alignment.Center
           ) {
             Icon(Icons.Default.Videocam, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
@@ -1380,26 +1738,26 @@ private fun UnassignedRecordingsCard(
               "Other Screen Recordings (${recordings.size})",
               fontWeight = FontWeight.Bold,
               fontSize = 14.sp,
-              color = Color(0xFF0F172A)
+              color = TeachColors.OnSurface
             )
             Text(
               "Recordings from previous sessions",
               fontSize = 11.sp,
-              color = Color(0xFF64748B)
+              color = TeachColors.OnSurfaceMuted
             )
           }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
           Text(
             if (expanded) "Hide" else "See recordings",
-            fontWeight = FontWeight.Bold,
             fontSize = 12.sp,
-            color = Color(0xFFE11D48)
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFFE54874)
           )
           Icon(
             if (expanded) Icons.Default.KeyboardArrowUp else Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = Color(0xFFE11D48),
+            tint = Color(0xFFE54874),
             modifier = Modifier.size(18.dp)
           )
         }
@@ -1415,6 +1773,581 @@ private fun UnassignedRecordingsCard(
               onShare = { onShareRecording(rec) },
               onDelete = { onDeleteRecording(rec) }
             )
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Dedicated Modern Screen for browsing, previewing, and playing all screen recordings
+ * for a specific whiteboard and its slides.
+ * Strictly designed according to the Pastel Playful Expressive aesthetic.
+ */
+@Composable
+fun BoardRecordingsDetailScreen(
+  session: BoardSession,
+  recordings: List<RecordingItem>,
+  onBack: () -> Unit,
+  onPlayRecording: (RecordingItem) -> Unit,
+  onShareRecording: (RecordingItem) -> Unit,
+  onDeleteRecording: (RecordingItem) -> Unit,
+  onOpenBoard: (String) -> Unit
+) {
+  val context = LocalContext.current
+  BackHandler(onBack = onBack)
+
+  val boardThumbBitmap = remember(session.id, session.updatedAt) {
+    val file = Exporters.thumbnailFile(context, session.id)
+    if (file.exists()) runCatching { BitmapFactory.decodeFile(file.absolutePath) }.getOrNull() else null
+  }
+
+  val totalBytes = remember(recordings) { recordings.sumOf { it.sizeBytes } }
+  val totalDurMs = remember(recordings) { recordings.sumOf { it.durationMs } }
+  val totalDurFormatted = remember(totalDurMs) {
+    val sec = totalDurMs / 1000
+    if (sec > 0) String.format(Locale.US, "%02d:%02d", sec / 60, sec % 60) else ""
+  }
+  val totalSizeFormatted = remember(totalBytes) {
+    when {
+      totalBytes <= 0L -> "0 B"
+      totalBytes < 1024L * 1024L -> String.format(Locale.US, "%.1f KB", totalBytes / 1024.0)
+      totalBytes < 1024L * 1024L * 1024L -> String.format(Locale.US, "%.1f MB", totalBytes / (1024.0 * 1024.0))
+      else -> String.format(Locale.US, "%.2f GB", totalBytes / (1024.0 * 1024.0 * 1024.0))
+    }
+  }
+
+  Scaffold(
+    containerColor = TeachColors.Background,
+    contentWindowInsets = WindowInsets(0, 0, 0, 0)
+  ) { _ ->
+    Column(
+      modifier = Modifier
+        .fillMaxSize()
+        .statusBarsPadding()
+        .padding(horizontal = 16.dp)
+    ) {
+      // 1. Top Navigation Row: Back button pill + "Open Canvas" action
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(top = 4.dp, bottom = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        // Back Pill
+        Surface(
+          shape = CircleShape,
+          color = Color.White,
+          shadowElevation = 2.dp,
+          modifier = Modifier
+            .size(44.dp)
+            .border(1.dp, Color(0xFFEBEBF5), CircleShape)
+            .bouncyClickable(onClick = onBack)
+        ) {
+          Box(contentAlignment = Alignment.Center) {
+            Icon(
+              Icons.AutoMirrored.Filled.ArrowBack,
+              contentDescription = "Back",
+              tint = TeachColors.OnSurface,
+              modifier = Modifier.size(20.dp)
+            )
+          }
+        }
+
+        // Open Canvas Button
+        Surface(
+          shape = RoundedCornerShape(9999.dp),
+          color = TeachColors.PastelPeriwinkle,
+          shadowElevation = 1.dp,
+          modifier = Modifier
+            .border(1.dp, Color(0xFFC8DAFD), RoundedCornerShape(9999.dp))
+            .bouncyClickable { onOpenBoard(session.id) }
+        ) {
+          Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            Icon(
+              Icons.Default.Draw,
+              contentDescription = null,
+              tint = TeachColors.PastelPeriwinkleGlyph,
+              modifier = Modifier.size(16.dp)
+            )
+            Text(
+              text = stringResource(R.string.mode_draw),
+              fontSize = 12.sp,
+              fontWeight = FontWeight.Bold,
+              color = TeachColors.PastelPeriwinkleGlyph
+            )
+          }
+        }
+      }
+
+      // 2. Title Section (Screen Recordings title with wavy accent)
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+      ) {
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+          Text(
+            text = stringResource(R.string.record_screen_title),
+            fontSize = 24.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = TeachColors.OnSurface,
+            letterSpacing = (-0.5).sp
+          )
+          Surface(
+            shape = RoundedCornerShape(9999.dp),
+            color = TeachColors.PastelBlush,
+            modifier = Modifier.padding(top = 2.dp)
+          ) {
+            Text(
+              text = "${recordings.size} video${if (recordings.size != 1) "s" else ""}",
+              fontSize = 12.sp,
+              fontWeight = FontWeight.Bold,
+              color = TeachColors.PastelBlushGlyph,
+              modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+            )
+          }
+        }
+
+        WavyAccentDivider(
+          modifier = Modifier
+            .width(110.dp)
+            .height(10.dp),
+          color = TeachColors.Primary,
+          waveCount = 4,
+          amplitudeDp = 2.5f,
+          strokeWidthDp = 3f
+        )
+      }
+
+      // 3. Hero Whiteboard Summary Card
+      Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = Color.White,
+        shadowElevation = 2.dp,
+        modifier = Modifier
+          .fillMaxWidth()
+          .border(1.dp, Color(0xFFEBEBF5), RoundedCornerShape(22.dp))
+      ) {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(12.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+          // Board Preview Thumbnail
+          Box(
+            modifier = Modifier
+              .size(width = 84.dp, height = 64.dp)
+              .clip(RoundedCornerShape(14.dp))
+              .background(Color(session.backgroundColor))
+              .border(1.dp, Color(0xFFECEFF8), RoundedCornerShape(14.dp))
+          ) {
+            if (boardThumbBitmap != null) {
+              Image(
+                bitmap = boardThumbBitmap.asImageBitmap(),
+                contentDescription = session.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+              )
+            } else {
+              Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                  Icons.Default.Draw,
+                  contentDescription = null,
+                  tint = TeachColors.Primary.copy(alpha = 0.35f),
+                  modifier = Modifier.size(24.dp)
+                )
+              }
+            }
+          }
+
+          // Board Info & Slide count
+          Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+          ) {
+            Text(
+              text = session.title,
+              fontWeight = FontWeight.Bold,
+              fontSize = 15.sp,
+              color = TeachColors.OnSurface,
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis
+            )
+
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+              Surface(
+                shape = RoundedCornerShape(9999.dp),
+                color = TeachColors.PastelMint
+              ) {
+                Text(
+                  text = "${session.pageCount} slide${if (session.pageCount > 1) "s" else ""}",
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = TeachColors.PastelMintGlyph,
+                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                )
+              }
+
+              if (totalDurFormatted.isNotBlank()) {
+                Text(
+                  text = "$totalDurFormatted · $totalSizeFormatted",
+                  fontSize = 12.sp,
+                  fontWeight = FontWeight.Medium,
+                  color = TeachColors.OnSurfaceMuted
+                )
+              }
+            }
+          }
+        }
+      }
+
+      Spacer(Modifier.height(14.dp))
+
+      // 4. Recordings List
+      if (recordings.isEmpty()) {
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .weight(1f),
+          contentAlignment = Alignment.Center
+        ) {
+          Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+          ) {
+            Icon(
+              Icons.Default.Videocam,
+              contentDescription = null,
+              modifier = Modifier.size(54.dp),
+              tint = TeachColors.Primary.copy(alpha = 0.35f)
+            )
+            Text(
+              text = "No recordings for this board",
+              fontWeight = FontWeight.Bold,
+              fontSize = 16.sp,
+              color = TeachColors.OnSurface
+            )
+            Surface(
+              shape = RoundedCornerShape(9999.dp),
+              color = TeachColors.Primary,
+              modifier = Modifier.bouncyClickable(onClick = onBack)
+            ) {
+              Text(
+                text = "Back to Whiteboards",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+              )
+            }
+          }
+        }
+      } else {
+        LazyColumn(
+          contentPadding = PaddingValues(bottom = 32.dp),
+          verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+          itemsIndexed(recordings, key = { _, it -> it.id }) { index, rec ->
+            RecordingLargeCard(
+              index = index,
+              recording = rec,
+              onPlay = { onPlayRecording(rec) },
+              onShare = { onShareRecording(rec) },
+              onDelete = { onDeleteRecording(rec) }
+            )
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Modern High-Impact Video Recording Card for the Board Recordings screen.
+ * Displays video thumbnail, floating play action, duration badge,
+ * format chips, and direct playback/share/delete action pills.
+ */
+@Composable
+private fun RecordingLargeCard(
+  index: Int,
+  recording: RecordingItem,
+  onPlay: () -> Unit,
+  onShare: () -> Unit,
+  onDelete: () -> Unit
+) {
+  val context = LocalContext.current
+  val thumbBitmap by produceState<android.graphics.Bitmap?>(initialValue = null, recording.uri) {
+    value = withContext(Dispatchers.IO) {
+      runCatching {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+          context.contentResolver.loadThumbnail(recording.uri, Size(640, 360), null)
+        } else null
+      }.getOrNull() ?: runCatching {
+        val retriever = MediaMetadataRetriever()
+        retriever.setDataSource(context, recording.uri)
+        val bmp = retriever.getFrameAtTime(500_000)
+        retriever.release()
+        bmp
+      }.getOrNull()
+    }
+  }
+
+  val formattedDuration = remember(recording.durationMs) {
+    val sec = recording.durationMs / 1000
+    if (sec > 0) String.format(Locale.US, "%02d:%02d", sec / 60, sec % 60) else "00:00"
+  }
+
+  val formattedSize = remember(recording.sizeBytes) {
+    when {
+      recording.sizeBytes <= 0L -> ""
+      recording.sizeBytes < 1024L * 1024L -> String.format(Locale.US, "%.1f KB", recording.sizeBytes / 1024.0)
+      recording.sizeBytes < 1024L * 1024L * 1024L -> String.format(Locale.US, "%.1f MB", recording.sizeBytes / (1024.0 * 1024.0))
+      else -> String.format(Locale.US, "%.2f GB", recording.sizeBytes / (1024.0 * 1024.0 * 1024.0))
+    }
+  }
+
+  val dateStr = remember(recording.dateModifiedSec) {
+    SimpleDateFormat("MMM dd, yyyy · HH:mm", Locale.getDefault()).format(Date(recording.dateModifiedSec * 1000L))
+  }
+
+  Surface(
+    shape = RoundedCornerShape(22.dp),
+    color = Color.White,
+    shadowElevation = 2.dp,
+    modifier = Modifier
+      .fillMaxWidth()
+      .border(1.dp, Color(0xFFEBEBF5), RoundedCornerShape(22.dp))
+  ) {
+    Column {
+      // 1. Video Thumbnail Showcase (Clickable to launch modern video player)
+      Box(
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(175.dp)
+          .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
+          .background(Color(0xFF141724))
+          .bouncyClickable(onClick = onPlay),
+        contentAlignment = Alignment.Center
+      ) {
+        if (thumbBitmap != null) {
+          Image(
+            bitmap = thumbBitmap!!.asImageBitmap(),
+            contentDescription = recording.title,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+          )
+        } else {
+          Icon(
+            Icons.Default.Videocam,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.35f),
+            modifier = Modifier.size(48.dp)
+          )
+        }
+
+        // Center Floating Play Circle
+        Surface(
+          shape = CircleShape,
+          color = TeachColors.Primary.copy(alpha = 0.92f),
+          shadowElevation = 6.dp,
+          modifier = Modifier.size(52.dp)
+        ) {
+          Box(contentAlignment = Alignment.Center) {
+            Icon(
+              Icons.Default.PlayArrow,
+              contentDescription = "Play recording",
+              tint = Color.White,
+              modifier = Modifier.size(28.dp)
+            )
+          }
+        }
+
+        // Top-Left: Index Badge
+        Surface(
+          shape = RoundedCornerShape(9999.dp),
+          color = Color.Black.copy(alpha = 0.65f),
+          modifier = Modifier
+            .align(Alignment.TopStart)
+            .padding(10.dp)
+        ) {
+          Text(
+            text = "Recording #${index + 1}",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
+          )
+        }
+
+        // Bottom-Right: Duration Pill
+        if (formattedDuration.isNotBlank()) {
+          Surface(
+            shape = RoundedCornerShape(9999.dp),
+            color = Color.Black.copy(alpha = 0.72f),
+            modifier = Modifier
+              .align(Alignment.BottomEnd)
+              .padding(10.dp)
+          ) {
+            Row(
+              modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+              Text(
+                text = formattedDuration,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+              )
+            }
+          }
+        }
+      }
+
+      // 2. Info & Metadata Block
+      Column(
+        modifier = Modifier.padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+      ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+          Text(
+            text = recording.title.ifBlank { recording.displayName }.ifBlank { "TeachBoard Recording #${index + 1}" },
+            fontWeight = FontWeight.Bold,
+            fontSize = 15.sp,
+            color = TeachColors.OnSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+          )
+          Text(
+            text = dateStr,
+            fontSize = 12.sp,
+            color = TeachColors.OnSurfaceMuted
+          )
+        }
+
+        // Metadata Chips Row (Format, Size)
+        Row(
+          horizontalArrangement = Arrangement.spacedBy(6.dp),
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Surface(
+            shape = RoundedCornerShape(9999.dp),
+            color = TeachColors.PastelPeriwinkle
+          ) {
+            Text(
+              text = "1080p FHD",
+              fontSize = 11.sp,
+              fontWeight = FontWeight.Bold,
+              color = TeachColors.PastelPeriwinkleGlyph,
+              modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+            )
+          }
+
+          if (formattedSize.isNotBlank()) {
+            Surface(
+              shape = RoundedCornerShape(9999.dp),
+              color = Color(0xFFF1F3F9)
+            ) {
+              Text(
+                text = formattedSize,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = TeachColors.OnSurfaceMuted,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+              )
+            }
+          }
+        }
+
+        // 3. Action Buttons Deck
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          // Play Fullscreen (Primary)
+          Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = TeachColors.Primary,
+            shadowElevation = 2.dp,
+            modifier = Modifier
+              .weight(1f)
+              .height(42.dp)
+              .bouncyClickable(onClick = onPlay)
+          ) {
+            Row(
+              modifier = Modifier.fillMaxSize(),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.Center
+            ) {
+              Icon(
+                Icons.Default.PlayArrow,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp)
+              )
+              Spacer(Modifier.width(6.dp))
+              Text(
+                text = "Play",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+              )
+            }
+          }
+
+          // Share
+          Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = TeachColors.PastelPeriwinkle,
+            modifier = Modifier
+              .size(width = 46.dp, height = 42.dp)
+              .border(1.dp, Color(0xFFD0DEF8), RoundedCornerShape(14.dp))
+              .bouncyClickable(onClick = onShare)
+          ) {
+            Box(contentAlignment = Alignment.Center) {
+              Icon(
+                Icons.Default.Share,
+                contentDescription = "Share",
+                tint = TeachColors.PastelPeriwinkleGlyph,
+                modifier = Modifier.size(18.dp)
+              )
+            }
+          }
+
+          // Delete
+          Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = TeachColors.PastelBlush,
+            modifier = Modifier
+              .size(width = 46.dp, height = 42.dp)
+              .border(1.dp, Color(0xFFFAD0DC), RoundedCornerShape(14.dp))
+              .bouncyClickable(onClick = onDelete)
+          ) {
+            Box(contentAlignment = Alignment.Center) {
+              Icon(
+                Icons.Default.Delete,
+                contentDescription = "Delete",
+                tint = TeachColors.Danger,
+                modifier = Modifier.size(18.dp)
+              )
+            }
           }
         }
       }

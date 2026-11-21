@@ -14,6 +14,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -78,8 +80,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
+import com.teachboard.app.ui.home.WavyAccentDivider
+import com.teachboard.app.ui.theme.TeachColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -760,22 +765,22 @@ fun ToolGuideSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = TourTokens.Sheet,
+        containerColor = TeachColors.Background,
         dragHandle = {
             Box(
                 Modifier
-                    .padding(vertical = 12.dp)
-                    .size(width = 36.dp, height = 4.dp)
+                    .padding(top = 10.dp, bottom = 6.dp)
+                    .size(width = 44.dp, height = 4.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.25f)),
+                    .background(Color(0xFFCBD5E1)),
             )
         },
     ) {
         Column(
             Modifier
-                .fillMaxWidth(0.92f)
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 20.dp),
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp)
+                .padding(bottom = 24.dp),
         ) {
             GuideHeader(onDismiss)
 
@@ -784,13 +789,14 @@ fun ToolGuideSheet(
                     .fillMaxWidth()
                     .weight(1f, fill = false)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .padding(top = 12.dp, bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 if (onReplayTour != null) {
                     ReplayTourRow(onReplayTour)
                 }
-                groups.forEach { group ->
-                    ToolGuideGroupBlock(group)
+                groups.forEachIndexed { index, group ->
+                    ToolGuideGroupBlock(group = group, groupIndex = index)
                 }
                 GuideHintStrip()
             }
@@ -803,37 +809,76 @@ private fun GuideHeader(onDismiss: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(
-                RoundedCornerShape(
-                    topStart = 20.dp,
-                    topEnd = 20.dp,
-                    bottomEnd = 0.dp,
-                    bottomStart = 12.dp,
-                ),
-            )
-            .background(TourTokens.SheetAccent)
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Icon(
-            imageVector = Icons.Outlined.MenuBook,
-            contentDescription = null,
-            tint = Color.White,
-            modifier = Modifier.size(22.dp),
-        )
-        Spacer(Modifier.width(10.dp))
-        Text(
-            text = "Tool guide",
-            color = Color.White,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(1f),
-        )
-        IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(TeachColors.PastelPeriwinkle),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.MenuBook,
+                    contentDescription = null,
+                    tint = TeachColors.Primary,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+            Column {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Tool Guide",
+                        color = TeachColors.OnSurface,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(TeachColors.PastelMint)
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "33 tools",
+                            color = TeachColors.PastelMintGlyph,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+                Spacer(Modifier.height(3.dp))
+                WavyAccentDivider(
+                    modifier = Modifier
+                        .width(80.dp)
+                        .height(8.dp),
+                    color = TeachColors.Primary,
+                    waveCount = 4
+                )
+            }
+        }
+
+        IconButton(
+            onClick = onDismiss,
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(Color.White)
+                .border(1.dp, Color(0xFFECEFF8), CircleShape)
+        ) {
             Icon(
                 imageVector = Icons.Outlined.Close,
                 contentDescription = "Close",
-                tint = Color.White,
+                tint = TeachColors.OnSurfaceMuted,
                 modifier = Modifier.size(20.dp),
             )
         }
@@ -842,100 +887,172 @@ private fun GuideHeader(onDismiss: () -> Unit) {
 
 @Composable
 private fun ReplayTourRow(onReplay: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(TourTokens.SheetAccent.copy(alpha = 0.6f))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onReplay,
-            )
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Surface(
+        onClick = onReplay,
+        shape = RoundedCornerShape(18.dp),
+        color = TeachColors.PastelPeriwinkle,
+        border = BorderStroke(1.dp, Color(0xFFC7D7FE)),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Icon(
-            imageVector = Icons.Outlined.Refresh,
-            contentDescription = null,
-            tint = Color.White,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(Modifier.width(10.dp))
-        Text(
-            text = "Replay the quick tour",
-            color = Color.White,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-        )
-    }
-    Spacer(Modifier.height(12.dp))
-}
-
-@Composable
-private fun ToolGuideGroupBlock(group: ToolGuideGroup) {
-    Text(
-        text = group.title,
-        color = TourTokens.SheetAccent,
-        fontSize = 14.sp,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(top = 10.dp, bottom = 8.dp),
-    )
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White.copy(alpha = 0.04f)),
-    ) {
-        group.entries.forEachIndexed { i, entry ->
-            ToolGuideRow(entry)
-            if (i < group.entries.lastIndex) {
-                HorizontalDivider(
-                    thickness = 1.dp,
-                    color = Color.White.copy(alpha = 0.06f),
-                    modifier = Modifier.padding(start = 12.dp),
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Refresh,
+                    contentDescription = null,
+                    tint = TeachColors.Primary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = "Replay Interactive Tour",
+                    color = TeachColors.Primary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "Step-by-step walkthrough of canvas and tools",
+                    color = TeachColors.PastelPeriwinkleGlyph,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Box(
+                Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(TeachColors.Primary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = TeachColors.Primary,
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }
     }
-    Spacer(Modifier.height(12.dp))
 }
 
 @Composable
-private fun ToolGuideRow(entry: ToolGuideEntry) {
+private fun ToolGuideGroupBlock(group: ToolGuideGroup, groupIndex: Int = 0) {
+    val (groupBg, groupGlyph) = when (groupIndex % 4) {
+        0 -> TeachColors.PastelPeriwinkle to TeachColors.Primary
+        1 -> TeachColors.PastelMint to TeachColors.Secondary
+        2 -> TeachColors.PastelPeach to TeachColors.PastelPeachGlyph
+        else -> TeachColors.PastelBlush to TeachColors.PastelBlushGlyph
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = group.title,
+                color = TeachColors.OnSurface,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(groupBg)
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = "${group.entries.size} tools",
+                    color = groupGlyph,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+            shadowElevation = 1.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(Modifier.fillMaxWidth()) {
+                group.entries.forEachIndexed { i, entry ->
+                    ToolGuideRow(
+                        entry = entry,
+                        iconTint = groupGlyph,
+                        iconBg = groupBg
+                    )
+                    if (i < group.entries.lastIndex) {
+                        HorizontalDivider(
+                            thickness = 1.dp,
+                            color = Color(0xFFF1F3F9),
+                            modifier = Modifier.padding(start = 68.dp, end = 16.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToolGuideRow(
+    entry: ToolGuideEntry,
+    iconTint: Color,
+    iconBg: Color
+) {
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color.White.copy(alpha = 0.08f)),
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(iconBg.copy(alpha = 0.65f)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = entry.icon,
                 contentDescription = null,
-                tint = Color.White.copy(alpha = 0.9f),
-                modifier = Modifier.size(20.dp),
+                tint = iconTint,
+                modifier = Modifier.size(22.dp),
             )
         }
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 text = entry.name,
-                color = Color.White,
+                color = TeachColors.OnSurface,
                 fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
             )
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = entry.description,
-                color = Color.White.copy(alpha = 0.6f),
+                color = TeachColors.OnSurfaceMuted,
                 fontSize = 13.sp,
-                lineHeight = 17.sp,
+                lineHeight = 18.sp,
                 textAlign = TextAlign.Start,
             )
         }
@@ -944,27 +1061,41 @@ private fun ToolGuideRow(entry: ToolGuideEntry) {
 
 @Composable
 private fun GuideHintStrip() {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(TourTokens.SheetAccent.copy(alpha = 0.12f))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = TeachColors.PastelMint,
+        border = BorderStroke(1.dp, Color(0xFFA2E8D8)),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Icon(
-            imageVector = Icons.Outlined.Info,
-            contentDescription = null,
-            tint = TourTokens.SheetAccent,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(Modifier.width(10.dp))
-        Text(
-            text = TOOL_GUIDE_TIP,
-            color = Color.White.copy(alpha = 0.7f),
-            fontSize = 13.sp,
-            lineHeight = 17.sp,
-        )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Info,
+                    contentDescription = null,
+                    tint = TeachColors.PastelMintGlyph,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = TOOL_GUIDE_TIP,
+                color = TeachColors.PastelMintGlyph,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                lineHeight = 18.sp,
+            )
+        }
     }
 }
 
@@ -980,26 +1111,65 @@ fun ToolHelpSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = TourTokens.Sheet,
+        containerColor = TeachColors.Background,
+        dragHandle = {
+            Box(
+                Modifier
+                    .padding(vertical = 10.dp)
+                    .size(width = 44.dp, height = 4.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFCBD5E1)),
+            )
+        },
     ) {
-        Column(
-            Modifier
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, Color(0xFFECEFF8)),
+            shadowElevation = 1.dp,
+            modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 32.dp),
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 28.dp)
         ) {
-            Text(
-                text = entry.name,
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = entry.description,
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
-            )
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(TeachColors.PastelPeriwinkle),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = null,
+                            tint = TeachColors.Primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Text(
+                        text = entry.name,
+                        color = TeachColors.OnSurface,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = entry.description,
+                    color = TeachColors.OnSurfaceMuted,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                )
+            }
         }
     }
 }

@@ -1,13 +1,8 @@
 package com.teachboard.app.ui.settings
 
-import android.content.Intent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,23 +20,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Brightness4
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import com.teachboard.app.ui.tour.TeachBoardTour
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -56,7 +46,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -65,290 +54,323 @@ import androidx.core.os.LocaleListCompat
 import com.teachboard.app.R
 import com.teachboard.app.TeachBoardApp
 import com.teachboard.app.data.UserPrefs
-import com.teachboard.app.domain.export.Exporters
-import com.teachboard.app.domain.model.BackgroundStyle
+import com.teachboard.app.ui.home.LanguagePickerDialog
+import com.teachboard.app.ui.home.SupportedLanguages
 import com.teachboard.app.ui.theme.AppConfig
 import com.teachboard.app.ui.theme.TeachColors
 import com.teachboard.app.ui.theme.ThemeMode
 import kotlinx.coroutines.launch
-
-private val AppLanguages = listOf(
-  "" to "System Default",
-  "en" to "English",
-  "es" to "Español",
-  "fr" to "Français",
-  "de" to "Deutsch",
-  "pt" to "Português",
-  "it" to "Italiano",
-  "ru" to "Русский",
-  "tr" to "Türkçe",
-  "ar" to "العربية (RTL)",
-  "hi" to "हिन्दी",
-  "bn" to "বাংলা",
-  "ur" to "اردو (RTL)",
-  "id" to "Bahasa Indonesia",
-  "vi" to "Tiếng Việt",
-  "zh-CN" to "简体中文",
-  "ja" to "日本語",
-  "ko" to "한국어",
-  "sw" to "Kiswahili"
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
   app: TeachBoardApp,
   onBack: () -> Unit,
-  onOpenHelp: () -> Unit
+  onOpenHelp: () -> Unit = {}
 ) {
-  val context = LocalContext.current
   val scope = rememberCoroutineScope()
   val prefs by app.prefs.prefs.collectAsState(initial = UserPrefs())
-  val snackbar = remember { SnackbarHostState() }
   var showLangDialog by remember { mutableStateOf(false) }
+  var showPrivacyDialog by remember { mutableStateOf(false) }
 
-  // F-32 Backup to Zip & Restore from Zip via Storage Access Framework
-  val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
-    if (uri != null) {
-      scope.launch {
-        val ok = Exporters.exportBackupZip(app, app.database, uri)
-        snackbar.showSnackbar(if (ok) "Backup saved successfully" else "Backup failed")
-      }
-    }
-  }
-
-  val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-    if (uri != null) {
-      scope.launch {
-        val ok = Exporters.restoreBackupZip(app, app.database, uri)
-        snackbar.showSnackbar(if (ok) "Backup restored successfully" else "Restore failed — invalid archive")
-      }
-    }
-  }
+  val currentLang = SupportedLanguages.firstOrNull { it.tag == prefs.languageTag }
+    ?: SupportedLanguages.first()
 
   Scaffold(
     topBar = {
       TopAppBar(
-        title = { Text(stringResource(R.string.settings_title), fontWeight = FontWeight.Bold) },
+        title = {
+          Text(
+            stringResource(R.string.settings_title),
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp
+          )
+        },
         navigationIcon = {
           IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
           }
         }
       )
-    },
-    snackbarHost = { SnackbarHost(snackbar) }
+    }
   ) { padding ->
     Column(
       modifier = Modifier
         .fillMaxSize()
         .padding(padding)
         .verticalScroll(rememberScrollState())
-        .padding(16.dp),
-      verticalArrangement = Arrangement.spacedBy(14.dp)
+        .padding(horizontal = 20.dp, vertical = 16.dp),
+      verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-      // Appearance & Language
-      SectionTitle(stringResource(R.string.settings_appearance))
-      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        ThemeMode.entries.forEach { mode ->
-          FilterChip(
-            selected = prefs.themeMode == mode,
-            onClick = { scope.launch { app.prefs.setThemeMode(mode) } },
-            label = { Text(mode.name.lowercase().replaceFirstChar { it.uppercase() }) }
+      // 1. App Language Card
+      SettingCard(
+        icon = Icons.Default.Language,
+        iconTint = TeachColors.Primary,
+        iconBg = TeachColors.Primary.copy(alpha = 0.12f),
+        title = stringResource(R.string.language_title),
+        subtitle = "${currentLang.nativeName} (${currentLang.englishName})",
+        onClick = { showLangDialog = true }
+      )
+
+      // 2. Dark Mode Card (Home Screen Only)
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .clip(RoundedCornerShape(22.dp))
+          .background(MaterialTheme.colorScheme.surfaceVariant)
+          .padding(18.dp)
+      ) {
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          Box(
+            modifier = Modifier
+              .size(42.dp)
+              .clip(CircleShape)
+              .background(Color(0xFF6366F1).copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+          ) {
+            Icon(
+              imageVector = Icons.Default.Brightness4,
+              contentDescription = null,
+              tint = Color(0xFF6366F1),
+              modifier = Modifier.size(22.dp)
+            )
+          }
+
+          Spacer(Modifier.width(14.dp))
+
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              text = stringResource(R.string.settings_theme),
+              fontWeight = FontWeight.Bold,
+              fontSize = 16.sp,
+              color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+              text = stringResource(R.string.theme_system),
+              fontSize = 12.sp,
+              color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        Row(
+          horizontalArrangement = Arrangement.spacedBy(10.dp),
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          val modes = listOf(
+            ThemeMode.LIGHT to stringResource(R.string.theme_light),
+            ThemeMode.DARK to stringResource(R.string.theme_dark),
+            ThemeMode.SYSTEM to stringResource(R.string.theme_system)
           )
+          modes.forEach { (mode, label) ->
+            val isSelected = prefs.themeMode == mode
+            FilterChip(
+              selected = isSelected,
+              onClick = { scope.launch { app.prefs.setThemeMode(mode) } },
+              label = {
+                Text(
+                  text = label,
+                  fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                  fontSize = 13.sp
+                )
+              },
+              shape = RoundedCornerShape(14.dp),
+              colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = TeachColors.Primary,
+                selectedLabelColor = Color.White
+              ),
+              modifier = Modifier.weight(1f)
+            )
+          }
         }
       }
 
-      val currentLangName = AppLanguages.firstOrNull { it.first == prefs.languageTag }?.second ?: "System Default"
+      // 3. Privacy Policy Card
+      SettingCard(
+        icon = Icons.Default.Security,
+        iconTint = Color(0xFF10B981),
+        iconBg = Color(0xFF10B981).copy(alpha = 0.12f),
+        title = stringResource(R.string.settings_privacy_policy),
+        subtitle = "100% Offline & Private · Zero Data Collection",
+        onClick = { showPrivacyDialog = true }
+      )
+
+      Spacer(Modifier.height(12.dp))
+
+      // 4. App Info Footer (Competitor Minimalist Style)
       Row(
         modifier = Modifier
           .fillMaxWidth()
-          .clip(RoundedCornerShape(12.dp))
-          .background(MaterialTheme.colorScheme.surfaceVariant)
-          .clickable { showLangDialog = true }
-          .padding(14.dp),
+          .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
       ) {
-        Icon(Icons.Default.Language, contentDescription = null, tint = TeachColors.Primary)
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-          Text(stringResource(R.string.language_title), fontWeight = FontWeight.SemiBold)
-          Text(currentLangName, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        Icon(
+          Icons.Default.Info,
+          contentDescription = null,
+          modifier = Modifier.size(16.dp),
+          tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+          "${AppConfig.APP_NAME} v1.0.6 · Offline Digital Whiteboard",
+          fontSize = 12.sp,
+          color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+          fontWeight = FontWeight.Medium
+        )
       }
+    }
+  }
 
-      HorizontalDivider()
+  // Language Selection Dialog (No Emojis, Clean UI)
+  if (showLangDialog) {
+    LanguagePickerDialog(
+      currentTag = prefs.languageTag,
+      onSelectLanguage = { tag ->
+        scope.launch { app.prefs.setLanguageTag(tag) }
+        val locales = if (tag.isBlank()) LocaleListCompat.getEmptyLocaleList() else LocaleListCompat.forLanguageTags(tag)
+        AppCompatDelegate.setApplicationLocales(locales)
+      },
+      onDismiss = { showLangDialog = false }
+    )
+  }
 
-      // Input & Drawing
-      SectionTitle(stringResource(R.string.settings_drawing))
-      ToggleRow(
-        title = stringResource(R.string.palm_rejection_title),
-        subtitle = stringResource(R.string.palm_rejection_desc),
-        checked = prefs.palmRejection,
-        onCheckedChange = { scope.launch { app.prefs.setPalmRejection(it) } }
+  // In-App Privacy Policy Dialog
+  if (showPrivacyDialog) {
+    PrivacyPolicyDialog(onDismiss = { showPrivacyDialog = false })
+  }
+}
+
+@Composable
+private fun SettingCard(
+  icon: androidx.compose.ui.graphics.vector.ImageVector,
+  iconTint: Color,
+  iconBg: Color,
+  title: String,
+  subtitle: String,
+  onClick: () -> Unit
+) {
+  Row(
+    modifier = Modifier
+      .fillMaxWidth()
+      .clip(RoundedCornerShape(22.dp))
+      .background(MaterialTheme.colorScheme.surfaceVariant)
+      .clickable(onClick = onClick)
+      .padding(18.dp),
+    verticalAlignment = Alignment.CenterVertically
+  ) {
+    Box(
+      modifier = Modifier
+        .size(42.dp)
+        .clip(CircleShape)
+        .background(iconBg),
+      contentAlignment = Alignment.Center
+    ) {
+      Icon(
+        imageVector = icon,
+        contentDescription = null,
+        tint = iconTint,
+        modifier = Modifier.size(22.dp)
       )
-      ToggleRow(
-        title = stringResource(R.string.stylus_only_title),
-        subtitle = stringResource(R.string.stylus_only_desc),
-        checked = prefs.stylusOnly,
-        onCheckedChange = { scope.launch { app.prefs.setStylusOnly(it) } }
-      )
-      ToggleRow(
-        title = stringResource(R.string.smart_shapes_title),
-        subtitle = stringResource(R.string.smart_shapes_desc),
-        checked = prefs.smartShapesEnabled,
-        onCheckedChange = { scope.launch { app.prefs.setSmartShapesEnabled(it) } }
-      )
-      ToggleRow(
-        title = stringResource(R.string.auto_save_title),
-        subtitle = stringResource(R.string.auto_save_desc),
-        checked = prefs.autoSaveEnabled,
-        onCheckedChange = { scope.launch { app.prefs.setAutoSave(it) } }
-      )
+    }
 
-      Text(stringResource(R.string.default_board_color), fontWeight = FontWeight.Medium, fontSize = 13.sp)
-      Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-      ) {
-        TeachColors.ClassicBoardPalette.forEach { (_, c) ->
-          Box(
-            modifier = Modifier
-              .size(34.dp)
-              .clip(CircleShape)
-              .background(Color(c))
-              .border(if (prefs.defaultBackgroundColor == c) 3.dp else 1.dp, if (prefs.defaultBackgroundColor == c) TeachColors.Primary else MaterialTheme.colorScheme.outline, CircleShape)
-              .clickable { scope.launch { app.prefs.setDefaultBackground(c, prefs.defaultBackgroundStyle) } }
-          )
-        }
-      }
+    Spacer(Modifier.width(14.dp))
 
-      Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-      ) {
-        BackgroundStyle.entries.forEach { style ->
-          FilterChip(
-            selected = prefs.defaultBackgroundStyle == style,
-            onClick = { scope.launch { app.prefs.setDefaultBackground(prefs.defaultBackgroundColor, style) } },
-            label = { Text(style.name.lowercase().replaceFirstChar { it.uppercase() }, fontSize = 11.sp) }
-          )
-        }
-      }
-
-      HorizontalDivider()
-
-      // Backup & Restore (F-32)
-      SectionTitle(stringResource(R.string.backup_restore_title))
-      Text(stringResource(R.string.backup_restore_desc), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-      Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Button(
-          onClick = { backupLauncher.launch("TeachBoard_Backup_${System.currentTimeMillis()}.zip") },
-          modifier = Modifier.weight(1f)
-        ) {
-          Icon(Icons.Default.Backup, contentDescription = null, modifier = Modifier.size(18.dp))
-          Spacer(Modifier.width(6.dp))
-          Text(stringResource(R.string.backup_zip))
-        }
-        OutlinedButton(
-          onClick = { restoreLauncher.launch(arrayOf("application/zip", "application/octet-stream")) },
-          modifier = Modifier.weight(1f)
-        ) {
-          Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(18.dp))
-          Spacer(Modifier.width(6.dp))
-          Text(stringResource(R.string.restore_zip))
-        }
-      }
-
-      HorizontalDivider()
-
-      // Help, Tour & About
-      SectionTitle(stringResource(R.string.about_section))
-      OutlinedButton(
-        onClick = {
-          TeachBoardTour.resetAll(context)
-          scope.launch {
-            app.prefs.resetHintsAndTour()
-            snackbar.showSnackbar("Walkthrough & tool hints reset")
-          }
-        },
-        modifier = Modifier.fillMaxWidth()
-      ) {
-        Text(stringResource(R.string.reset_tour_hints))
-      }
-      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(onClick = onOpenHelp, modifier = Modifier.weight(1f)) {
-          Text(stringResource(R.string.tool_help))
-        }
-        OutlinedButton(
-          onClick = {
-            val share = Intent(Intent.ACTION_SEND).apply {
-              type = "text/plain"
-              putExtra(Intent.EXTRA_TEXT, "${AppConfig.APP_NAME} — 100% Free Offline Teaching Whiteboard")
-            }
-            context.startActivity(Intent.createChooser(share, "Share"))
-          },
-          modifier = Modifier.weight(1f)
-        ) {
-          Text(stringResource(R.string.share_app))
-        }
-      }
+    Column(modifier = Modifier.weight(1f)) {
       Text(
-        "${AppConfig.APP_NAME} v1.0.0 · 100% Free & Offline · Zero Ads",
+        text = title,
+        fontWeight = FontWeight.Bold,
+        fontSize = 16.sp,
+        color = MaterialTheme.colorScheme.onSurface
+      )
+      Spacer(Modifier.height(2.dp))
+      Text(
+        text = subtitle,
         fontSize = 12.sp,
         color = MaterialTheme.colorScheme.onSurfaceVariant
       )
     }
   }
+}
 
-  if (showLangDialog) {
-    AlertDialog(
-      onDismissRequest = { showLangDialog = false },
-      title = { Text(stringResource(R.string.language_title)) },
-      text = {
-        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-          AppLanguages.forEach { (tag, name) ->
-            Row(
-              modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                  showLangDialog = false
-                  scope.launch { app.prefs.setLanguageTag(tag) }
-                  val locales = if (tag.isBlank()) LocaleListCompat.getEmptyLocaleList() else LocaleListCompat.forLanguageTags(tag)
-                  AppCompatDelegate.setApplicationLocales(locales)
-                }
-                .padding(vertical = 10.dp, horizontal = 4.dp),
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              Text(name, fontWeight = if (prefs.languageTag == tag) FontWeight.Bold else FontWeight.Normal, color = if (prefs.languageTag == tag) TeachColors.Primary else MaterialTheme.colorScheme.onSurface)
-            }
-          }
-        }
-      },
-      confirmButton = {
-        TextButton(onClick = { showLangDialog = false }) { Text(stringResource(R.string.close)) }
+@Composable
+private fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = {
+      Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+          Icons.Default.Security,
+          contentDescription = null,
+          tint = Color(0xFF10B981),
+          modifier = Modifier.size(24.dp)
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+          text = stringResource(R.string.settings_privacy_policy),
+          fontWeight = FontWeight.Bold,
+          fontSize = 18.sp
+        )
       }
+    },
+    text = {
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+      ) {
+        PolicySection(
+          title = "1. Completely Offline",
+          body = "TeachBoard is built as an offline digital whiteboard. All your sketches, equations, notes, and boards remain exclusively on your device."
+        )
+        PolicySection(
+          title = "2. Zero Data Collection",
+          body = "We do not collect, monitor, track, sell, or transmit any personal data, drawing content, or usage information to any remote servers."
+        )
+        PolicySection(
+          title = "3. No Advertisements & No Tracking",
+          body = "TeachBoard contains no third-party advertisements, tracking pixels, or telemetry SDKs. Your creative workspace is 100% private."
+        )
+        PolicySection(
+          title = "4. Device Permissions",
+          body = "Camera and microphone permissions are requested solely for optional on-device actions (inserting photos or recording video lessons with voice). Files are saved directly to your local storage."
+        )
+      }
+    },
+    confirmButton = {
+      TextButton(onClick = onDismiss) {
+        Text(
+          stringResource(R.string.action_close),
+          fontWeight = FontWeight.Bold,
+          color = TeachColors.Primary
+        )
+      }
+    },
+    shape = RoundedCornerShape(24.dp)
+  )
+}
+
+@Composable
+private fun PolicySection(title: String, body: String) {
+  Column {
+    Text(
+      text = title,
+      fontWeight = FontWeight.Bold,
+      fontSize = 13.sp,
+      color = MaterialTheme.colorScheme.onSurface
     )
-  }
-}
-
-@Composable
-private fun SectionTitle(title: String) {
-  Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TeachColors.Primary)
-}
-
-@Composable
-private fun ToggleRow(
-  title: String,
-  subtitle: String,
-  checked: Boolean,
-  onCheckedChange: (Boolean) -> Unit
-) {
-  Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-    Column(modifier = Modifier.weight(1f)) {
-      Text(title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-      Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-    Switch(checked = checked, onCheckedChange = onCheckedChange)
+    Spacer(Modifier.height(2.dp))
+    Text(
+      text = body,
+      fontSize = 12.sp,
+      color = MaterialTheme.colorScheme.onSurfaceVariant,
+      lineHeight = 17.sp
+    )
   }
 }

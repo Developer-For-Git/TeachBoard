@@ -228,6 +228,8 @@ fun CanvasScreen(
   onOpenHelp: () -> Unit
 ) {
   val context = LocalContext.current
+  val config = LocalConfiguration.current
+  val isLandscape = config.orientation == Configuration.ORIENTATION_LANDSCAPE
   val scope = rememberCoroutineScope()
   val ui by viewModel.ui.collectAsState()
   val loadedPrefs by viewModel.loadedUserPrefs.collectAsState()
@@ -1709,42 +1711,89 @@ fun CanvasScreen(
   // ===== Active Dialogs =====
 
   when (activeDialog) {
-    ActiveDialog.BOARD_COLOR -> BoardColorDialog(
-      currentColor = session?.backgroundColor ?: TeachColors.BoardWhite,
-      currentStyle = session?.backgroundStyle ?: com.teachboard.app.domain.model.BackgroundStyle.PLAIN,
-      onApply = { c, s -> viewModel.updateBackground(c, s) },
-      onDismiss = { activeDialog = ActiveDialog.NONE }
-    )
-    ActiveDialog.BRUSH -> BrushDialog(
-      currentTool = if (ui.activeTool.isBrush) ui.activeTool else ui.lastBrushTool,
-      currentColor = ui.brushColor,
-      currentSize = ui.strokeWidth,
-      currentAlpha = ui.alpha,
-      smartShapesEnabled = ui.smartShapesEnabled,
-      onSelectBrush = { viewModel.selectTool(it) },
-      onColorChange = { viewModel.setBrushColor(it) },
-      onSizeChange = { viewModel.setStrokeWidth(it) },
-      onAlphaChange = { viewModel.setAlpha(it) },
-      onSmartShapesChange = { viewModel.setSmartShapesEnabled(it) },
-      onDismiss = { activeDialog = ActiveDialog.NONE }
-    )
-    ActiveDialog.SMART_QUICK -> SmartQuickPopup(
-      selectedLanguageTag = prefs.smartWritingLanguage,
-      isWritingActive = ui.activeTool == ToolType.SmartWriting,
-      isSmartShapesActive = ui.smartShapesEnabled,
-      onSelectWriting = { viewModel.selectTool(ToolType.SmartWriting) },
-      onToggleSmartShapes = {
-        val next = !ui.smartShapesEnabled
-        viewModel.setSmartShapesEnabled(next)
-        if (next) {
-          viewModel.selectTool(ToolType.Pen)
-          if ("smart_shapes_guide" !in prefs.hintsDismissed) showSmartShapesGuide = true
-        }
-        viewModel.showMessage(if (next) "Smart Shapes on" else "Smart Shapes off")
-      },
-      onOpenLanguagePicker = { activeDialog = ActiveDialog.SMART_WRITING_LANGS },
-      onDismiss = { activeDialog = ActiveDialog.NONE }
-    )
+    ActiveDialog.BOARD_COLOR -> {
+      if (isLandscape) {
+        LandscapeBoardColorPanel(
+          currentColor = session?.backgroundColor ?: TeachColors.BoardWhite,
+          currentStyle = session?.backgroundStyle ?: com.teachboard.app.domain.model.BackgroundStyle.PLAIN,
+          onApply = { c, s -> viewModel.updateBackground(c, s) },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      } else {
+        BoardColorDialog(
+          currentColor = session?.backgroundColor ?: TeachColors.BoardWhite,
+          currentStyle = session?.backgroundStyle ?: com.teachboard.app.domain.model.BackgroundStyle.PLAIN,
+          onApply = { c, s -> viewModel.updateBackground(c, s) },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      }
+    }
+    ActiveDialog.BRUSH -> {
+      if (isLandscape) {
+        LandscapeBrushesPanel(
+          currentTool = if (ui.activeTool.isBrush) ui.activeTool else ui.lastBrushTool,
+          currentColor = ui.brushColor,
+          currentSize = ui.strokeWidth,
+          onSelectBrush = { viewModel.selectTool(it) },
+          onColorChange = { viewModel.setBrushColor(it) },
+          onSizeChange = { viewModel.setStrokeWidth(it) },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      } else {
+        BrushDialog(
+          currentTool = if (ui.activeTool.isBrush) ui.activeTool else ui.lastBrushTool,
+          currentColor = ui.brushColor,
+          currentSize = ui.strokeWidth,
+          currentAlpha = ui.alpha,
+          smartShapesEnabled = ui.smartShapesEnabled,
+          onSelectBrush = { viewModel.selectTool(it) },
+          onColorChange = { viewModel.setBrushColor(it) },
+          onSizeChange = { viewModel.setStrokeWidth(it) },
+          onAlphaChange = { viewModel.setAlpha(it) },
+          onSmartShapesChange = { viewModel.setSmartShapesEnabled(it) },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      }
+    }
+    ActiveDialog.SMART_QUICK -> {
+      if (isLandscape) {
+        LandscapeSmartPopover(
+          selectedLanguageTag = prefs.smartWritingLanguage,
+          isWritingActive = ui.activeTool == ToolType.SmartWriting,
+          isSmartShapesActive = ui.smartShapesEnabled,
+          onSelectWriting = { viewModel.selectTool(ToolType.SmartWriting) },
+          onToggleSmartShapes = {
+            val next = !ui.smartShapesEnabled
+            viewModel.setSmartShapesEnabled(next)
+            if (next) {
+              viewModel.selectTool(ToolType.Pen)
+              if ("smart_shapes_guide" !in prefs.hintsDismissed) showSmartShapesGuide = true
+            }
+            viewModel.showMessage(if (next) "Smart Shapes on" else "Smart Shapes off")
+          },
+          onOpenLanguagePicker = { activeDialog = ActiveDialog.SMART_WRITING_LANGS },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      } else {
+        SmartQuickPopup(
+          selectedLanguageTag = prefs.smartWritingLanguage,
+          isWritingActive = ui.activeTool == ToolType.SmartWriting,
+          isSmartShapesActive = ui.smartShapesEnabled,
+          onSelectWriting = { viewModel.selectTool(ToolType.SmartWriting) },
+          onToggleSmartShapes = {
+            val next = !ui.smartShapesEnabled
+            viewModel.setSmartShapesEnabled(next)
+            if (next) {
+              viewModel.selectTool(ToolType.Pen)
+              if ("smart_shapes_guide" !in prefs.hintsDismissed) showSmartShapesGuide = true
+            }
+            viewModel.showMessage(if (next) "Smart Shapes on" else "Smart Shapes off")
+          },
+          onOpenLanguagePicker = { activeDialog = ActiveDialog.SMART_WRITING_LANGS },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      }
+    }
     ActiveDialog.SMART_WRITING_LANGS -> SmartWritingDialog(
       languages = viewModel.digitalInk.supportedLanguages,
       selectedTag = prefs.smartWritingLanguage,
@@ -1756,43 +1805,94 @@ fun CanvasScreen(
       onClearBuffer = { viewModel.clearSmartInkBuffer() },
       onDismiss = { activeDialog = ActiveDialog.NONE }
     )
-    ActiveDialog.SHAPES -> ShapesDialog(
-      selectedShape = if (ui.activeTool.isShape) ui.activeTool else ui.lastShapeTool,
-      isFilled = ui.isFilled,
-      strokeColor = ui.brushColor,
-      fillColor = ui.fillColor,
-      alpha = ui.alpha,
-      onSelectShape = { viewModel.selectTool(it) },
-      onFillToggle = { viewModel.setIsFilled(it) },
-      onFillColorChange = { viewModel.setFillColor(it) },
-      onAlphaChange = { viewModel.setAlpha(it) },
-      onDismiss = { activeDialog = ActiveDialog.NONE }
-    )
-    ActiveDialog.ERASER -> EraserDialog(
-      mode = ui.eraserMode,
-      size = ui.eraserSize,
-      onModeChange = { viewModel.setEraserMode(it) },
-      onSizeChange = { viewModel.setEraserSize(it) },
-      onDismiss = { activeDialog = ActiveDialog.NONE }
-    )
-    ActiveDialog.TEXT -> TextEditorDialog(
-      initialMeta = Serialization.decodeRichText(editingObject?.textContent),
-      initialColor = editingObject?.color ?: ui.brushColor,
-      initialFontSize = editingObject?.fontSize ?: ui.fontSize,
-      onConfirm = { meta, color, size ->
-        viewModel.addTextObject(meta, placeWorldX, placeWorldY, color, size, editingObject?.objectUid)
-      },
-      onDismiss = { editingObject = null; activeDialog = ActiveDialog.NONE }
-    )
-    ActiveDialog.FORMULA -> FormulaDialog(
-      initialLatex = editingObject?.textContent.orEmpty(),
-      initialColor = editingObject?.color ?: ui.brushColor,
-      initialSize = editingObject?.fontSize ?: 44f,
-      onConfirm = { latex, color, size ->
-        viewModel.addFormulaObject(latex, placeWorldX, placeWorldY, color, size, editingObject?.objectUid)
-      },
-      onDismiss = { editingObject = null; activeDialog = ActiveDialog.NONE }
-    )
+    ActiveDialog.SHAPES -> {
+      if (isLandscape) {
+        LandscapeShapesPanel(
+          selectedShape = if (ui.activeTool.isShape) ui.activeTool else ui.lastShapeTool,
+          isFilled = ui.isFilled,
+          onSelectShape = { viewModel.selectTool(it) },
+          onFillToggle = { viewModel.setIsFilled(it) },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      } else {
+        ShapesDialog(
+          selectedShape = if (ui.activeTool.isShape) ui.activeTool else ui.lastShapeTool,
+          isFilled = ui.isFilled,
+          strokeColor = ui.brushColor,
+          fillColor = ui.fillColor,
+          alpha = ui.alpha,
+          onSelectShape = { viewModel.selectTool(it) },
+          onFillToggle = { viewModel.setIsFilled(it) },
+          onFillColorChange = { viewModel.setFillColor(it) },
+          onAlphaChange = { viewModel.setAlpha(it) },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      }
+    }
+    ActiveDialog.ERASER -> {
+      if (isLandscape) {
+        LandscapeEraserPanel(
+          mode = ui.eraserMode,
+          size = ui.eraserSize,
+          onModeChange = { viewModel.setEraserMode(it) },
+          onSizeChange = { viewModel.setEraserSize(it) },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      } else {
+        EraserDialog(
+          mode = ui.eraserMode,
+          size = ui.eraserSize,
+          onModeChange = { viewModel.setEraserMode(it) },
+          onSizeChange = { viewModel.setEraserSize(it) },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      }
+    }
+    ActiveDialog.TEXT -> {
+      if (isLandscape) {
+        LandscapeTextBar(
+          initialColor = editingObject?.color ?: ui.brushColor,
+          initialFontSize = editingObject?.fontSize ?: ui.fontSize,
+          onConfirm = { meta, color, size ->
+            viewModel.addTextObject(meta, placeWorldX, placeWorldY, color, size, editingObject?.objectUid)
+          },
+          onDismiss = { editingObject = null; activeDialog = ActiveDialog.NONE }
+        )
+      } else {
+        TextEditorDialog(
+          initialMeta = Serialization.decodeRichText(editingObject?.textContent),
+          initialColor = editingObject?.color ?: ui.brushColor,
+          initialFontSize = editingObject?.fontSize ?: ui.fontSize,
+          onConfirm = { meta, color, size ->
+            viewModel.addTextObject(meta, placeWorldX, placeWorldY, color, size, editingObject?.objectUid)
+          },
+          onDismiss = { editingObject = null; activeDialog = ActiveDialog.NONE }
+        )
+      }
+    }
+    ActiveDialog.FORMULA -> {
+      if (isLandscape) {
+        LandscapeFormulaPanel(
+          initialLatex = editingObject?.textContent.orEmpty(),
+          initialColor = editingObject?.color ?: ui.brushColor,
+          initialSize = editingObject?.fontSize ?: 44f,
+          onConfirm = { latex, color, size ->
+            viewModel.addFormulaObject(latex, placeWorldX, placeWorldY, color, size, editingObject?.objectUid)
+          },
+          onDismiss = { editingObject = null; activeDialog = ActiveDialog.NONE }
+        )
+      } else {
+        FormulaDialog(
+          initialLatex = editingObject?.textContent.orEmpty(),
+          initialColor = editingObject?.color ?: ui.brushColor,
+          initialSize = editingObject?.fontSize ?: 44f,
+          onConfirm = { latex, color, size ->
+            viewModel.addFormulaObject(latex, placeWorldX, placeWorldY, color, size, editingObject?.objectUid)
+          },
+          onDismiss = { editingObject = null; activeDialog = ActiveDialog.NONE }
+        )
+      }
+    }
     ActiveDialog.TABLE_POPOVER -> TableGridPopover(
       onInsertTable = { r, c ->
         val emptyCells = List(r) { List(c) { "" } }
@@ -1839,57 +1939,110 @@ fun CanvasScreen(
       onDeletePage = { viewModel.deletePage(it) },
       onDismiss = { activeDialog = ActiveDialog.NONE }
     )
-    ActiveDialog.OCR -> OcrDialog(
-      selectedScript = ocrScript,
-      onSelectScript = { ocrScript = it },
-      ocrResult = ocrResult,
-      isProcessing = ocrProcessing,
-      recentScans = recentOcrScans,
-      onTakePhoto = {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-          val opts = CropImageOptions().apply { imageSourceIncludeCamera = true; imageSourceIncludeGallery = false }
-          ocrCropLauncher.launch(CropImageContractOptions(null, opts))
-        } else ocrCameraPermLauncher.launch(Manifest.permission.CAMERA)
-      },
-      onChooseGallery = {
-        val opts = CropImageOptions().apply { imageSourceIncludeCamera = false; imageSourceIncludeGallery = true }
-        ocrCropLauncher.launch(CropImageContractOptions(null, opts))
-      },
-      onInsertText = { txt -> viewModel.addTextObject(Serialization.RichTextMeta(txt)) },
-      onCopyText = { txt ->
-        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        cm.setPrimaryClip(ClipData.newPlainText("OCR Text", txt))
-        viewModel.showMessage("Copied to clipboard")
-      },
-      onShareText = { txt ->
-        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, txt) }, "Share text"))
-      },
-      onDeleteScan = { viewModel.deleteOcrScan(it) },
-      onDismiss = { activeDialog = ActiveDialog.NONE }
-    )
+    ActiveDialog.OCR -> {
+      if (isLandscape && ocrResult == null && !ocrProcessing) {
+        LandscapeOcrPanel(
+          onTakePhoto = {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+              val opts = CropImageOptions().apply { imageSourceIncludeCamera = true; imageSourceIncludeGallery = false }
+              ocrCropLauncher.launch(CropImageContractOptions(null, opts))
+            } else ocrCameraPermLauncher.launch(Manifest.permission.CAMERA)
+          },
+          onChooseGallery = {
+            val opts = CropImageOptions().apply { imageSourceIncludeCamera = false; imageSourceIncludeGallery = true }
+            ocrCropLauncher.launch(CropImageContractOptions(null, opts))
+          },
+          onOpenHistory = {
+            if (recentOcrScans.isEmpty()) {
+              viewModel.showMessage("No scan history yet")
+            }
+          },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      } else {
+        OcrDialog(
+          selectedScript = ocrScript,
+          onSelectScript = { ocrScript = it },
+          ocrResult = ocrResult,
+          isProcessing = ocrProcessing,
+          recentScans = recentOcrScans,
+          onTakePhoto = {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+              val opts = CropImageOptions().apply { imageSourceIncludeCamera = true; imageSourceIncludeGallery = false }
+              ocrCropLauncher.launch(CropImageContractOptions(null, opts))
+            } else ocrCameraPermLauncher.launch(Manifest.permission.CAMERA)
+          },
+          onChooseGallery = {
+            val opts = CropImageOptions().apply { imageSourceIncludeCamera = false; imageSourceIncludeGallery = true }
+            ocrCropLauncher.launch(CropImageContractOptions(null, opts))
+          },
+          onInsertText = { txt -> viewModel.addTextObject(Serialization.RichTextMeta(txt)) },
+          onCopyText = { txt ->
+            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cm.setPrimaryClip(ClipData.newPlainText("OCR Text", txt))
+            viewModel.showMessage("Copied to clipboard")
+          },
+          onShareText = { txt ->
+            context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, txt) }, "Share text"))
+          },
+          onDeleteScan = { viewModel.deleteOcrScan(it) },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      }
+    }
     ActiveDialog.WEB_IMAGE -> WikimediaSearchDialog(
       onPickImage = { viewModel.addWikimediaImage(it) },
       onDismiss = { activeDialog = ActiveDialog.NONE }
     )
-    ActiveDialog.STICKERS_GENERAL -> StickerPickerDialog(
-      group = StickerGroup.GENERAL,
-      initialColor = ui.brushColor,
-      onPick = { id, col -> viewModel.addStickerObject(id, col) },
-      onDismiss = { activeDialog = ActiveDialog.NONE }
-    )
-    ActiveDialog.STICKERS_SCIENCE -> StickerPickerDialog(
-      group = StickerGroup.SCIENCE,
-      initialColor = ui.brushColor,
-      onPick = { id, col -> viewModel.addStickerObject(id, col) },
-      onDismiss = { activeDialog = ActiveDialog.NONE }
-    )
-    ActiveDialog.LASER -> LaserDialog(
-      currentColor = ui.laserColor,
-      currentSize = ui.laserSize,
-      onColorChange = { viewModel.setLaserColor(it) },
-      onSizeChange = { viewModel.setLaserSize(it) },
-      onDismiss = { activeDialog = ActiveDialog.NONE }
-    )
+    ActiveDialog.STICKERS_GENERAL -> {
+      if (isLandscape) {
+        LandscapeStickersPanel(
+          onPickSticker = { id, col -> viewModel.addStickerObject(id, col) },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      } else {
+        StickerPickerDialog(
+          group = StickerGroup.GENERAL,
+          initialColor = ui.brushColor,
+          onPick = { id, col -> viewModel.addStickerObject(id, col) },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      }
+    }
+    ActiveDialog.STICKERS_SCIENCE -> {
+      if (isLandscape) {
+        LandscapeSciencePanel(
+          onPickSticker = { id, col -> viewModel.addStickerObject(id, col) },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      } else {
+        StickerPickerDialog(
+          group = StickerGroup.SCIENCE,
+          initialColor = ui.brushColor,
+          onPick = { id, col -> viewModel.addStickerObject(id, col) },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      }
+    }
+    ActiveDialog.LASER -> {
+      if (isLandscape) {
+        LandscapeLaserPanel(
+          currentColor = ui.laserColor,
+          currentSize = ui.laserSize,
+          onColorChange = { viewModel.setLaserColor(it) },
+          onSizeChange = { viewModel.setLaserSize(it) },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      } else {
+        LaserDialog(
+          currentColor = ui.laserColor,
+          currentSize = ui.laserSize,
+          onColorChange = { viewModel.setLaserColor(it) },
+          onSizeChange = { viewModel.setLaserSize(it) },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      }
+    }
     ActiveDialog.GEOMETRY -> GeometryPickerDialog(
       activeTool = ui.activeGeometryTool,
       onSelect = {
@@ -1900,26 +2053,51 @@ fun CanvasScreen(
       },
       onDismiss = { activeDialog = ActiveDialog.NONE }
     )
-    ActiveDialog.RECORD -> ScreenRecorderDialog(
-      onStartRecording = { q, audio, faceCam, shape ->
-        pendingRecQuality = q
-        pendingRecAudio = audio
-        pendingRecFaceCam = faceCam
-        pendingRecCamShape = shape
-        activeDialog = ActiveDialog.NONE
-        val needed = mutableListOf<String>()
-        if (audio) needed.add(Manifest.permission.RECORD_AUDIO)
-        if (faceCam) needed.add(Manifest.permission.CAMERA)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) needed.add(Manifest.permission.POST_NOTIFICATIONS)
-        val missing = needed.filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
-        if (missing.isNotEmpty()) {
-          recordPermissionsLauncher.launch(missing.toTypedArray())
-        } else {
-          startRecordingWithCountdown()
-        }
-      },
-      onDismiss = { activeDialog = ActiveDialog.NONE }
-    )
+    ActiveDialog.RECORD -> {
+      if (isLandscape) {
+        LandscapeRecorderPanel(
+          onStartRecording = { q, audio, faceCam ->
+            pendingRecQuality = q
+            pendingRecAudio = audio
+            pendingRecFaceCam = faceCam
+            pendingRecCamShape = FaceCamShape.ROUND
+            activeDialog = ActiveDialog.NONE
+            val needed = mutableListOf<String>()
+            if (audio) needed.add(Manifest.permission.RECORD_AUDIO)
+            if (faceCam) needed.add(Manifest.permission.CAMERA)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) needed.add(Manifest.permission.POST_NOTIFICATIONS)
+            val missing = needed.filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
+            if (missing.isNotEmpty()) {
+              recordPermissionsLauncher.launch(missing.toTypedArray())
+            } else {
+              startRecordingWithCountdown()
+            }
+          },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      } else {
+        ScreenRecorderDialog(
+          onStartRecording = { q, audio, faceCam, shape ->
+            pendingRecQuality = q
+            pendingRecAudio = audio
+            pendingRecFaceCam = faceCam
+            pendingRecCamShape = shape
+            activeDialog = ActiveDialog.NONE
+            val needed = mutableListOf<String>()
+            if (audio) needed.add(Manifest.permission.RECORD_AUDIO)
+            if (faceCam) needed.add(Manifest.permission.CAMERA)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) needed.add(Manifest.permission.POST_NOTIFICATIONS)
+            val missing = needed.filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
+            if (missing.isNotEmpty()) {
+              recordPermissionsLauncher.launch(missing.toTypedArray())
+            } else {
+              startRecordingWithCountdown()
+            }
+          },
+          onDismiss = { activeDialog = ActiveDialog.NONE }
+        )
+      }
+    }
     ActiveDialog.SHARE_EXPORT -> ShareExportDialog(
       pageCount = totalPages,
       currentPage = ui.pageIndex,
